@@ -1,0 +1,31 @@
+# -----------------------------
+# Server 設定不需重複寫 context-path
+# Docker 仍會套用 application.yml 的 /api
+# -----------------------------
+server:
+  port: ${PORT:8080}
+
+# -----------------------------
+# Redis 使用 Docker 環境變數
+# -----------------------------
+spring:
+  config:
+    env_file:
+      - .env
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  data:
+    redis:
+      host: redis
+      port: 6379
+      database: 0
+      timeout: 2000
+      password: ${REDIS_PASSWORD}
+
+  # Datasource 使用 Docker 環境變數
+  datasource:
+    url: jdbc:postgresql://db:5432/interviewworks?currentSchema=interviewworks_ticket
+    username: postgres
+    password: ${POSTGRES_PASSWORD}

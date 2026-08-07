@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.demo.ticket.Mapper.LoginMapper">
+
+    <insert id="create">
+        insert
+        into "interviewworks_ticket"."user_data" (name,
+                                                  email,
+                                                  phone,
+                                                  password,
+                                                  birthday,
+                                                  permissions)
+        values (
+                #{name},
+                #{email},
+                #{phone},
+                #{password},
+                '',
+                'USER'
+               )
+    </insert>
+
+    <select id="select" resultType="java.util.Map">
+        select
+            SPLIT_PART(ud.email, '@', 1) as account,
+            ud."name",
+            ud.email,
+            ud.phone,
+            ud."password",
+            ud.birthday,
+            ud.permissions
+        from "interviewworks_ticket"."user_data" ud
+        where SPLIT_PART(ud.email, '@', 1) = #{account}
+    </select>
+
+    <select id="selectPermissions" resultType="java.lang.String">
+        select
+            permissions.code
+        from "interviewworks_ticket"."user_data" user_data
+                 right join "interviewworks_ticket".permissions permissions
+                            on
+                                user_data.permissions = permissions.description
+        where SPLIT_PART(user_data.email, '@', 1) = #{account}
+    </select>
+
+    <update id="save">
+        update "interviewworks_ticket"."user_data" ud
+        set phone = #{phone},
+            birthday = #{birthday}
+        where name = #{name}
+          and email = #{email}
+    </update>
+
+</mapper>

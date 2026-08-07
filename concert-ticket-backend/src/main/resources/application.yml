@@ -1,0 +1,72 @@
+# -----------------------------
+# JWT ??
+# -----------------------------
+jwt:
+  refreshExpirationSeconds: 1800
+  accessExpirationSeconds: 300
+
+# -----------------------------
+# Server ??
+# -----------------------------
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# -----------------------------
+# Spring Boot ????
+# -----------------------------
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  application:
+    name: demo-app-test
+
+  # Redis ????
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 2000
+      password: ${REDIS_PASSWORD}
+
+  # ???????
+  datasource:
+    url: jdbc:postgresql://localhost:5432/interviewworks?currentSchema=interviewworks_ticket
+    username: postgres
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+# -----------------------------
+# MyBatis ??
+# -----------------------------
+mybatis:
+  mapper-locations: classpath:Mapper/**/*.xml  #????????mapper??xml???????
+  configuration:
+    #org.apache.ibatis.logging.stdout.StdOutImpl ?????sql??????sql??????
+    #org.apache.ibatis.logging.log4j2.Log4j2Impl ?????????????,???log4j???
+    #org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl ?????????????,???log4j???
+    log-impl: org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl
+    mapUnderscoreToCamelCase: true # ?????????
+
+# -----------------------------
+# Logging ??
+# -----------------------------
+logging:
+  config: classpath:log4j2.xml
+  # ????
+  level:
+    #??????dao?????mapper??????
+    com.example.demo.Mapper: DEBUG
+    me.paulschwarz: DEBUG

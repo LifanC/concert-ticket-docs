@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.demo.ticket.Mapper.AdminMapper">
+
+    <select id="selectAllActivities" resultType="java.util.Map">
+        select
+            id,
+            "name",
+            category,
+            "date",
+            venue,
+            status,
+            price,
+            description
+        from
+            "interviewworks_ticket"."activity"
+        order by id
+    </select>
+
+    <select id="selectAllSessions" resultType="java.util.Map">
+        select
+            id,
+            activity,
+            "date",
+            "time",
+            salesdate,
+            salestime,
+            capacity,
+            sold
+        from
+            "interviewworks_ticket"."session"
+        order by id
+    </select>
+
+    <select id="selectAllticket" resultType="java.util.Map">
+        select
+            orderno,
+            customer,
+            "name",
+            "time",
+            "date",
+            "time",
+            status,
+            price
+        from
+            "interviewworks_ticket".ticket
+        order by ticket.created_date, ticket.updated_date
+    </select>
+
+    <insert id="create_activity">
+        INSERT INTO "interviewworks_ticket"."activity"
+        (
+            id,
+            "name",
+            category,
+            "date",
+            venue,
+            status,
+            price,
+            description
+        )
+        VALUES
+            (
+                #{id},
+                #{name},
+                #{category},
+                #{date},
+                #{venue},
+                #{status},
+                #{price},
+                #{description}
+            )
+            ON CONFLICT (id)
+        DO UPDATE SET
+                       "name" = EXCLUDED."name",
+                       category = EXCLUDED.category,
+                       "date" = EXCLUDED."date",
+                       venue = EXCLUDED.venue,
+                       status = EXCLUDED.status,
+                       price = EXCLUDED.price,
+                       description = EXCLUDED.description
+    </insert>
+
+    <delete id="delete_activity">
+        DELETE FROM "interviewworks_ticket"."activity"
+        WHERE id = #{id}
+    </delete>
+
+    <insert id="create_session">
+        INSERT INTO "interviewworks_ticket"."session"
+        (
+            id,
+            activity,
+            "date",
+            "time",
+            salesdate,
+            salestime,
+            capacity,
+            sold
+        )
+        VALUES
+            (
+                #{id},
+                #{activity},
+                #{date},
+                #{time},
+                #{salesdate},
+                #{salestime},
+                #{capacity},
+                #{sold}
+            )
+            ON CONFLICT (id)
+        DO UPDATE SET
+                       activity = EXCLUDED.activity,
+                       "date" = EXCLUDED."date",
+                       "time" = EXCLUDED."time",
+                       salesdate = EXCLUDED.salesdate,
+                       salestime = EXCLUDED.salestime,
+                       capacity = EXCLUDED.capacity,
+                       sold = EXCLUDED.sold
+    </insert>
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

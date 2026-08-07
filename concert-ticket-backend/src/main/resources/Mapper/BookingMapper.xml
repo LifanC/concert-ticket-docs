@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.demo.ticket.Mapper.BookingMapper">
+
+    <select id="selectOnlyActivities" resultType="java.util.Map">
+        select distinct
+            activity.id,
+            '主舞台・' || activity."name" as note,
+            TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "value",
+            TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'FMMM"月"FMDD"日"')
+                || ' (' ||
+            CASE EXTRACT(ISODOW FROM TO_DATE("session"."date", 'YYYY/MM/DD'))
+                WHEN 1 THEN '一'
+                WHEN 2 THEN '二'
+                WHEN 3 THEN '三'
+                WHEN 4 THEN '四'
+                WHEN 5 THEN '五'
+                WHEN 6 THEN '六'
+                WHEN 7 THEN '日'
+                end || ') ' AS "label"
+        FROM "interviewworks_ticket"."activity" activity
+                INNER JOIN "interviewworks_ticket"."session" "session"
+                           ON activity."name" = "session".activity
+        where activity."name" = #{activityName}
+        ORDER BY activity.id
+    </select>
+
+    <select id="selectOnlySession" resultType="java.util.Map">
+        select
+            "session".id,
+            "session"."time" as "value",
+            "session"."time" || ' ' ||
+            CASE
+                WHEN "session"."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
+			    WHEN "session"."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
+			    ELSE '星空場'
+            END AS "label",
+                "session".capacity as available
+        FROM "interviewworks_ticket"."session" "session"
+        where "session"."date" = #{date}
+        ORDER BY "session"."date"
+    </select>
+
+    <select id="selectOnlyActivitiesPrice" resultType="java.util.Map">
+        select
+            activity.id,
+            activity.price
+        FROM "interviewworks_ticket"."activity" activity
+        where activity.id = #{activityId}
+    </select>
+
+    <insert id="create">
+        insert
+        into "interviewworks_ticket"."user_data" (name,
+                                                  email,
+                                                  phone,
+                                                  password,
+                                                  birthday,
+                                                  permissions)
+        values (
+                   #{name},
+                   #{email},
+                   #{phone},
+                   #{password},
+                   '',
+                   ''
+               )
+    </insert>
+
+    <insert id="saveTicket">
+        INSERT INTO "interviewworks_ticket".ticket
+        (
+            orderno,
+            customer,
+            email,
+            "name",
+            "date",
+            "time",
+            status,
+            price
+        )
+        VALUES
+            (
+                #{orderno},
+                #{customer},
+                #{email},
+                #{name},
+                #{date},
+                #{time},
+                #{status},
+                #{price}
+            )
+            ON CONFLICT (orderno)
+        DO UPDATE SET
+                       customer = EXCLUDED.customer,
+                       email = EXCLUDED.email,
+                       "name" = EXCLUDED."name",
+                       "date" = EXCLUDED."date",
+                       "time" = EXCLUDED."time",
+                       status = EXCLUDED.status,
+                       price = EXCLUDED.price
+    </insert>
+
+    <select id="selectOnlyTicket" resultType="java.util.Map">
+        select
+            ticket.orderno,
+            ticket."name",
+            ticket."date" ||
+            CASE
+                WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
+			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
+			    ELSE '星空場'
+            END AS "date",
+            ticket.status
+        FROM "interviewworks_ticket".ticket ticket
+        WHERE ticket.customer = #{customer}
+        ORDER BY ticket.created_date, ticket.updated_date
+    </select>
+
+    <update id="cancelTicket">
+        update "interviewworks_ticket".ticket ticket
+        set status = #{status}
+        where orderno = #{orderno}
+    </update>
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
