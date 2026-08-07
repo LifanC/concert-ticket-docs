@@ -62,5 +62,5 @@ npm install
 npm run dev
 ```
 
-## [演唱會訂票系統 後端](https://github.com/LifanC/concert-ticket-backend)
+
 

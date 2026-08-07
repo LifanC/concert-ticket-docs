@@ -112,4 +112,3 @@ Controller ✅
 - **Security**
     - CORS（跨來源資源共享設定）
 
-## [演唱會訂票系統 前端](https://github.com/LifanC/concert-ticket-frontend)
