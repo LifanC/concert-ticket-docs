@@ -89,5 +89,5 @@ Docker-Compose (Run)
 ```
 
 ##
-## [演唱會訂票系統 前端](https://github.com/LifanC/concert-ticket-frontend)
-## [演唱會訂票系統 後端](https://github.com/LifanC/concert-ticket-backend)
+## [演唱會訂票系統 前端](https://github.com/LifanC/concert-ticket-docs/concert-ticket-frontend)
+## [演唱會訂票系統 後端](https://github.com/LifanC/concert-ticket-docs/concert-ticket-backend)
