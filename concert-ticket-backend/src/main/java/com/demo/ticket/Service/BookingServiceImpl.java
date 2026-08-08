@@ -4,9 +4,7 @@ import com.demo.ticket.Common.RedisKey;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.ApiResponse;
-import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
-import com.demo.ticket.Dto.Booking.BookingSaveTicket;
-import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
+import com.demo.ticket.Dto.Booking.*;
 import com.demo.ticket.Mapper.BookingMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -19,13 +17,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 @Service
-public class BookingServiceImpl implements  BookingService {
+public class BookingServiceImpl implements BookingService {
 
     private final Logger logger = LoggerFactory.getLogger(BookingServiceImpl.class);
 
@@ -79,11 +74,11 @@ public class BookingServiceImpl implements  BookingService {
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         String emailCutOff = email.substring(0, email.indexOf('@'));
-        final String refreshRedisKey = String.format(
-                RedisKey.redisKey.get("refresh"),
-                emailCutOff
-        );
         try {
+            final String refreshRedisKey = String.format(
+                    RedisKey.redisKey.get("refresh"),
+                    emailCutOff
+            );
             jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
@@ -122,7 +117,7 @@ public class BookingServiceImpl implements  BookingService {
                             new NotificationMessage(
                                     email,
                                     "新通知",
-                                    "建立新的訂單"
+                                    "尚未付款"
                             );
                     notifier.sendNotification(message);
                 }
@@ -152,11 +147,11 @@ public class BookingServiceImpl implements  BookingService {
         String emailCutOff = email.substring(0, email.indexOf('@'));
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("judge", false);
-        final String refreshRedisKey = String.format(
-                RedisKey.redisKey.get("refresh"),
-                emailCutOff
-        );
         try {
+            final String refreshRedisKey = String.format(
+                    RedisKey.redisKey.get("refresh"),
+                    emailCutOff
+            );
             jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
@@ -201,5 +196,61 @@ public class BookingServiceImpl implements  BookingService {
                         status,
                         data
                 ));
+    }
+
+    @Override
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public Map<String, Object> sessionSalesDate(BookingSessionSalesDateRequest request) {
+        final String email = request.getEmail().trim();
+        final String name = request.getName().trim();
+        final String date = request.getDate().trim();
+        final String time = request.getTime().trim();
+        final String accessToken = request.getToken().trim();
+        String emailCutOff = email.substring(0, email.indexOf('@'));
+        Map<String, Object> dataMap = new HashMap<>();
+        try {
+            final String refreshRedisKey = String.format(
+                    RedisKey.redisKey.get("refresh"),
+                    emailCutOff
+            );
+            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (售賣日期)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (售賣日期) Token 已過期", accessJwt);
+            } else {
+                final String blacklistRedisKey = String.format(
+                        RedisKey.redisKey.get("blacklist"),
+                        accessJtId
+                );
+                if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
+                    logger.error("{} : (售賣日期)Token 已被撤銷", accessJwt);
+                } else {
+                    SalesDate salesDate = new SalesDate();
+                    salesDate.setActivity(name);
+                    salesDate.setDate(date);
+                    salesDate.setTime(time);
+                    List<Map<String, Object>> data = bookingMapper.sessionSalesDate(salesDate);
+                    if (!data.isEmpty()) {
+                        dataMap = data.getFirst();
+                    }
+                }
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("{} : (售賣日期)無效的 JWT token", emailCutOff);
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return dataMap;
+
     }
 }

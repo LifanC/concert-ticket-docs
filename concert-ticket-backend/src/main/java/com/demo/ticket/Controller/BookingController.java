@@ -2,6 +2,7 @@ package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
 import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
+import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
 import com.demo.ticket.Service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -68,7 +69,7 @@ public class BookingController {
         return bookingService.saveTicket(request);
     }
 
-    @Operation(summary = "3.新增訂單", description = "新增訂單")
+    @Operation(summary = "4.取消訂單", description = "取消訂單")
     @PutMapping("/cancelOrder")
     public ResponseEntity<?> cancelOrder(
             @Valid
@@ -78,6 +79,18 @@ public class BookingController {
             @RequestHeader("Authorization") String authHeader) {
         request.setAuthHeader(authHeader);
         return bookingService.cancelOrder(request);
+    }
+
+    @Operation(summary = "5.售賣日期", description = "售賣日期")
+    @PostMapping("/sessionSalesDate")
+    public Map<String, Object> sessionSalesDate(
+            @Valid
+            @RequestBody
+            BookingSessionSalesDateRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.sessionSalesDate(request);
     }
 
 

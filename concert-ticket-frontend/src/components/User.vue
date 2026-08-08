@@ -1,11 +1,12 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from "axios";
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 
 axios.defaults.baseURL = 'http://localhost:8080/api/v1/login'
 axios.defaults.withCredentials = true;
 
+const route = useRoute()
 const router = useRouter()
 const activeTab = ref('login')
 const isLoggedIn = ref(false)
@@ -67,11 +68,20 @@ const logoutForm = ref(
 
 executeFirst()
 function executeFirst() {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    isLoggedIn.value = true
+  let is = route.query.isLoggedIn
+  if (is != undefined) {
+    if (is === 'false') {
+      isLoggedIn.value = false
+      clearCookie('email')
+      clearCookie('accessToken')
+    }
   } else {
-    router.push('/User')
+    let accessToken = toFindCookie('accessToken')
+    if (accessToken) {
+      isLoggedIn.value = true
+    } else {
+      isLoggedIn.value = false
+    }
   }
 }
 
@@ -271,10 +281,6 @@ const logout = async () => {
         loginForm.account = '';
         loginForm.password = '';
       } else {
-        ElMessage({
-          type: 'info',
-          message: `${'失敗'}`,
-        })
         isLoggedIn.value = true
       }
     } catch (error) {
@@ -282,7 +288,7 @@ const logout = async () => {
         type: 'info',
         message: `${'失敗'}`,
       })
-      isLoggedIn.value = true
+      isLoggedIn.value = false
       clearCookie('email')
       clearCookie('accessToken')
     }

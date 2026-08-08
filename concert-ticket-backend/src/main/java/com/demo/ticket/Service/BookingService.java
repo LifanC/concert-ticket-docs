@@ -2,6 +2,7 @@ package com.demo.ticket.Service;
 
 import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
 import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
+import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 
@@ -21,4 +22,6 @@ public interface BookingService {
     ResponseEntity<?> saveTicket(@Valid BookingSaveTicketRequest request);
 
     ResponseEntity<?> cancelOrder(@Valid BookingCanceTicketRequest request);
+
+    Map<String, Object> sessionSalesDate(@Valid BookingSessionSalesDateRequest request);
 }

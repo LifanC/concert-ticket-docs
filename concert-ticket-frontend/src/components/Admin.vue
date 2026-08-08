@@ -28,8 +28,17 @@ async function executeFirst() {
       activities.value = response.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
     }
     // selectAllSessions建立場次
@@ -41,8 +50,17 @@ async function executeFirst() {
       sessions.value = response.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
     }
     // selectAllticket
@@ -52,15 +70,32 @@ async function executeFirst() {
         url: '/selectAllticket',
       });
       orders.value = response.data
-      console.log(orders.value)
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
     }
   } else {
-    router.push('/User')
+    router.push(
+      {
+        path: '/User',
+        query: {
+          isLoggedIn: false
+        }
+      }
+    )
+    clearCookie('email')
+    clearCookie('accessToken')
   }
 }
 
@@ -169,8 +204,17 @@ const saveActivity = async () => {
       dialogVisible.value = false
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       } else {
         let data = error.response.data.data[1]?.error ?? {}
         activityFormNotOk.value = {
@@ -184,7 +228,16 @@ const saveActivity = async () => {
       dialogVisible.value = true
     }
   } else {
-    router.push('/User')
+    router.push(
+      {
+        path: '/User',
+        query: {
+          isLoggedIn: false
+        }
+      }
+    )
+    clearCookie('email')
+    clearCookie('accessToken')
   }
 }
 const deleteActivity = async (activity) => {
@@ -208,12 +261,30 @@ const deleteActivity = async (activity) => {
       activities.value = response.data.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
     }
   } else {
-    router.push('/User')
+    router.push(
+      {
+        path: '/User',
+        query: {
+          isLoggedIn: false
+        }
+      }
+    )
+    clearCookie('email')
+    clearCookie('accessToken')
   }
 }
 const createSession = async () => {
@@ -247,8 +318,17 @@ const createSession = async () => {
       sessions.value = response.data.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       } else {
         let data = error.response.data.data[1]?.error ?? {}
         sessionFormNotOk.value = {
@@ -260,7 +340,16 @@ const createSession = async () => {
       }
     }
   } else {
-    router.push('/User')
+    router.push(
+      {
+        path: '/User',
+        query: {
+          isLoggedIn: false
+        }
+      }
+    )
+    clearCookie('email')
+    clearCookie('accessToken')
   }
 }
 const statusType = (status) => (

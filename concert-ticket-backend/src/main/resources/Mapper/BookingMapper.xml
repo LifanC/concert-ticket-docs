@@ -105,12 +105,13 @@
         select
             ticket.orderno,
             ticket."name",
-            ticket."date" ||
+            ticket."date",
+            ticket."time",
             CASE
                 WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
 			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
 			    ELSE '星空場'
-            END AS "date",
+        END AS timename,
             ticket.status
         FROM "interviewworks_ticket".ticket ticket
         WHERE ticket.customer = #{customer}
@@ -122,6 +123,20 @@
         set status = #{status}
         where orderno = #{orderno}
     </update>
+
+    <select id="sessionSalesDate" resultType="java.util.Map">
+        select distinct
+            "session".activity,
+            "session"."date",
+            "session"."time",
+            "session".salesdate,
+            "session".salestime
+        from "interviewworks_ticket"."session" "session"
+        where "session".activity = #{activity}
+          and "session"."date" = #{date}
+          and "session"."time" = #{time}
+        order by "session"."date" desc
+    </select>
 
 </mapper>
 

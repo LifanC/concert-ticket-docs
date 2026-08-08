@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               "time" varchar NOT NULL,
                                               status varchar NOT NULL,
                                               price int8 NULL DEFAULT 0,
+                                              payprice int8 NULL DEFAULT 0,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               CONSTRAINT ticket_pk PRIMARY KEY (orderno)

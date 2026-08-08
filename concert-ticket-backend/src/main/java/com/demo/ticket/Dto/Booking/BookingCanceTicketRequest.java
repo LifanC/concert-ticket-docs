@@ -11,7 +11,7 @@ import jakarta.validation.constraints.*;
                 "status",
         }
 )
-@Schema(description = "新增訂單")
+@Schema(description = "取消訂單")
 public class BookingCanceTicketRequest {
 
     @Schema(
@@ -42,13 +42,13 @@ public class BookingCanceTicketRequest {
 
     @Schema(
             description = "狀態",
-            example = "狀態只能為 已成立",
+            example = "狀態只能為 已成立、待付款",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "狀態不可為空")
     @Pattern(
-            regexp = "^(已成立|已取消)$",
-            message = "狀態只能為 已成立、已取消"
+            regexp = "^(已成立|待付款)$",
+            message = "狀態只能為 已成立、待付款"
     )
     private String status;
 

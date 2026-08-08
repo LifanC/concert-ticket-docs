@@ -40,8 +40,17 @@ const selectOnlyActivities = async () => {
     dates.value = response.data
   } catch (error) {
     let status = error.response.status ?? {}
-    if (status === 403) {
-      router.push('/User')
+    if (status === 403 || status === 500) {
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: false
+          }
+        }
+      )
+      clearCookie('email')
+      clearCookie('accessToken')
     }
   }
 }
@@ -62,12 +71,30 @@ async function executeFirst() {
       tickets.value = response.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
     }
   } else {
-    router.push('/User')
+    router.push(
+      {
+        path: '/User',
+        query: {
+          isLoggedIn: false
+        }
+      }
+    )
+    clearCookie('email')
+    clearCookie('accessToken')
   }
 }
 
@@ -92,8 +119,17 @@ const handleDateChange = async (datedate) => {
     selectedPrice.value = responsePrice.data.price
   } catch (error) {
     let status = error.response.status ?? {}
-    if (status === 403) {
-      router.push('/User')
+    if (status === 403 || status === 500) {
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: false
+          }
+        }
+      )
+      clearCookie('email')
+      clearCookie('accessToken')
     }
   }
 }
@@ -101,6 +137,7 @@ const handleDateChange = async (datedate) => {
 const step = ref(0)
 const ticketDialogVisible = ref(false)
 const myTicketsVisible = ref(false)
+const paypriceDialogVisible = ref(false)
 const selectedDate = ref()
 const selectedSession = ref()
 const selectedPrice = ref(0)
@@ -108,6 +145,9 @@ const selectedPrice = ref(0)
 const bookingSteps = ['選日期', '選場次', '建立訂單']
 const dates = ref([])
 const sessions = ref([])
+
+const paypricedate = ref('')
+const paypricetime = ref('')
 
 const ticketForm = reactive(
   {
@@ -118,6 +158,16 @@ const ticketForm = reactive(
     date: '',
     status: '已成立',
     price: 0
+  }
+)
+
+const paypriceForm = reactive(
+  {
+    orderno: '',
+    email: '',
+    name: '',
+    date: '',
+    time: ''
   }
 )
 
@@ -152,7 +202,8 @@ const createOrder = async () => {
         name: selectedActivityName.value,
         date: selectedDate.value,
         time: selectedSession.value,
-        price: selectedPrice
+        price: selectedPrice,
+        status: '待付款'
       }
     )
     try {
@@ -169,8 +220,17 @@ const createOrder = async () => {
       tickets.value = response.data.data
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
       myTicketsVisible.value = false
       ticketDialogVisible.value = true
@@ -211,8 +271,17 @@ const cancelOrder = async (ticket) => {
       }
     } catch (error) {
       let status = error.response.status ?? {}
-      if (status === 403) {
-        router.push('/User')
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
       }
       myTicketsVisible.value = false
     }
@@ -223,9 +292,70 @@ const cancelOrder = async (ticket) => {
     })
   }
 }
+const payprice = async (payprice) => {
+  let accessToken = toFindCookie('accessToken')
+  if (accessToken) {
+    Object.assign(
+      paypriceForm,
+      {
+        email: toFindCookie('email'),
+        name: payprice.name,
+        date: payprice.date,
+        time: payprice.time
+      }
+    )
+    try {
+      const response = await axios({
+        method: 'post',
+        url: '/sessionSalesDate',
+        data: paypriceForm,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      paypricedate.value = response.data.date
+      paypricetime.value = response.data.time
+      paypriceDialogVisible.value = true
+    } catch (error) {
+      let status = error.response.status ?? {}
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
+          }
+        )
+        clearCookie('email')
+        clearCookie('accessToken')
+      }
+      paypriceDialogVisible.value = false
+    }
+  } else {
+    ElMessage({
+      type: 'error',
+      message: `${'尚未登入'}`,
+    })
+    paypriceDialogVisible.value = false
+  }
+}
+const dopayprice = async (payprice) => {
+  // let accessToken = toFindCookie('accessToken')
+  // if (accessToken) {
+
+  // } else {
+  //   ElMessage({
+  //     type: 'error',
+  //     message: `${'尚未登入'}`,
+  //   })
+  // }
+}
 const statusType = (status) => (
   {
     '已成立': 'success',
+    '已付款': 'success',
+    '待付款': 'warning',
     '已取消': 'info'
   }[status] || 'warning'
 )
@@ -251,7 +381,7 @@ function connectWebSocket() {
             notification
           );
           ElMessage({
-            type: 'info',
+            type: 'success',
             message:
               notification.title +
               "：" +
@@ -359,11 +489,13 @@ onUnmounted(() => {
     </template>
   </el-dialog>
 
-  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(820px, 94vw)">
+  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(920px, 94vw)">
     <el-table :data="tickets" stripe empty-text="目前沒有票券">
       <el-table-column prop="orderno" label="訂單編號" min-width="145" />
       <el-table-column prop="name" label="活動" min-width="150" />
-      <el-table-column prop="date" label="場次" min-width="160" />
+      <el-table-column prop="date" label="場次" min-width="100" />
+      <el-table-column prop="time" label="時間" min-width="100" />
+      <el-table-column prop="timename" label="" min-width="70" />
       <el-table-column label="狀態" width="100">
         <template #default="scope">
           <el-tag :type="statusType(scope.row.status)" effect="light">{{ scope.row.status }}</el-tag>
@@ -375,7 +507,22 @@ onUnmounted(() => {
             @click="cancelOrder(scope.row)">取消訂單</el-button>
         </template>
       </el-table-column>
-    </el-table>
+      <el-table-column label="付款" width="100">
+        <template #default="scope">
+          <el-button text :type="statusType(scope.row.status)" :disabled="scope.row.status === '已取消'"
+            @click="payprice(scope.row)"">付款</el-button>
+        </template>
+    </el-table-column>
+  </el-table>
+</el-dialog>
+
+<el-dialog v-model="paypriceDialogVisible" title="付款" width="min(520px, 92vw)">
+            <el-alert title="請完成付款。" type="warning" :closable="false" show-icon />
+            <p class="confirm-seat">請於期限內 {{ paypricedate }} {{ paypricetime }} 完成付款</p>
+            <template #footer>
+              <el-button @click="paypriceDialogVisible = false">返回修改</el-button>
+              <el-button type="primary" @click="dopayprice">付款</el-button>
+            </template>
   </el-dialog>
 </template>
 

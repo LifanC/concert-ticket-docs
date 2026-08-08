@@ -3,6 +3,7 @@ package com.demo.ticket.Config.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Component;
 
@@ -44,7 +45,7 @@ public class NotifierConsumer {
                 "WebSocket users={}",
                 simpUserRegistry.getUsers()
                         .stream()
-                        .map(user -> user.getName())
+                        .map(SimpUser::getName)
                         .toList()
         );
 

@@ -4,36 +4,15 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
-import java.math.BigDecimal;
-
 @JsonPropertyOrder(
         {
-                "orderno",
-                "email",
                 "name",
                 "date",
                 "time",
-                "status",
-                "total",
         }
 )
-@Schema(description = "新增訂單")
-public class BookingSaveTicketRequest {
-
-    @Schema(
-            description = "訂單編號",
-            example = "CT20260815001",
-            minLength = 13,
-            maxLength = 13,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "訂單編號不可為空")
-    @Size(min = 13, max = 13, message = "訂單編號長度需為 13 個字元")
-    @Pattern(
-            regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
-            message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
-    )
-    private String orderno;
+@Schema(description = "售賣日期")
+public class BookingSessionSalesDateRequest {
 
     @Schema(
             description = "電子信箱",
@@ -83,33 +62,7 @@ public class BookingSaveTicketRequest {
     )
     private String time;
 
-    @Schema(
-            description = "狀態",
-            example = "狀態只能為 待付款",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "狀態不可為空")
-    @Pattern(
-            regexp = "^(待付款)$",
-            message = "狀態只能為 待付款"
-    )
-    private String status;
-
-    @Schema(
-            description = "票價",
-            example = "1280",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotNull(message = "票價不可為空")
-    @DecimalMin(value = "0", message = "票價不可小於 0")
-    @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
-    private BigDecimal price;
-
     private String token;
-
-    public String getOrderno() {
-        return orderno;
-    }
 
     public String getEmail() {
         return email;
@@ -125,14 +78,6 @@ public class BookingSaveTicketRequest {
 
     public String getTime() {
         return time;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
     }
 
     public String getToken() {

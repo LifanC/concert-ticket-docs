@@ -24,8 +24,17 @@ async function executeFirst() {
     activities.value = response.data
   } catch (error) {
     let status = error.response.status ?? {}
-    if (status === 403) {
-      router.push('/User')
+    if (status === 403 || status === 500) {
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
+        }
+      )
+      clearCookie('email')
+      clearCookie('accessToken')
     }
   }
 }
