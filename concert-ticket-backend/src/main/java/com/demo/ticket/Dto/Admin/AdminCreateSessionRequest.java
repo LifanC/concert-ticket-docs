@@ -16,6 +16,7 @@ import java.math.BigDecimal;
                 "salestime",
                 "capacity",
                 "sold",
+                "token",
         }
 )
 @Schema(description = "新增場次")

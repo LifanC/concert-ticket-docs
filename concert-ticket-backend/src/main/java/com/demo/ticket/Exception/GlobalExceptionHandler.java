@@ -50,19 +50,6 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ResponseEntity<?> handleRuntimeException(RuntimeException ex) {
-        logger.error(ex.getMessage(), ex);
-        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        msg(ex.getMessage())
-                ));
-    }
-
     private List<Map<String, Object>> msg(String ex) {
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();

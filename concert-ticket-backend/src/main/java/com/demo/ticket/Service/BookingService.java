@@ -1,6 +1,7 @@
 package com.demo.ticket.Service;
 
 import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
+import com.demo.ticket.Dto.Booking.BookingDopaypriceRequest;
 import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
 import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
 import jakarta.validation.Valid;
@@ -24,4 +25,6 @@ public interface BookingService {
     ResponseEntity<?> cancelOrder(@Valid BookingCanceTicketRequest request);
 
     Map<String, Object> sessionSalesDate(@Valid BookingSessionSalesDateRequest request);
+
+    ResponseEntity<?> dopayprice(@Valid BookingDopaypriceRequest request);
 }

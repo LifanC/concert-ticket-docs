@@ -1,5 +1,6 @@
 package com.demo.ticket.Mapper;
 
+import com.demo.ticket.Dto.Booking.BookingDopaypriceTicket;
 import com.demo.ticket.Dto.Booking.BookingSaveTicket;
 import com.demo.ticket.Dto.Booking.SalesDate;
 import org.apache.ibatis.annotations.MapKey;
@@ -25,4 +26,6 @@ public interface BookingMapper {
     int cancelTicket(BookingSaveTicket bookingSaveTicket);
 
     List<Map<String, Object>> sessionSalesDate(SalesDate salesDate);
+
+    int dopaypriceTicket(BookingDopaypriceTicket bookingDopaypriceTicket);
 }

@@ -19,71 +19,72 @@ executeFirst()
 async function executeFirst() {
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
-    // selectAllActivities活動管理
-    try {
-      const response = await axios({
-        method: 'get',
-        url: '/selectAllActivities',
-      });
-      activities.value = response.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('email')
-        clearCookie('accessToken')
+    let judge = true
+    if (judge) {
+      // selectAllActivities活動管理
+      try {
+        const response = await axios({
+          method: 'get',
+          url: '/selectAllActivities',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        activities.value = response.data
+      } catch (error) {
+        let status = error.response.status ?? {}
+        if (status === 403 || status === 500) {
+          judge = false
+        }
       }
     }
-    // selectAllSessions建立場次
-    try {
-      const response = await axios({
-        method: 'get',
-        url: '/selectAllSessions',
-      });
-      sessions.value = response.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('email')
-        clearCookie('accessToken')
+    if (judge) {
+      // selectAllSessions建立場次
+      try {
+        const response = await axios({
+          method: 'get',
+          url: '/selectAllSessions',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        sessions.value = response.data
+      } catch (error) {
+        let status = error.response.status ?? {}
+        if (status === 403 || status === 500) {
+          judge = false
+        }
       }
     }
-    // selectAllticket
-    try {
-      const response = await axios({
-        method: 'get',
-        url: '/selectAllticket',
-      });
-      orders.value = response.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('email')
-        clearCookie('accessToken')
+    if (judge) {
+      // selectAllticket
+      try {
+        const response = await axios({
+          method: 'get',
+          url: '/selectAllticket',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        orders.value = response.data
+      } catch (error) {
+        let status = error.response.status ?? {}
+        if (status === 403 || status === 500) {
+          judge = false
+        }
       }
+    }
+    if (!judge) {
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: false
+          }
+        }
+      )
+      clearCookie('email')
+      clearCookie('accessToken')
     }
   } else {
     router.push(
@@ -121,13 +122,34 @@ const activityFormNotOk = ref(
     status: ''
   }
 )
+const formatDate = (date) => {
+  const [year, month, day] = date.split('/')
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+}
+const getday = () => {
+  const now = new Date()
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const date = new Date(now)
+  // 往後找星期六
+  const daysUntilSaturday = (6 - date.getDay() + 7) % 7
+  date.setDate(date.getDate() + daysUntilSaturday)
+  return {
+    date: `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`,
+    time: `09:00`,
+    salesdate: `${tomorrow.getFullYear()}/${String(tomorrow.getMonth() + 1).padStart(2, '0')}/${String(tomorrow.getDate()).padStart(2, '0')}`,
+    salestime: `09:00`
+  }
+}
+const datetime = ref(getday())
 const sessionForm = reactive(
   {
     activity: '',
-    date: '',
-    time: '',
-    salesdate: '',
-    salestime: '',
+    date: formatDate(datetime.value.date),
+    time: datetime.value.time,
+    salesdate: formatDate(datetime.value.salesdate),
+    salestime: datetime.value.salestime,
     capacity: 500
   }
 )
@@ -436,7 +458,7 @@ const statusType = (status) => (
               </el-form-item>
               <el-row :gutter="16">
                 <el-col :xs="24" :sm="12">
-                  <el-form-item label="日期" required :error="sessionFormNotOk.date !== '' ? sessionFormNotOk.date : ''">
+                  <el-form-item label="開演日期" required :error="sessionFormNotOk.date !== '' ? sessionFormNotOk.date : ''">
                     <el-date-picker v-model="sessionForm.date" type="date" value-format="YYYY-MM-DD"
                       style="width: 100%" />
                   </el-form-item>

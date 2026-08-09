@@ -49,24 +49,6 @@
         where activity.id = #{activityId}
     </select>
 
-    <insert id="create">
-        insert
-        into "interviewworks_ticket"."user_data" (name,
-                                                  email,
-                                                  phone,
-                                                  password,
-                                                  birthday,
-                                                  permissions)
-        values (
-                   #{name},
-                   #{email},
-                   #{phone},
-                   #{password},
-                   '',
-                   ''
-               )
-    </insert>
-
     <insert id="saveTicket">
         INSERT INTO "interviewworks_ticket".ticket
         (
@@ -115,7 +97,7 @@
             ticket.status
         FROM "interviewworks_ticket".ticket ticket
         WHERE ticket.customer = #{customer}
-        ORDER BY ticket.created_date, ticket.updated_date
+        ORDER BY ticket.orderno desc
     </select>
 
     <update id="cancelTicket">
@@ -137,6 +119,37 @@
           and "session"."time" = #{time}
         order by "session"."date" desc
     </select>
+
+    <update id="dopaypriceTicket">
+        WITH paid_ticket AS (
+        UPDATE interviewworks_ticket.ticket AS ticket
+        SET
+            status = '已付款',
+            payprice = ticket.price
+        WHERE ticket.orderno = #{orderno}
+          AND ticket.customer = #{customer}
+          AND ticket."name" = #{activity}
+          AND ticket."date" = #{date}
+          AND ticket."time" = #{time}
+          AND ticket.status = '待付款'
+          AND EXISTS (
+            SELECT 1
+            FROM interviewworks_ticket."session" AS s
+            WHERE s.activity = ticket."name"
+              AND s."date" = ticket."date"
+              AND s."time" = ticket."time"
+        )
+            RETURNING ticket."name", ticket."date", ticket."time"
+)
+        UPDATE interviewworks_ticket."session" AS s
+        SET
+            capacity = s.capacity - 1,
+            sold = s.sold + 1
+            FROM paid_ticket AS p
+        WHERE s.activity = p."name"
+          AND s."date" = p."date"
+          AND s."time" = p."time"
+    </update>
 
 </mapper>
 

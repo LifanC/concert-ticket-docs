@@ -1,6 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
+import com.demo.ticket.Dto.Booking.BookingDopaypriceRequest;
 import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
 import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
 import com.demo.ticket.Service.BookingService;
@@ -93,5 +94,16 @@ public class BookingController {
         return bookingService.sessionSalesDate(request);
     }
 
+    @Operation(summary = "6.付款", description = "付款")
+    @PutMapping("/dopayprice")
+    public ResponseEntity<?> dopayprice(
+            @Valid
+            @RequestBody
+            BookingDopaypriceRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.dopayprice(request);
+    }
 
 }

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.*;
                 "name",
                 "date",
                 "time",
+                "token",
         }
 )
 @Schema(description = "售賣日期")

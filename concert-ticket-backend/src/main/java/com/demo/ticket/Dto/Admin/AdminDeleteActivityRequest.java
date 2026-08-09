@@ -7,6 +7,7 @@ import jakarta.validation.constraints.*;
 @JsonPropertyOrder(
         {
                 "id",
+                "token",
         }
 )
 @Schema(description = "刪除活動")

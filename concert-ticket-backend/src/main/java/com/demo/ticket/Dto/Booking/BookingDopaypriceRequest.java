@@ -2,24 +2,25 @@ package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
-
-import java.math.BigDecimal;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {
                 "orderno",
                 "email",
-                "name",
+                "activity",
                 "date",
                 "time",
-                "status",
-                "total",
+                "salesdate",
+                "salestime",
                 "token",
         }
 )
-@Schema(description = "新增訂單")
-public class BookingSaveTicketRequest {
+@Schema(description = "付款")
+public class BookingDopaypriceRequest {
 
     @Schema(
             description = "訂單編號",
@@ -60,7 +61,7 @@ public class BookingSaveTicketRequest {
             regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
             message = "活動名稱格式錯誤"
     )
-    private String name;
+    private String activity;
 
     @Schema(
             description = "活動日期",
@@ -84,28 +85,6 @@ public class BookingSaveTicketRequest {
     )
     private String time;
 
-    @Schema(
-            description = "狀態",
-            example = "狀態只能為 待付款",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "狀態不可為空")
-    @Pattern(
-            regexp = "^(待付款)$",
-            message = "狀態只能為 待付款"
-    )
-    private String status;
-
-    @Schema(
-            description = "票價",
-            example = "1280",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotNull(message = "票價不可為空")
-    @DecimalMin(value = "0", message = "票價不可小於 0")
-    @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
-    private BigDecimal price;
-
     private String token;
 
     public String getOrderno() {
@@ -116,8 +95,8 @@ public class BookingSaveTicketRequest {
         return email;
     }
 
-    public String getName() {
-        return name;
+    public String getActivity() {
+        return activity;
     }
 
     public String getDate() {
@@ -126,14 +105,6 @@ public class BookingSaveTicketRequest {
 
     public String getTime() {
         return time;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
     }
 
     public String getToken() {
@@ -148,20 +119,3 @@ public class BookingSaveTicketRequest {
         this.token = token;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

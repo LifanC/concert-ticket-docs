@@ -28,20 +28,35 @@ public class AdminController {
 
     @Operation(summary = "1.活動資料全部", description = "活動資料全部")
     @GetMapping("/selectAllActivities")
-    public List<Map<String, Object>> selectAllActivities() {
-        return adminService.selectAllActivities();
+    public List<Map<String, Object>> selectAllActivities(
+            @ModelAttribute
+            AdminRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return adminService.selectAllActivities(request);
     }
 
     @Operation(summary = "1.場次資料全部", description = "場次資料全部")
     @GetMapping("/selectAllSessions")
-    public List<Map<String, Object>> selectAllSessions() {
-        return adminService.selectAllSessions();
+    public List<Map<String, Object>> selectAllSessions(
+            @ModelAttribute
+            AdminRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return adminService.selectAllSessions(request);
     }
 
     @Operation(summary = "1.售票資料全部", description = "售票資料全部")
     @GetMapping("/selectAllticket")
-    public List<Map<String, Object>> selectAllticket() {
-        return adminService.selectAllticket();
+    public List<Map<String, Object>> selectAllticket(
+            @ModelAttribute
+            AdminRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return adminService.selectAllticket(request);
     }
 
     @Operation(summary = "2.增加、修改活動", description = "增加、修改活動")

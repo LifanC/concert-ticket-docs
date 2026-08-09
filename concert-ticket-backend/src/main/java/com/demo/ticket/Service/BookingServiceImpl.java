@@ -253,4 +253,71 @@ public class BookingServiceImpl implements BookingService {
         return dataMap;
 
     }
+
+    @Override
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request) {
+        final String orderno = request.getOrderno().trim();
+        final String email = request.getEmail().trim();
+        final String activity = request.getActivity().trim();
+        final String date = request.getDate().trim();
+        final String time = request.getTime().trim();
+        final String accessToken = request.getToken().trim();
+        List<Map<String, Object>> data = new ArrayList<>();
+        String emailCutOff = email.substring(0, email.indexOf('@'));
+        Map<String, Object> dataMap = new TreeMap<>();
+        dataMap.put("judge", false);
+        try {
+            final String refreshRedisKey = String.format(
+                    RedisKey.redisKey.get("refresh"),
+                    emailCutOff
+            );
+            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (付款)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (付款) Token 已過期", accessJwt);
+            } else {
+                BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
+                bookingDopaypriceTicket.setOrderno(orderno);
+                bookingDopaypriceTicket.setCustomer(emailCutOff);
+                bookingDopaypriceTicket.setActivity(activity);
+                bookingDopaypriceTicket.setDate(date);
+                bookingDopaypriceTicket.setTime(time);
+                int cnt = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
+                if (cnt > 0) {
+                    dataMap.put("judge", true);
+
+                    NotificationMessage message =
+                            new NotificationMessage(
+                                    email,
+                                    "新通知",
+                                    "付款成功"
+                            );
+                    notifier.sendNotification(message);
+                }
+                data.add(dataMap);
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("{} : (付款)無效的 JWT token", emailCutOff);
+            throw new JwtException("無效的 JWT token", e);
+        }
+        HttpStatus status = HttpStatus.OK;
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.api(
+                        status,
+                        data
+                ));
+    }
 }

@@ -16,6 +16,7 @@ import jakarta.validation.constraints.*;
                 "status",
                 "price",
                 "description",
+                "token",
         }
 )
 @Schema(description = "增加、修改活動")

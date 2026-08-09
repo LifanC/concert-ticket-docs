@@ -51,18 +51,75 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public List<Map<String, Object>> selectAllActivities() {
-        return adminMapper.selectAllActivities();
+    @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectAllActivities(AdminRequest request) {
+        final String accessToken = request.getToken().trim();
+        List<Map<String, Object>> data;
+        try {
+            Claims accessClaims = accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> authorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (Activities)有效的 JWT UUID {}",
+                    accessJwt,
+                    Arrays.toString(authorities.toArray()),
+                    accessJtId
+            );
+            data = new ArrayList<>(adminMapper.selectAllActivities());
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(Activities)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
-    public List<Map<String, Object>> selectAllSessions() {
-        return adminMapper.selectAllSessions();
+    @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectAllSessions(AdminRequest request) {
+        final String accessToken = request.getToken().trim();
+        List<Map<String, Object>> data;
+        try {
+            Claims accessClaims = accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> authorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (Sessions)有效的 JWT UUID {}",
+                    accessJwt,
+                    Arrays.toString(authorities.toArray()),
+                    accessJtId
+            );
+            data = new ArrayList<>(adminMapper.selectAllSessions());
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(Sessions)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
-    public List<Map<String, Object>> selectAllticket() {
-        return adminMapper.selectAllticket();
+    @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectAllticket(AdminRequest request) {
+        final String accessToken = request.getToken().trim();
+        List<Map<String, Object>> data;
+        try {
+            Claims accessClaims = accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> authorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (ticket)有效的 JWT UUID {}",
+                    accessJwt,
+                    Arrays.toString(authorities.toArray()),
+                    accessJtId
+            );
+            data = new ArrayList<>(adminMapper.selectAllticket());
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(ticket)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
