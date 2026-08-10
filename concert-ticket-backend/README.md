@@ -105,7 +105,6 @@ Controller ✅
     - JWT（JSON Web Token）
 
 - **API Documentation**
-    - Swagger
 	- Swagger UI：網址/api/swagger-ui/index.html
     - OpenAPI JSON：網址/api/v3/api-docs
 

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.user_data (
                                                permissions varchar NULL,
                                                CONSTRAINT user_data_pk PRIMARY KEY ("name", email)
 );
-INSERT INTO interviewworks_ticket.user_data (name, email, phone, password, birthday, permissions)
+INSERT INTO interviewworks_ticket.user_data (name, email, phone, password, birthday, "permissions")
 VALUES (
         'luke',
         'luke@admin.com',
