@@ -13,7 +13,7 @@
     "@vuelidate/core": "^2.0.3",
     "@vuelidate/validators": "^2.0.4",
     "axios": "^1.6.5",
-    "element-plus": "^2.8.8",
+    "element-plus": "^2.14.4",
     "pubsub-js": "^1.9.4",
     "sockjs-client": "^1.6.1",
     "unplugin-auto-import": "^0.16.6",

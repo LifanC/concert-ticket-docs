@@ -62,7 +62,7 @@
   dependencies:
     "@floating-ui/utils" "^0.2.12"
 
-"@floating-ui/dom@^1.7.6":
+"@floating-ui/dom@^1.8.0":
   "integrity" "sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg=="
   "resolved" "https://registry.npmjs.org/@floating-ui/dom/-/dom-1.8.0.tgz"
   "version" "1.8.0"
@@ -150,9 +150,9 @@
     "@types/lodash" "*"
 
 "@types/lodash@*", "@types/lodash@^4.17.24":
-  "integrity" "sha512-gIW7lQLZbue7lRSWEFql49QJJWThrTFFeIMJdp3eH4tKoxm1OvEPg02rm4wCCSHS0cL3/Fizimb35b7k8atwsQ=="
-  "resolved" "https://registry.npmjs.org/@types/lodash/-/lodash-4.17.24.tgz"
-  "version" "4.17.24"
+  "integrity" "sha512-+K1NIO8I+F9/wNulfVvu23QYd0Pe9/OCqRrim4NoYIf1VoEDL90Ve4ClzpyqBLc7NpGGWRvYNCKZ1BE/Jpf8dQ=="
+  "resolved" "https://registry.npmjs.org/@types/lodash/-/lodash-4.17.25.tgz"
+  "version" "4.17.25"
 
 "@types/web-bluetooth@^0.0.21":
   "integrity" "sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA=="
@@ -399,14 +399,14 @@
   "resolved" "https://registry.npmjs.org/delayed-stream/-/delayed-stream-1.0.0.tgz"
   "version" "1.0.0"
 
-"element-plus@^2.8.8":
-  "integrity" "sha512-pJcvxcpZjYruNzuJhAeVwnbYjfNgzBKnWHwSVEhwzM2/kcLI3brzmtIBxtPqd4hQWJfD1PRnjoc1WipLw2eBGg=="
-  "resolved" "https://registry.npmjs.org/element-plus/-/element-plus-2.14.3.tgz"
-  "version" "2.14.3"
+"element-plus@^2.14.4":
+  "integrity" "sha512-vMKR9tFcLeNrJgFXA3zhUn6YuRKUQW9d0btakBR8U1Iq8MfzkjMOGcgs5de2VgiLldHt69brmuBHpxc3bK4ZgQ=="
+  "resolved" "https://registry.npmjs.org/element-plus/-/element-plus-2.14.4.tgz"
+  "version" "2.14.4"
   dependencies:
     "@ctrl/tinycolor" "^4.2.0"
     "@element-plus/icons-vue" "^2.3.2"
-    "@floating-ui/dom" "^1.7.6"
+    "@floating-ui/dom" "^1.8.0"
     "@popperjs/core" "npm:@sxzz/popperjs-es@^2.11.8"
     "@types/lodash" "^4.17.24"
     "@types/lodash-es" "^4.17.12"
@@ -418,7 +418,7 @@
     "lodash-unified" "^1.0.3"
     "memoize-one" "^6.0.0"
     "normalize-wheel-es" "^1.2.0"
-    "vue-component-type-helpers" "^3.3.5"
+    "vue-component-type-helpers" "^3.3.9"
 
 "entities@^7.0.1":
   "integrity" "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="
@@ -1035,10 +1035,10 @@
   optionalDependencies:
     "fsevents" "~2.3.2"
 
-"vue-component-type-helpers@^3.3.5":
-  "integrity" "sha512-troqCMmQodQDqUqn63NQaFi+CDSclSe7sc8VEBFqf5GFLqmGR2Ph3P2WEC7qwpRVyEWsTi/aAr4vyOe/B1hU3g=="
-  "resolved" "https://registry.npmjs.org/vue-component-type-helpers/-/vue-component-type-helpers-3.3.8.tgz"
-  "version" "3.3.8"
+"vue-component-type-helpers@^3.3.9":
+  "integrity" "sha512-3c/UfMe0SqyEfcGTyH7mfshHagJ9QTCbppCb0/uGpHZpFug7+If3GeGZN7I0YheKEExemx3xldQPoO7PQSOLQg=="
+  "resolved" "https://registry.npmjs.org/vue-component-type-helpers/-/vue-component-type-helpers-3.3.9.tgz"
+  "version" "3.3.9"
 
 "vue-demi@^0.13.11":
   "integrity" "sha512-IR8HoEEGM65YY3ZJYAjMlKygDQn25D5ajNFNoKh9RSDMQtlzCxtfQjdQgv9jjK+m3377SsJXY8ysq8kLCZL25A=="
