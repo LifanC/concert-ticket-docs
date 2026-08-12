@@ -1,17 +1,14 @@
 # 演唱會訂票系統前端
 
-前端為以 Vue 3 與 Vite 建置的單頁應用程式，提供會員、活動、訂票與管理員操作介面。
+前端為以 Vue 3 建置，提供會員、活動、訂票與管理員操作介面。
 
 ## 技術
 
 - Vue 3
-- Vite
 - Vue Router
 - Element Plus 2.14
 - Axios
-- STOMP / SockJS
-
-> 此專案使用 Vite，不使用 Vue CLI。
+- SockJS
 
 ## 需求
 
@@ -55,14 +52,4 @@ npm run dev
 
 ```powershell
 docker compose up --build
-```
-```
-Get-ExecutionPolicy -list
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-npm install -g @vue/cli
-npm install @stomp/stompjs sockjs-client
-npm install element-plus@latest
-vue create project_name
-npm install
-npm run dev
 ```
