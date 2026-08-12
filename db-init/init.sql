@@ -121,6 +121,22 @@ ON interviewworks_ticket.ticket
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
+-- 範例活動與場次資料（僅首次初始化資料庫時建立）
+INSERT INTO interviewworks_ticket.activity
+    (id, "name", category, "date", venue, status, price, description)
+VALUES
+    ('ACT-2026-001', '夏日星光音樂祭', '音樂演唱會', '2026-09-20', '台北流行音樂中心', '售票中', 1280, '戶外舞台演出，包含多組音樂人。'),
+    ('ACT-2026-002', '經典舞台劇之夜', '舞台劇', '2026-10-05', '國家戲劇院', '即將開賣', 1680, '年度經典舞台劇特別場。')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO interviewworks_ticket.session
+    (id, activity, "date", "time", salesdate, salestime, capacity, sold)
+VALUES
+    ('S-001', '夏日星光音樂祭', '2026-09-20', '19:30', '2026-08-15', '12:00', 180, 0),
+    ('S-002', '夏日星光音樂祭', '2026-09-21', '19:30', '2026-08-15', '12:00', 118, 2),
+    ('S-003', '經典舞台劇之夜', '2026-10-05', '14:30', '2026-09-01', '12:00', 80, 0)
+ON CONFLICT (id) DO NOTHING;
+
 
 
 
