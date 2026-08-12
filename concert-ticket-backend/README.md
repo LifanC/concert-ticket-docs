@@ -40,6 +40,129 @@
 
 WebSocket 端點為 `/api/ws`，前端會以 `username` query parameter 建立連線，並訂閱個人通知佇列。
 
+# JWT 登入驗證流程
+
+## ① Login
+
+使用者輸入帳號密碼，由 Frontend 傳送至 Backend。
+
+```text
+Frontend ── 帳號 / 密碼 ──> Backend
+```
+
+---
+
+## ② Login 成功
+
+Backend 驗證帳號密碼成功後，回傳：
+
+- Access Token
+- Refresh Token
+
+```text
+Frontend <── Access Token ── Backend
+         <── Refresh Token ─ Backend
+```
+
+---
+
+## ③ 呼叫 API
+
+Frontend 使用 **Access Token** 呼叫 Backend API。
+
+```text
+Frontend
+    │
+    │ Access Token
+    ▼
+Backend
+    │
+    │ 驗證 JWT
+    ▼
+驗證成功
+    │
+    ▼
+回傳資料
+```
+
+---
+
+## ④ Access Token 過期
+
+當 Access Token 過期時，Frontend 使用 **Refresh Token** 向 `/auth/refresh` 取得新的 Access Token。
+
+```text
+Frontend
+    │
+    │ Refresh Token
+    ▼
+POST /auth/refresh
+    │
+    │ 驗證 Refresh Token
+    ▼
+Backend
+    │
+    ▼
+產生 New Access Token
+    │
+    ▼
+Frontend
+```
+
+---
+
+## ⑤ Logout
+
+使用者登出時，Refresh Token 被撤銷或刪除。
+
+```text
+Frontend
+    │
+    │ Logout
+    ▼
+Backend
+    │
+    ▼
+撤銷 / 刪除 Refresh Token
+```
+
+---
+
+## 完整流程
+
+```text
+① Login
+Frontend ── 帳號 / 密碼 ──> Backend
+
+② Login 成功
+Frontend <── Access Token
+         <── Refresh Token
+
+③ 呼叫 API
+Frontend ── Access Token ──> Backend
+                              │
+                              ▼
+                           驗證 JWT
+                              │
+                              ▼
+                           回傳資料
+
+④ Access Token 過期
+Frontend ── Refresh Token ──> /auth/refresh
+                               │
+                               ▼
+                        驗證 Refresh Token
+                               │
+                               ▼
+Frontend <── New Access Token
+
+⑤ Logout
+Frontend ── Logout ──> Backend
+                        │
+                        ▼
+                撤銷 / 刪除 Refresh Token
+```
+
 ## 功能範圍
 
 - 會員：註冊、登入、驗證 Token、修改會員資料、登出。
