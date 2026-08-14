@@ -12,14 +12,14 @@ END;
 $$;
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.permissions (
-                                               id int8 NOT NULL,
                                                code varchar(100) NULL,
-                                               description varchar(100) NULL
+                                               description varchar(100) NULL,
+                                               CONSTRAINT permissions_pk PRIMARY KEY (code)
 );
 INSERT INTO interviewworks_ticket.permissions (id, code, description)
 VALUES
-    (1, 'ADMIN_ITEM_IMPLEMENT', 'ADMIN'),
-    (2, 'USER_ITEM_IMPLEMENT', 'USER');
+    ('ADMIN_ITEM_IMPLEMENT', 'ADMIN'),
+    ('USER_ITEM_IMPLEMENT', 'USER');
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.user_data (
                                                "name" varchar NOT NULL,
@@ -112,7 +112,8 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               payprice int8 NULL DEFAULT 0,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              CONSTRAINT ticket_pk PRIMARY KEY (orderno)
+                                              CONSTRAINT ticket_pk PRIMARY KEY (orderno),
+                                              CONSTRAINT ticket_fk FOREIGN KEY ("name",email) REFERENCES interviewworks_ticket.user_data("name",email)
 );
 
 CREATE TRIGGER trigger_ticket_updated_date
