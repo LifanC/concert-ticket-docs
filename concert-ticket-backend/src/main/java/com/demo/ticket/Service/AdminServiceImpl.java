@@ -7,7 +7,6 @@ import com.demo.ticket.Mapper.AdminMapper;
 import com.demo.ticket.Mapper.SecretMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,26 +27,21 @@ public class AdminServiceImpl implements AdminService{
 
     private final SecretMapper secretMapper;
     private final AdminMapper adminMapper;
+    private final JwtTokenService jwtTokenService;
 
     public AdminServiceImpl(
             SecretMapper secretMapper,
-            AdminMapper adminMapper
+            AdminMapper adminMapper,
+            JwtTokenService jwtTokenService
     ) {
         this.secretMapper = secretMapper;
         this.adminMapper = adminMapper;
+        this.jwtTokenService = jwtTokenService;
     }
 
     private SecretKey getKeyForToday() {
         String secret = secretMapper.getSecretOnly();
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private Claims accessTokenInRedis(String accessToken) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getKeyForToday())  // 你生成 token 時用的密鑰
-                .build()
-                .parseClaimsJws(accessToken)
-                .getBody();
     }
 
     @Override
@@ -56,7 +50,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -65,7 +59,7 @@ public class AdminServiceImpl implements AdminService{
                     Arrays.toString(authorities.toArray()),
                     accessJtId
             );
-            data = new ArrayList<>(adminMapper.selectAllActivities());
+            data = adminMapper.selectAllActivities();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(Activities)無效的 JWT token");
@@ -80,7 +74,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -89,7 +83,7 @@ public class AdminServiceImpl implements AdminService{
                     Arrays.toString(authorities.toArray()),
                     accessJtId
             );
-            data = new ArrayList<>(adminMapper.selectAllSessions());
+            data = adminMapper.selectAllSessions();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(Sessions)無效的 JWT token");
@@ -104,7 +98,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -113,7 +107,7 @@ public class AdminServiceImpl implements AdminService{
                     Arrays.toString(authorities.toArray()),
                     accessJtId
             );
-            data = new ArrayList<>(adminMapper.selectAllticket());
+            data = adminMapper.selectAllticket();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(ticket)無效的 JWT token");
@@ -136,7 +130,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -155,7 +149,7 @@ public class AdminServiceImpl implements AdminService{
             activity.setPrice(price);
             activity.setDescription(description);
             adminMapper.create_activity(activity);
-            data = new ArrayList<>(adminMapper.selectAllActivities());
+            data = adminMapper.selectAllActivities();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(管理員後台_新增、修改)無效的 JWT token");
@@ -177,7 +171,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -187,7 +181,7 @@ public class AdminServiceImpl implements AdminService{
                     accessJtId
             );
             adminMapper.delete_activity(id);
-            data = new ArrayList<>(adminMapper.selectAllActivities());
+            data = adminMapper.selectAllActivities();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(管理員後台_刪除)無效的 JWT token");
@@ -216,7 +210,7 @@ public class AdminServiceImpl implements AdminService{
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
-            Claims accessClaims = accessTokenInRedis(accessToken);
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> authorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
@@ -235,7 +229,7 @@ public class AdminServiceImpl implements AdminService{
             session.setCapacity(capacity);
             session.setSold(sold);
             adminMapper.create_session(session);
-            data = new ArrayList<>(adminMapper.selectAllSessions());
+            data = adminMapper.selectAllSessions();
         } catch (JwtException e) {
             // JWT 不合法
             logger.error("(新增場次)無效的 JWT token");

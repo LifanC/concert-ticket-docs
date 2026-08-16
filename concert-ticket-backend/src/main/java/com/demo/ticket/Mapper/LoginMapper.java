@@ -1,6 +1,5 @@
 package com.demo.ticket.Mapper;
 
-import com.demo.ticket.Dto.Admin.Activity;
 import com.demo.ticket.Dto.Login.Login;
 import com.demo.ticket.Dto.Login.LoginSaveProfile;
 import com.demo.ticket.Dto.Login.Register;

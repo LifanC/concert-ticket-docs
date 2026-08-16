@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.permissions (
                                                description varchar(100) NULL,
                                                CONSTRAINT permissions_pk PRIMARY KEY (code)
 );
-INSERT INTO interviewworks_ticket.permissions (id, code, description)
+INSERT INTO interviewworks_ticket.permissions (code, description)
 VALUES
     ('ADMIN_ITEM_IMPLEMENT', 'ADMIN'),
     ('USER_ITEM_IMPLEMENT', 'USER');
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.user_data (
                                                updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                birthday varchar NULL,
                                                permissions varchar NULL,
-                                               CONSTRAINT user_data_pk PRIMARY KEY ("name", email)
+                                               CONSTRAINT user_data_pk PRIMARY KEY (email)
 );
 INSERT INTO interviewworks_ticket.user_data (name, email, phone, password, birthday, "permissions")
 VALUES (
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               CONSTRAINT ticket_pk PRIMARY KEY (orderno),
-                                              CONSTRAINT ticket_fk FOREIGN KEY ("name",email) REFERENCES interviewworks_ticket.user_data("name",email)
+                                              CONSTRAINT ticket_fk FOREIGN KEY (email) REFERENCES interviewworks_ticket.user_data(email)
 );
 
 CREATE TRIGGER trigger_ticket_updated_date

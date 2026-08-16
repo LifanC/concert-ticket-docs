@@ -83,7 +83,6 @@ async function executeFirst() {
           }
         }
       )
-      clearCookie('email')
       clearCookie('accessToken')
     }
   } else {
@@ -95,7 +94,6 @@ async function executeFirst() {
         }
       }
     )
-    clearCookie('email')
     clearCookie('accessToken')
   }
 }
@@ -235,7 +233,6 @@ const saveActivity = async () => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       } else {
         let data = error.response.data.data[1]?.error ?? {}
@@ -258,7 +255,6 @@ const saveActivity = async () => {
         }
       }
     )
-    clearCookie('email')
     clearCookie('accessToken')
   }
 }
@@ -292,7 +288,6 @@ const deleteActivity = async (activity) => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       }
     }
@@ -305,7 +300,6 @@ const deleteActivity = async (activity) => {
         }
       }
     )
-    clearCookie('email')
     clearCookie('accessToken')
   }
 }
@@ -349,7 +343,6 @@ const createSession = async () => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       } else {
         let data = error.response.data.data[1]?.error ?? {}
@@ -370,7 +363,6 @@ const createSession = async () => {
         }
       }
     )
-    clearCookie('email')
     clearCookie('accessToken')
   }
 }

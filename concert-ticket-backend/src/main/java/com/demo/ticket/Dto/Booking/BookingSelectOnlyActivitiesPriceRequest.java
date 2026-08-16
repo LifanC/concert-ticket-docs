@@ -2,17 +2,18 @@ package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {
-                "orderno",
-                "status",
+                "activity_id",
                 "token",
         }
 )
-@Schema(description = "取消訂單")
-public class BookingCanceTicketRequest {
+@Schema(description = "單一場次金額")
+public class BookingSelectOnlyActivitiesPriceRequest {
 
     @Schema(
             description = "訂單編號",
@@ -27,28 +28,16 @@ public class BookingCanceTicketRequest {
             regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
             message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
     )
-    private String orderno;
-
-    @Schema(
-            description = "狀態",
-            example = "狀態只能為 已成立、待付款、已取消",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "狀態不可為空")
-    @Pattern(
-            regexp = "^(已成立|待付款|已取消)$",
-            message = "狀態只能為 已成立、待付款、已取消"
-    )
-    private String status;
+    private String activity_id;
 
     private String token;
 
-    public String getOrderno() {
-        return orderno;
+    public String getActivity_id() {
+        return activity_id;
     }
 
-    public String getStatus() {
-        return status;
+    public void setActivity_id(String activity_id) {
+        this.activity_id = activity_id;
     }
 
     public String getToken() {

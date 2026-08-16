@@ -1,9 +1,6 @@
 package com.demo.ticket.Service;
 
-import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
-import com.demo.ticket.Dto.Booking.BookingDopaypriceRequest;
-import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
-import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
+import com.demo.ticket.Dto.Booking.*;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 
@@ -12,13 +9,13 @@ import java.util.Map;
 
 public interface BookingService {
 
-    List<Map<String, Object>> selectOnlyActivities(String activityName);
+    List<Map<String, Object>> selectOnlyActivities(BookingSelectOnlyActivitiesRequest request);
 
-    List<Map<String, Object>> selectOnlySession(String date);
+    List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request);
 
-    List<Map<String, Object>> selectOnlyTicket(String email);
+    List<Map<String, Object>> selectOnlyTicket(BookingSelectOnlyTicketRequest request);
 
-    Map<String, Object> selectOnlyActivitiesPrice(String activityId);
+    Map<String, Object> selectOnlyActivitiesPrice(BookingSelectOnlyActivitiesPriceRequest request);
 
     ResponseEntity<?> saveTicket(@Valid BookingSaveTicketRequest request);
 

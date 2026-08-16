@@ -1,9 +1,6 @@
 package com.demo.ticket.Controller;
 
-import com.demo.ticket.Dto.Booking.BookingCanceTicketRequest;
-import com.demo.ticket.Dto.Booking.BookingDopaypriceRequest;
-import com.demo.ticket.Dto.Booking.BookingSaveTicketRequest;
-import com.demo.ticket.Dto.Booking.BookingSessionSalesDateRequest;
+import com.demo.ticket.Dto.Booking.*;
 import com.demo.ticket.Service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -33,29 +30,45 @@ public class BookingController {
     @Operation(summary = "1.活動資料", description = "活動資料")
     @GetMapping("/selectOnlyActivities")
     public List<Map<String, Object>> selectOnlyActivities(
-            @RequestParam String activity_name) {
-        return bookingService.selectOnlyActivities(activity_name);
+            @ModelAttribute
+            BookingSelectOnlyActivitiesRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlyActivities(request);
     }
 
     @Operation(summary = "1.場次資料", description = "場次資料")
     @GetMapping("/selectOnlySession")
     public List<Map<String, Object>> selectOnlySession(
-            @RequestParam String date) {
-        return bookingService.selectOnlySession(date);
+            @ModelAttribute
+            BookingSelectOnlySessionRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlySession(request);
     }
 
     @Operation(summary = "1.訂單資料", description = "訂單資料")
     @GetMapping("/selectOnlyTicket")
     public List<Map<String, Object>> selectOnlyTicket(
-            @RequestParam String email) {
-        return bookingService.selectOnlyTicket(email);
+            @ModelAttribute
+            BookingSelectOnlyTicketRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlyTicket(request);
     }
 
     @Operation(summary = "2.場次金額", description = "場次金額")
     @GetMapping("/selectOnlyActivitiesPrice")
     public Map<String, Object> selectOnlyActivitiesPrice(
-            @RequestParam String activity_id) {
-        return bookingService.selectOnlyActivitiesPrice(activity_id);
+            @ModelAttribute
+            BookingSelectOnlyActivitiesPriceRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlyActivitiesPrice(request);
     }
 
     @Operation(summary = "3.新增訂單", description = "新增訂單")

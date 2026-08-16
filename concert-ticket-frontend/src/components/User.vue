@@ -2,6 +2,7 @@
 import { useRouter, useRoute } from 'vue-router'
 import axios from "axios";
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
+import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
 axios.defaults.baseURL = 'http://localhost:8080/api/v1/login'
 axios.defaults.withCredentials = true;
@@ -59,29 +60,28 @@ const registerFormNotOk = ref(
   }
 )
 
-const logoutForm = ref(
-  {
-    name: '',
-    email: '',
-  }
-)
-
 executeFirst()
 function executeFirst() {
+  let isLoggedIn_ = false
   let is = route.query.isLoggedIn
   if (is != undefined) {
     if (is === 'false') {
-      isLoggedIn.value = false
-      clearCookie('email')
+      isLoggedIn_ = false
       clearCookie('accessToken')
     }
   } else {
     let accessToken = toFindCookie('accessToken')
     if (accessToken) {
-      isLoggedIn.value = true
+      isLoggedIn_ = true
     } else {
-      isLoggedIn.value = false
+      isLoggedIn_ = false
     }
+  }
+  isLoggedIn.value = isLoggedIn_
+  if (!isLoggedIn_) {
+    disconnectWebSocket()
+  } else {
+    connectWebSocket()
   }
 }
 
@@ -119,9 +119,9 @@ const submitLogin = async () => {
       password: data.password ?? '',
     }
   }
+  let isLoggedIn_ = false
   if (judge) {
     activeTab.value = 'login'
-    isLoggedIn.value = false
     try {
       const response = await axios({
         method: 'post',
@@ -132,13 +132,17 @@ const submitLogin = async () => {
       if (data.judge) {
         if (data.accessToken) {
           activeTab.value = 'profile'
-          isLoggedIn.value = true
-          addCookie('email', data.email)
+          isLoggedIn_ = true
           addCookie('accessToken', data.accessToken)
-          profileForm.name = data.name
-          profileForm.email = data.email
-          profileForm.phone = data.phone
-          profileForm.birthday = data.birthday
+          Object.assign(
+            profileForm,
+            {
+              name: data.name,
+              email: data.email,
+              phone: data.phone,
+              birthday: data.birthday
+            }
+          )
         }
       } else {
         ElMessage({
@@ -155,7 +159,13 @@ const submitLogin = async () => {
     }
   } else {
     activeTab.value = 'login'
-    isLoggedIn.value = false
+    isLoggedIn_ = false
+  }
+  isLoggedIn.value = isLoggedIn_
+  if (!isLoggedIn_) {
+    disconnectWebSocket()
+  } else {
+    connectWebSocket()
   }
 }
 
@@ -179,10 +189,20 @@ const submitRegister = async () => {
       data: registerForm,
     });
     let data = response.data.data[0] ?? {}
-    profileForm.name = data.name
-    profileForm.email = data.email
-    profileForm.phone = data.phone
+    Object.assign(
+      profileForm,
+      {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        birthday: data.birthday
+      }
+    )
     activeTab.value = 'login'
+    ElMessage({
+      type: 'success',
+      message: `${'註冊成功'}`,
+    })
   } catch (error) {
     let data = error.response.data.data[1]?.error ?? {}
     registerFormNotOk.value = {
@@ -194,6 +214,7 @@ const submitRegister = async () => {
     activeTab.value = 'register'
   }
   isLoggedIn.value = false
+  disconnectWebSocket()
 }
 
 const saveProfile = async () => {
@@ -205,6 +226,7 @@ const saveProfile = async () => {
     !profileForm.phone ||
     !profileForm.birthday
   ) return
+  let isLoggedIn_ = false
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
     let judge = false
@@ -221,15 +243,15 @@ const saveProfile = async () => {
       if (data.judge) {
         ElMessage({
           type: 'success',
-          message: `${'成功'}`,
+          message: `${'修改會員資料成功'}`,
         })
-        isLoggedIn.value = true
+        isLoggedIn_ = true
       } else {
         ElMessage({
           type: 'info',
-          message: `${'失敗'}`,
+          message: `${'修改會員資料失敗'}`,
         })
-        isLoggedIn.value = false
+        isLoggedIn_ = false
       }
     } catch (error) {
       let data = error.response.data.data[1]?.error ?? {}
@@ -237,29 +259,29 @@ const saveProfile = async () => {
         phone: data.phone ?? '',
         birthday: data.birthday ?? '',
       }
-      isLoggedIn.value = false
+      isLoggedIn_ = false
     }
     activeTab.value = 'profile'
   } else {
-    isLoggedIn.value = false
+    isLoggedIn_ = false
     activeTab.value = 'login';
+  }
+  isLoggedIn.value = isLoggedIn_
+  if (!isLoggedIn_) {
+    disconnectWebSocket()
+  } else {
+    connectWebSocket()
   }
 }
 const logout = async () => {
-  logoutForm.value = {
-    name: '',
-    email: '',
-  }
+  let isLoggedIn_ = false
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
-    logoutForm.value = {
-      email: toFindCookie('email'),
-    }
     try {
       const response = await axios({
         method: 'post',
         url: '/logout',
-        data: logoutForm.value,
+        data: {},
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -268,34 +290,51 @@ const logout = async () => {
       if (data.judge) {
         ElMessage({
           type: 'success',
-          message: `${'成功'}`,
+          message: `${'登出'}`,
         })
-        clearCookie('email')
-        clearCookie('accessToken')
-        profileForm.name = ''
-        profileForm.email = ''
-        profileForm.phone = ''
-        profileForm.birthday = ''
-        isLoggedIn.value = false
+        Object.assign(
+          profileForm,
+          {
+            name: '',
+            email: '',
+            phone: '',
+            birthday: ''
+          }
+        )
+        isLoggedIn_ = false
         activeTab.value = 'login'
         loginForm.account = '';
         loginForm.password = '';
+        clearCookie('accessToken')
       } else {
-        isLoggedIn.value = true
+        isLoggedIn_ = true
       }
     } catch (error) {
       ElMessage({
-        type: 'info',
-        message: `${'失敗'}`,
+        type: 'error',
+        message: `${'登出'}`,
       })
       isLoggedIn.value = false
-      clearCookie('email')
       clearCookie('accessToken')
+      Object.assign(
+        profileForm,
+        {
+          name: '',
+          email: '',
+          phone: '',
+          birthday: ''
+        }
+      )
     }
   } else {
-    isLoggedIn.value = false
-    clearCookie('email')
+    isLoggedIn_ = false
     clearCookie('accessToken')
+  }
+  isLoggedIn.value = isLoggedIn_
+  if (!isLoggedIn_) {
+    disconnectWebSocket()
+  } else {
+    connectWebSocket()
   }
 }
 </script>
@@ -345,7 +384,7 @@ const logout = async () => {
                 <el-input v-model="registerForm.email" placeholder="wang@example.com" />
               </el-form-item>
               <el-form-item label="手機號碼" :error="registerFormNotOk.phone !== '' ? registerFormNotOk.phone : ''">
-                <el-input v-model="registerForm.phone" placeholder="0912-345-678" />
+                <el-input v-model="registerForm.phone" placeholder="0912345678" />
               </el-form-item>
               <el-form-item label="密碼" required
                 :error="registerFormNotOk.password !== '' ? registerFormNotOk.password : ''">

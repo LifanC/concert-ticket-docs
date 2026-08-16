@@ -1,5 +1,7 @@
 package com.demo.ticket.Config.WebSocket;
 
+import com.demo.ticket.Service.JwtTokenService;
+import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
@@ -10,30 +12,38 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-import java.security.Principal;
+import java.util.Collections;
+import java.util.Objects;
 
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final JwtTokenService jwtTokenService;
+
     private final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
+
+    public WebSocketConfig(
+            JwtTokenService jwtTokenService
+    ) {
+        this.jwtTokenService = jwtTokenService;
+    }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/queue");
-        registry.setUserDestinationPrefix(
-                "/user"
-        );
+        registry.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setHandshakeHandler(new UserHandshakeHandler())
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
@@ -47,11 +57,35 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     public Message<?> preSend(
                             Message<?> message,
                             MessageChannel channel) {
-                        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-                        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                            Principal principal = accessor.getUser();
-                            assert principal != null;
-                            logger.info("WebSocket User = {}", principal.getName());
+                        StompHeaderAccessor accessor =
+                                MessageHeaderAccessor.getAccessor(
+                                        message,
+                                        StompHeaderAccessor.class
+                                );
+                        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+                            String authHeader = accessor.getFirstNativeHeader("Authorization");
+                            logger.info("Authorization = {}", authHeader);
+                            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                                throw new IllegalArgumentException("WebSocket 找不到 JWT");
+                            }
+                            String accessToken = authHeader.substring(7);
+                            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+                            // 從 JWT 取得 email
+                            String accessJwt = accessClaims.getSubject();
+                            logger.info("JWT email = {}", accessJwt);
+                            // 建立目前 WebSocket 使用者
+                            UsernamePasswordAuthenticationToken authentication =
+                                    new UsernamePasswordAuthenticationToken(
+                                            accessJwt,
+                                            null,
+                                            Collections.emptyList()
+                                    );
+
+                            accessor.setUser(authentication);
+                            logger.info(
+                                    "設定 WebSocket Principal = {}",
+                                    Objects.requireNonNull(accessor.getUser()).getName()
+                            );
                         }
                         return message;
                     }

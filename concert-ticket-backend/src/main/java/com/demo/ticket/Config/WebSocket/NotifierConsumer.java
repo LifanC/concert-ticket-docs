@@ -25,20 +25,20 @@ public class NotifierConsumer {
 
     public void sendNotification(NotificationMessage message) {
         logger.info(
-                "推播通知 Username={}, Title={}, Content={}",
-                message.getUsername(),
+                "推播通知 Email={}, Title={}, Content={}",
+                message.getEmail(),
                 message.getTitle(),
                 message.getContent()
         );
         messagingTemplate.convertAndSendToUser(
-                message.getUsername(),
+                message.getEmail(),
                 "/queue/notifications",
                 message
         );
 
         logger.info(
-                "推播完成給 Username={}",
-                message.getUsername()
+                "推播完成給 Email={}",
+                message.getEmail()
         );
 
         logger.info(

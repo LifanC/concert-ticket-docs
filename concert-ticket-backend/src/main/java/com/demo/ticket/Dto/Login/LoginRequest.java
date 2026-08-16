@@ -32,7 +32,7 @@ public class LoginRequest {
 
     @Schema(
             description = "使用者密碼",
-            example = "Abcd1234!",
+            example = "321ewqdsacxz",
             minLength = 8,
             maxLength = 100,
             requiredMode = Schema.RequiredMode.REQUIRED

@@ -16,27 +16,11 @@ const currentActivity = ref(null)
 executeFirst()
 async function executeFirst() {
   // selectAllActivities活動管理
-  try {
-    const response = await axios({
-      method: 'get',
-      url: '/selectAllActivities',
-    });
-    activities.value = response.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403 || status === 500) {
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-      clearCookie('email')
-      clearCookie('accessToken')
-    }
-  }
+  const response = await axios({
+    method: 'get',
+    url: '/selectAllActivities',
+  });
+  activities.value = response.data
 }
 
 const categories = ['全部', '音樂演唱會', '舞台劇', '展覽特展']
@@ -133,7 +117,8 @@ const statusType = (status) => (
               <div class="activity-name">
                 {{ scope.row.name }}
               </div>
-              <el-text size="small" type="info">{{ scope.row.id }} · {{ scope.row.sessionid }} · {{ scope.row.category }}</el-text>
+              <el-text size="small" type="info">{{ scope.row.id }} · {{ scope.row.sessionid }} · {{ scope.row.category
+              }}</el-text>
             </template>
           </el-table-column>
           <el-table-column prop="date" label="活動日期" min-width="190" />
@@ -158,12 +143,14 @@ const statusType = (status) => (
       <div class="detail-heading">
         <div>
           <h2>{{ currentActivity.name }}</h2>
-          <el-text type="info">{{ currentActivity.id }} · {{ currentActivity.sessionid }} · {{ currentActivity.category }}</el-text>
+          <el-text type="info">{{ currentActivity.id }} · {{ currentActivity.sessionid }} · {{ currentActivity.category
+          }}</el-text>
         </div>
         <el-tag :type="statusType(currentActivity.status)" effect="dark">{{ currentActivity.status }}</el-tag>
       </div>
       <el-descriptions :column="1" border class="detail-list">
-        <el-descriptions-item label="活動日期">{{ currentActivity.date }} {{ currentActivity.dow }} {{ currentActivity.time }}</el-descriptions-item>
+        <el-descriptions-item label="活動日期">{{ currentActivity.date }} {{ currentActivity.dow }} {{ currentActivity.time
+        }}</el-descriptions-item>
         <el-descriptions-item label="活動場地">{{ currentActivity.venue }}</el-descriptions-item>
         <el-descriptions-item label="開賣時間">{{ currentActivity.sales_start }}</el-descriptions-item>
         <el-descriptions-item label="票價">{{ currentActivity.price }}</el-descriptions-item>

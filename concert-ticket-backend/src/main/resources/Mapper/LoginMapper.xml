@@ -40,7 +40,7 @@
                  right join "interviewworks_ticket".permissions permissions
                             on
                                 user_data.permissions = permissions.description
-        where SPLIT_PART(user_data.email, '@', 1) = #{account}
+        where SPLIT_PART(user_data.email, '@', 1) = SPLIT_PART(#{account}, '@', 1)
     </select>
 
     <update id="save">

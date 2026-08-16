@@ -37,11 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/login/register",
             "/api/v1/login/login",
             "/api/v1/login/validate",
-            "/api/v1/activity/selectAllActivities",
-            "/api/v1/booking/selectAllActivities",
-            "/api/v1/booking/selectOnlySession",
-            "/api/v1/booking/selectOnlyActivitiesPrice",
-            "/api/v1/booking/selectOnlyTicket",
+            "/api/v1/login/logout",
             // WebSocket
             "/api/ws"
     );

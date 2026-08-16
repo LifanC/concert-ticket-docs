@@ -42,30 +42,132 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<Map<String, Object>> selectOnlyActivities(String activityName) {
-        return bookingMapper.selectOnlyActivities(activityName);
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectOnlyActivities(BookingSelectOnlyActivitiesRequest request) {
+        final String accessToken = request.getToken().trim();
+        final String activityName = request.getActivity_name().trim();
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (單一活動)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (單一活動) Token 已過期", accessJwt);
+            } else {
+                data = bookingMapper.selectOnlyActivities(activityName);
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(單一活動)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
-    public List<Map<String, Object>> selectOnlySession(String date) {
-        return bookingMapper.selectOnlySession(date);
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request) {
+        final String accessToken = request.getToken().trim();
+        final String date = request.getDate().trim();
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (單一場次資料)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (單一場次資料) Token 已過期", accessJwt);
+            } else {
+                data = bookingMapper.selectOnlySession(date);
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(單一場次資料)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
-    public List<Map<String, Object>> selectOnlyTicket(String email) {
-        return bookingMapper.selectOnlyTicket(email.substring(0, email.indexOf('@')));
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectOnlyTicket(BookingSelectOnlyTicketRequest request) {
+        final String accessToken = request.getToken().trim();
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (訂單資料)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (訂單資料) Token 已過期", accessJwt);
+            } else {
+                data = bookingMapper.selectOnlyTicket(accessJwt.substring(0, accessJwt.indexOf('@')));
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(訂單資料)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
-    public Map<String, Object> selectOnlyActivitiesPrice(String activityId) {
-        return bookingMapper.selectOnlyActivitiesPrice(activityId).get(activityId);
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public Map<String, Object> selectOnlyActivitiesPrice(BookingSelectOnlyActivitiesPriceRequest request) {
+        final String activityId = request.getActivity_id().trim();
+        final String accessToken = request.getToken().trim();
+        Map<String, Object> data = new HashMap<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (單一場次金額)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (單一場次金額) Token 已過期", accessJwt);
+            } else {
+                data = bookingMapper.selectOnlyActivitiesPrice(activityId).get(activityId);
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(單一場次金額)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request) {
         final String orderno = request.getOrderno().trim();
-        final String email = request.getEmail().trim();
         final String name = request.getName().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
@@ -73,15 +175,10 @@ public class BookingServiceImpl implements BookingService {
         final BigDecimal price = request.getPrice();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        String emailCutOff = email.substring(0, email.indexOf('@'));
         try {
-            final String refreshRedisKey = String.format(
-                    RedisKey.redisKey.get("refresh"),
-                    emailCutOff
-            );
-            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
+            final String emailCutOff = accessJwt.substring(0, accessJwt.indexOf('@'));
             List<String> accessAuthorities = accessClaims.get("authorities", List.class);
             String accessJtId = accessClaims.getId();
             logger.error("{}(權限{}) : (新增訂單)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
@@ -104,7 +201,7 @@ public class BookingServiceImpl implements BookingService {
                     BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
                     bookingSaveTicket.setOrderno(orderno);
                     bookingSaveTicket.setCustomer(emailCutOff);
-                    bookingSaveTicket.setEmail(email);
+                    bookingSaveTicket.setEmail(accessJwt);
                     bookingSaveTicket.setName(name);
                     bookingSaveTicket.setDate(date);
                     bookingSaveTicket.setTime(time);
@@ -115,7 +212,7 @@ public class BookingServiceImpl implements BookingService {
 
                     NotificationMessage message =
                             new NotificationMessage(
-                                    email,
+                                    accessJwt,
                                     "新通知",
                                     "尚未付款"
                             );
@@ -124,7 +221,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } catch (JwtException e) {
             // JWT 不合法
-            logger.error("{} : (新增訂單)無效的 JWT token", emailCutOff);
+            logger.error("{} : (新增訂單)無效的 JWT token", orderno);
             throw new JwtException("無效的 JWT token", e);
         }
         HttpStatus status = HttpStatus.CREATED;
@@ -140,19 +237,12 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request) {
         final String orderno = request.getOrderno().trim();
-        final String email = request.getEmail().trim();
         final String bookingStatus = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        String emailCutOff = email.substring(0, email.indexOf('@'));
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("judge", false);
         try {
-            final String refreshRedisKey = String.format(
-                    RedisKey.redisKey.get("refresh"),
-                    emailCutOff
-            );
-            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> accessAuthorities = accessClaims.get("authorities", List.class);
@@ -186,7 +276,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } catch (JwtException e) {
             // JWT 不合法
-            logger.error("{} : (取消訂單)無效的 JWT token", emailCutOff);
+            logger.error("(取消訂單)無效的 JWT token");
             throw new JwtException("無效的 JWT token", e);
         }
         HttpStatus status = HttpStatus.OK;
@@ -201,19 +291,12 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> sessionSalesDate(BookingSessionSalesDateRequest request) {
-        final String email = request.getEmail().trim();
         final String name = request.getName().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String accessToken = request.getToken().trim();
-        String emailCutOff = email.substring(0, email.indexOf('@'));
         Map<String, Object> dataMap = new HashMap<>();
         try {
-            final String refreshRedisKey = String.format(
-                    RedisKey.redisKey.get("refresh"),
-                    emailCutOff
-            );
-            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> accessAuthorities = accessClaims.get("authorities", List.class);
@@ -247,7 +330,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } catch (JwtException e) {
             // JWT 不合法
-            logger.error("{} : (售賣日期)無效的 JWT token", emailCutOff);
+            logger.error("(售賣日期)無效的 JWT token");
             throw new JwtException("無效的 JWT token", e);
         }
         return dataMap;
@@ -258,21 +341,14 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request) {
         final String orderno = request.getOrderno().trim();
-        final String email = request.getEmail().trim();
         final String activity = request.getActivity().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        String emailCutOff = email.substring(0, email.indexOf('@'));
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("judge", false);
         try {
-            final String refreshRedisKey = String.format(
-                    RedisKey.redisKey.get("refresh"),
-                    emailCutOff
-            );
-            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> accessAuthorities = accessClaims.get("authorities", List.class);
@@ -289,7 +365,7 @@ public class BookingServiceImpl implements BookingService {
             } else {
                 BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
                 bookingDopaypriceTicket.setOrderno(orderno);
-                bookingDopaypriceTicket.setCustomer(emailCutOff);
+                bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
                 bookingDopaypriceTicket.setActivity(activity);
                 bookingDopaypriceTicket.setDate(date);
                 bookingDopaypriceTicket.setTime(time);
@@ -299,7 +375,7 @@ public class BookingServiceImpl implements BookingService {
 
                     NotificationMessage message =
                             new NotificationMessage(
-                                    email,
+                                    accessJwt,
                                     "新通知",
                                     "付款成功"
                             );
@@ -309,7 +385,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } catch (JwtException e) {
             // JWT 不合法
-            logger.error("{} : (付款)無效的 JWT token", emailCutOff);
+            logger.error("(付款)無效的 JWT token");
             throw new JwtException("無效的 JWT token", e);
         }
         HttpStatus status = HttpStatus.OK;

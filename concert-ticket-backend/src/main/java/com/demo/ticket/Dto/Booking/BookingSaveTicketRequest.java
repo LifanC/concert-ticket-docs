@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 @JsonPropertyOrder(
         {
                 "orderno",
-                "email",
                 "name",
                 "date",
                 "time",
@@ -35,17 +34,6 @@ public class BookingSaveTicketRequest {
             message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
     )
     private String orderno;
-
-    @Schema(
-            description = "電子信箱",
-            example = "wang@example.com",
-            maxLength = 100,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "電子信箱不可為空")
-    @Email(message = "電子信箱格式錯誤")
-    @Size(max = 100, message = "電子信箱不可超過 100 字")
-    private String email;
 
     @Schema(
             description = "活動名稱",
@@ -110,10 +98,6 @@ public class BookingSaveTicketRequest {
 
     public String getOrderno() {
         return orderno;
-    }
-
-    public String getEmail() {
-        return email;
     }
 
     public String getName() {

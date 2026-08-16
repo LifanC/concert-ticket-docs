@@ -27,42 +27,56 @@ const selectedActivityName = computed(() => {
   return activity_name
 })
 const selectOnlyActivities = async () => {
-  try {
-    const response = await axios({
-      method: 'get',
-      url: '/selectOnlyActivities',
-      params: {
-        activity_name: route.query.activity_name
-      }
-    });
-    selectedDate.value = route.query.activity_date
-    handleDateChange(route.query.activity_date)
-    dates.value = response.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403 || status === 500) {
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: false
+  let accessToken = toFindCookie('accessToken')
+  if (accessToken) {
+    try {
+      const response = await axios({
+        method: 'get',
+        url: '/selectOnlyActivities',
+        params: {
+          activity_name: route.query.activity_name
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      selectedDate.value = route.query.activity_date
+      handleDateChange(route.query.activity_date, accessToken)
+      dates.value = response.data
+    } catch (error) {
+      let status = error.response.status ?? {}
+      if (status === 403 || status === 500) {
+        router.push(
+          {
+            path: '/User',
+            query: {
+              isLoggedIn: false
+            }
           }
-        }
-      )
-      clearCookie('email')
-      clearCookie('accessToken')
+        )
+        clearCookie('accessToken')
+      }
     }
+  } else {
+    ElMessage({
+      type: 'error',
+      message: `${'尚未登入'}`,
+    })
+    nextStep_disabled.value = true
   }
 }
 
-const handleDateChange = async (datedate) => {
+const handleDateChange = async (datedate, accessToken) => {
   try {
     const response = await axios({
       method: 'get',
       url: '/selectOnlySession',
       params: {
         date: datedate
-      }
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
     sessions.value = response.data
     selectedSession.value = route.query.activity_time
@@ -71,7 +85,10 @@ const handleDateChange = async (datedate) => {
       url: '/selectOnlyActivitiesPrice',
       params: {
         activity_id: route.query.activity_id
-      }
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
     selectedPrice.value = responsePrice.data.price
   } catch (error) {
@@ -85,7 +102,6 @@ const handleDateChange = async (datedate) => {
           }
         }
       )
-      clearCookie('email')
       clearCookie('accessToken')
     }
   }
@@ -107,7 +123,6 @@ const ticketForm = reactive(
   {
     orderno: '',
     customer: '',
-    email: '',
     name: '',
     date: '',
     status: '已成立',
@@ -118,7 +133,6 @@ const ticketForm = reactive(
 const paypriceForm = reactive(
   {
     orderno: '',
-    email: '',
     name: '',
     date: '',
     time: ''
@@ -152,7 +166,6 @@ const createOrder = async () => {
       ticketForm,
       {
         orderno: orderno,
-        email: toFindCookie('email'),
         name: selectedActivityName.value,
         date: selectedDate.value,
         time: selectedSession.value,
@@ -183,7 +196,6 @@ const createOrder = async () => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       }
       myTicketsVisible.value = false
@@ -206,7 +218,6 @@ const cancelOrder = async (ticket) => {
       ticketForm,
       {
         orderno: ticket.orderno,
-        email: toFindCookie('email'),
         status: '已取消'
       }
     )
@@ -234,7 +245,6 @@ const cancelOrder = async (ticket) => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       }
       myTicketsVisible.value = false
@@ -250,7 +260,6 @@ const cancelOrder = async (ticket) => {
 const paypricedataForm = reactive(
   {
     orderno: '',
-    email: '',
     activity: '',
     date: '',
     time: '',
@@ -264,7 +273,6 @@ const payprice = async (payprice) => {
     Object.assign(
       paypriceForm,
       {
-        email: toFindCookie('email'),
         name: payprice.name,
         date: payprice.date,
         time: payprice.time
@@ -283,7 +291,6 @@ const payprice = async (payprice) => {
         paypricedataForm,
         {
           orderno: payprice.orderno,
-          email: toFindCookie('email'),
           activity: response.data.activity,
           date: response.data.date,
           time: response.data.time,
@@ -303,7 +310,6 @@ const payprice = async (payprice) => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
       }
       paypriceDialogVisible.value = false
@@ -344,7 +350,6 @@ const dopayprice = async () => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
         paypriceDialogVisible.value = false
         myTicketsVisible.value = false
@@ -374,9 +379,10 @@ const myTicketsVisibleDialog = async () => {
       const response = await axios({
         method: 'get',
         url: '/selectOnlyTicket',
-        params: {
-          email: toFindCookie('email')
-        }
+        params: {},
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
       tickets.value = response.data
     } catch (error) {
@@ -390,8 +396,11 @@ const myTicketsVisibleDialog = async () => {
             }
           }
         )
-        clearCookie('email')
         clearCookie('accessToken')
+        ElMessage({
+          type: 'info',
+          message: `${'重新登入'}`,
+        })
       }
     }
   } else {
@@ -403,65 +412,13 @@ const myTicketsVisibleDialog = async () => {
         }
       }
     )
-    clearCookie('email')
     clearCookie('accessToken')
+    ElMessage({
+      type: 'info',
+      message: `${'重新登入'}`,
+    })
   }
 }
-
-let client;
-function connectWebSocket() {
-  console.log("開始建立 websocket");
-  const socket = new SockJS(
-    "http://localhost:8080/api/ws?username=" + encodeURIComponent(toFindCookie('email'))
-  );
-  client = new Client({
-    webSocketFactory: () => socket,
-    debug: (msg) => {
-      console.log(msg);
-    },
-    onConnect() {
-      client.subscribe(
-        "/user/queue/notifications",
-        (msg) => {
-          const notification = JSON.parse(msg.body);
-          console.log(
-            "收到通知",
-            notification
-          );
-          ElMessage({
-            type: 'success',
-            message:
-              notification.title +
-              "：" +
-              notification.content
-          });
-        }
-      );
-    },
-    onStompError: (frame) => {
-      console.error(
-        "STOMP ERROR",
-        frame
-      );
-    },
-
-    onWebSocketError: (error) => {
-      console.error(
-        "WS ERROR",
-        error
-      );
-    }
-  });
-  client.activate();
-}
-onMounted(() => {
-  connectWebSocket();
-});
-onUnmounted(() => {
-  if (client) {
-    client.deactivate();
-  }
-});
 </script>
 
 <template>
@@ -561,15 +518,14 @@ onUnmounted(() => {
       </el-table-column>
       <el-table-column label="操作" width="100">
         <template #default="scope">
-          <el-button text type="danger"
-           :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'"
+          <el-button text type="danger" :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'"
             @click="cancelOrder(scope.row)">取消訂單</el-button>
         </template>
       </el-table-column>
       <el-table-column label="" width="100">
         <template #default="scope">
           <el-button text :type="statusType(scope.row.status)"
-           :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'" @click="payprice(scope.row)">付款
+            :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'" @click="payprice(scope.row)">付款
           </el-button>
         </template>
       </el-table-column>

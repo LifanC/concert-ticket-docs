@@ -1,4 +1,4 @@
-package com.demo.ticket.Dto.Login;
+package com.demo.ticket.Dto.Activity;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,8 +8,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
                 "token",
         }
 )
-@Schema(description = "登出")
-public class LoginLogoutRequest {
+@Schema(description = "活動")
+public class ActivityRequest {
 
     private String token;
 
