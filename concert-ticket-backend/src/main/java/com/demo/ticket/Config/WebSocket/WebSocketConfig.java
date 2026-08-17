@@ -1,5 +1,6 @@
 package com.demo.ticket.Config.WebSocket;
 
+import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
@@ -65,10 +66,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
                             String authHeader = accessor.getFirstNativeHeader("Authorization");
                             logger.info("Authorization = {}", authHeader);
-                            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                                throw new IllegalArgumentException("WebSocket 找不到 JWT");
-                            }
-                            String accessToken = authHeader.substring(7);
+                            String accessToken = ConvertFormat.resolveToken(authHeader);
                             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
                             // 從 JWT 取得 email
                             String accessJwt = accessClaims.getSubject();

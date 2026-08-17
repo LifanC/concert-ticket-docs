@@ -67,7 +67,6 @@ function executeFirst() {
   if (is != undefined) {
     if (is === 'false') {
       isLoggedIn_ = false
-      clearCookie('accessToken')
     }
   } else {
     let accessToken = toFindCookie('accessToken')
@@ -79,6 +78,7 @@ function executeFirst() {
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
+    clearCookie('accessToken')
     disconnectWebSocket()
   } else {
     connectWebSocket()
@@ -305,7 +305,6 @@ const logout = async () => {
         activeTab.value = 'login'
         loginForm.account = '';
         loginForm.password = '';
-        clearCookie('accessToken')
       } else {
         isLoggedIn_ = true
       }
@@ -315,7 +314,6 @@ const logout = async () => {
         message: `${'登出'}`,
       })
       isLoggedIn.value = false
-      clearCookie('accessToken')
       Object.assign(
         profileForm,
         {
@@ -328,10 +326,10 @@ const logout = async () => {
     }
   } else {
     isLoggedIn_ = false
-    clearCookie('accessToken')
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
+    clearCookie('accessToken')
     disconnectWebSocket()
   } else {
     connectWebSocket()

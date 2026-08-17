@@ -51,4 +51,12 @@ public class ConvertFormat {
 
     }
 
+    public static String resolveToken(String bearerToken) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        } else {
+            throw new RuntimeException("Token 不可為空");
+        }
+    }
+
 }

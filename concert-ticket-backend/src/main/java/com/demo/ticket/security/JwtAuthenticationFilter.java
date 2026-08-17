@@ -1,5 +1,6 @@
 package com.demo.ticket.security;
 
+import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -60,35 +61,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String token = resolveToken(request);
-        if (StringUtils.hasText(token)) {
-            Claims claims = jwtTokenService.accessTokenInRedis(token);
-            String account = claims.getSubject();
-            List<String> authorities = claims.get("authorities", List.class);
-            logger.info("account={}", account);
-            logger.info("authorities={}", Arrays.toString(authorities.toArray()));
-            List<SimpleGrantedAuthority> grantedAuthorities =
-                    authorities.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            account,
-                            null,
-                            grantedAuthorities
-                    );
-            SecurityContextHolder
-                    .getContext()
-                    .setAuthentication(authentication);
-        }
+        String bearerToken = request.getHeader("Authorization");
+        String token = ConvertFormat.resolveToken(bearerToken);
+        Claims claims = jwtTokenService.accessTokenInRedis(token);
+        String account = claims.getSubject();
+        List<String> authorities = claims.get("authorities", List.class);
+        logger.info("account={}", account);
+        logger.info("authorities={}", Arrays.toString(authorities.toArray()));
+        List<SimpleGrantedAuthority> grantedAuthorities =
+                authorities.stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .toList();
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        account,
+                        null,
+                        grantedAuthorities
+                );
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
         filterChain.doFilter(request, response);
     }
 
-    private String resolveToken(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
-    }
 }

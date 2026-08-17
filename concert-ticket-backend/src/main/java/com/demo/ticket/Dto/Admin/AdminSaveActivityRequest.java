@@ -2,6 +2,7 @@ package com.demo.ticket.Dto.Admin;
 
 import java.math.BigDecimal;
 
+import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -157,10 +158,6 @@ public class AdminSaveActivityRequest {
     }
 
     public void setAuthHeader(String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        if ("Bearer".equals(token.trim())) {
-            throw new RuntimeException("Token 不可為空");
-        }
-        this.token = token;
+        this.token = ConvertFormat.resolveToken(authHeader);
     }
 }
