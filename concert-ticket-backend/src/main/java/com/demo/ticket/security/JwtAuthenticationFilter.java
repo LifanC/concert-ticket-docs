@@ -13,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -39,6 +38,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/login/login",
             "/api/v1/login/validate",
             "/api/v1/login/logout",
+            // Swagger
+            "/api/swagger-ui",
+            "/api/v3/api-docs",
             // WebSocket
             "/api/ws"
     );

@@ -55,7 +55,7 @@ public class ConvertFormat {
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         } else {
-            throw new RuntimeException("Token 不可為空");
+            return null;
         }
     }
 
