@@ -31,4 +31,12 @@ public class SwaggerConfig {
                 .build();
     }
 
+    @Bean
+    public GroupedOpenApi bookingApi() {
+        return GroupedOpenApi.builder()
+                .group("D-booking")
+                .pathsToMatch("/v1/booking/**")
+                .build();
+    }
+
 }
