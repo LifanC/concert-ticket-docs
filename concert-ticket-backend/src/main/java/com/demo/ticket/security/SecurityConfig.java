@@ -37,14 +37,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // WebSocket 放行
-                        .requestMatchers("/ws/**")
-                        .permitAll()
+                        .requestMatchers(
+                                "/ws/**"
+                        ).permitAll()
                         // 登入、註冊
                         .requestMatchers(
                                 "/v1/login/**",
                                 "/v1/admin/**",
                                 "/v1/activity/**",
-                                "/v1/booking/**",
+                                "/v1/booking/**"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()

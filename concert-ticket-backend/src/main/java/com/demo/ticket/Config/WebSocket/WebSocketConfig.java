@@ -3,6 +3,7 @@ package com.demo.ticket.Config.WebSocket;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
@@ -56,8 +57,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
                     @Override
                     public Message<?> preSend(
-                            Message<?> message,
-                            MessageChannel channel) {
+                            @NonNull Message<?> message,
+                            @NonNull MessageChannel channel) {
                         StompHeaderAccessor accessor =
                                 MessageHeaderAccessor.getAccessor(
                                         message,
@@ -87,6 +88,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         }
                         return message;
                     }
+
                 }
         );
     }

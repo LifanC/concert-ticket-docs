@@ -3,6 +3,7 @@ package com.demo.ticket.security;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
+import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,21 +40,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/login/validate",
             "/api/v1/login/logout",
             "/api/v1/activity/selectAllActivities",
+            // WebSocket
+            "/api/ws",
             // Swagger
             "/api/swagger-ui",
-            "/api/v3/api-docs",
-            // WebSocket
-            "/api/ws"
+            "/api/v3/api-docs"
     );
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        logger.info("JWT path = {}", path);
         // 不需要 JWT 的路徑
-        boolean skip = PUBLIC_PATH_PREFIX.stream().anyMatch(path::startsWith)
-                || path.startsWith("/swagger-ui")
-                || path.startsWith("/v3/api-docs");
+        boolean skip = PUBLIC_PATH_PREFIX.stream().anyMatch(path::startsWith);
+        logger.info("JWT path = {}", path);
         logger.info("skip filter = {}", skip);
         return skip;
     }
@@ -61,11 +60,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
-            HttpServletResponse response,
+            @Nonnull HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String bearerToken = request.getHeader("Authorization");
-        String token = ConvertFormat.resolveToken(bearerToken);
+        String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
         Claims claims = jwtTokenService.accessTokenInRedis(token);
         String account = claims.getSubject();
         List<String> authorities = claims.get("authorities", List.class);
