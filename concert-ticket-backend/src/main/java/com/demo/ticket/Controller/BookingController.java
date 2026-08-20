@@ -31,6 +31,7 @@ public class BookingController {
     @GetMapping("/selectOnlyActivities")
     public List<Map<String, Object>> selectOnlyActivities(
             @ModelAttribute
+            @Valid
             BookingSelectOnlyActivitiesRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
             @RequestHeader("Authorization") String authHeader) {
@@ -42,6 +43,7 @@ public class BookingController {
     @GetMapping("/selectOnlySession")
     public List<Map<String, Object>> selectOnlySession(
             @ModelAttribute
+            @Valid
             BookingSelectOnlySessionRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
             @RequestHeader("Authorization") String authHeader) {
@@ -53,6 +55,7 @@ public class BookingController {
     @GetMapping("/selectOnlyTicket")
     public List<Map<String, Object>> selectOnlyTicket(
             @ModelAttribute
+            @Valid
             BookingSelectOnlyTicketRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
             @RequestHeader("Authorization") String authHeader) {
@@ -64,6 +67,7 @@ public class BookingController {
     @GetMapping("/selectOnlyActivitiesPrice")
     public Map<String, Object> selectOnlyActivitiesPrice(
             @ModelAttribute
+            @Valid
             BookingSelectOnlyActivitiesPriceRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
             @RequestHeader("Authorization") String authHeader) {

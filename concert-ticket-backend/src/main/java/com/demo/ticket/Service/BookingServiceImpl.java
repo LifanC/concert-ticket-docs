@@ -77,6 +77,7 @@ public class BookingServiceImpl implements BookingService {
     public List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request) {
         final String accessToken = request.getToken().trim();
         final String date = request.getDate().trim();
+        final String activityName = request.getActivityName().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
@@ -93,7 +94,7 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (單一場次資料) Token 已過期", accessJwt);
             } else {
-                data = bookingMapper.selectOnlySession(date);
+                data = bookingMapper.selectOnlySession(date, activityName);
             }
         } catch (JwtException e) {
             // JWT 不合法
@@ -171,8 +172,6 @@ public class BookingServiceImpl implements BookingService {
         final String name = request.getName().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
-        final String bookingStatus = request.getStatus().trim();
-        final BigDecimal price = request.getPrice();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
@@ -205,9 +204,16 @@ public class BookingServiceImpl implements BookingService {
                     bookingSaveTicket.setName(name);
                     bookingSaveTicket.setDate(date);
                     bookingSaveTicket.setTime(time);
-                    bookingSaveTicket.setStatus(bookingStatus);
+                    bookingSaveTicket.setStatus("待付款");
+                    BigDecimal price = bookingMapper.selectActivityPrice(name);
+                    if (price == null) {
+                        throw new IllegalArgumentException("活動不存在");
+                    }
                     bookingSaveTicket.setPrice(price);
-                    bookingMapper.saveTicket(bookingSaveTicket);
+                    int inserted = bookingMapper.saveTicket(bookingSaveTicket);
+                    if (inserted == 0) {
+                        throw new IllegalStateException("訂單編號已存在");
+                    }
                     data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
 
                     NotificationMessage message =
@@ -237,7 +243,6 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request) {
         final String orderno = request.getOrderno().trim();
-        final String bookingStatus = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();
@@ -266,7 +271,8 @@ public class BookingServiceImpl implements BookingService {
                 } else {
                     BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
                     bookingSaveTicket.setOrderno(orderno);
-                    bookingSaveTicket.setStatus(bookingStatus);
+                    bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
+                    bookingSaveTicket.setStatus("已取消");
                     int cnt = bookingMapper.cancelTicket(bookingSaveTicket);
                     if (cnt > 0) {
                         dataMap.put("judge", true);

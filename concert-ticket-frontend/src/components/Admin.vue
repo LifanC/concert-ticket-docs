@@ -1,10 +1,8 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import axios from "axios";
+import { adminApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 
-axios.defaults.baseURL = 'http://localhost:8080/api/v1/admin'
-axios.defaults.withCredentials = true;
 
 const router = useRouter()
 const activeTab = ref('activities')
@@ -23,7 +21,7 @@ async function executeFirst() {
     if (judge) {
       // selectAllActivities活動管理
       try {
-        const response = await axios({
+        const response = await adminApi({
           method: 'get',
           url: '/selectAllActivities',
           headers: {
@@ -41,7 +39,7 @@ async function executeFirst() {
     if (judge) {
       // selectAllSessions建立場次
       try {
-        const response = await axios({
+        const response = await adminApi({
           method: 'get',
           url: '/selectAllSessions',
           headers: {
@@ -59,7 +57,7 @@ async function executeFirst() {
     if (judge) {
       // selectAllticket
       try {
-        const response = await axios({
+        const response = await adminApi({
           method: 'get',
           url: '/selectAllticket',
           headers: {
@@ -212,7 +210,7 @@ const saveActivity = async () => {
       )
     }
     try {
-      const response = await axios({
+      const response = await adminApi({
         method: 'post',
         url: '/saveActivity',
         data: activityForm,
@@ -268,7 +266,7 @@ const deleteActivity = async (activity) => {
       }
     )
     try {
-      const response = await axios({
+      const response = await adminApi({
         method: 'delete',
         url: '/deleteActivity',
         data: activityForm,
@@ -323,7 +321,7 @@ const createSession = async () => {
       }
     )
     try {
-      const response = await axios({
+      const response = await adminApi({
         method: 'post',
         url: '/createSession',
         data: sessionForm,

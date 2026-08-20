@@ -1,6 +1,8 @@
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
+import { toFindCookie } from '@/components/componentsJs/cookie'
+
+const webSocketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/ws'
 
 let client = null;
 
@@ -17,7 +19,7 @@ function connectWebSocket() {
 
     client = new Client({
         webSocketFactory: () =>
-            new SockJS("http://localhost:8080/api/ws"),
+            new SockJS(webSocketUrl),
         connectHeaders: {
             Authorization: `Bearer ${accessToken}`
         },

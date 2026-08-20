@@ -1,11 +1,9 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import axios from "axios";
+import { loginApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
-axios.defaults.baseURL = 'http://localhost:8080/api/v1/login'
-axios.defaults.withCredentials = true;
 
 const route = useRoute()
 const router = useRouter()
@@ -96,7 +94,7 @@ const submitLogin = async () => {
   ) return
   let judge = false
   try {
-    const response = await axios({
+    const response = await loginApi({
       method: 'post',
       url: '/login',
       data: loginForm,
@@ -123,7 +121,7 @@ const submitLogin = async () => {
   if (judge) {
     activeTab.value = 'login'
     try {
-      const response = await axios({
+      const response = await loginApi({
         method: 'post',
         url: '/validate',
         data: validateForm,
@@ -183,7 +181,7 @@ const submitRegister = async () => {
     registerForm.password !== registerForm.confirmPassword
   ) return
   try {
-    const response = await axios({
+    const response = await loginApi({
       method: 'post',
       url: '/register',
       data: registerForm,
@@ -231,7 +229,7 @@ const saveProfile = async () => {
   if (accessToken) {
     let judge = false
     try {
-      const response = await axios({
+      const response = await loginApi({
         method: 'put',
         url: '/saveProfile',
         data: profileForm,
@@ -278,7 +276,7 @@ const logout = async () => {
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
     try {
-      const response = await axios({
+      const response = await loginApi({
         method: 'post',
         url: '/logout',
         data: {},

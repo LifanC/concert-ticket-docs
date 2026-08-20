@@ -4,10 +4,13 @@ import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {
                 "date",
+                "activityName",
                 "token",
         }
 )
@@ -25,6 +28,10 @@ public class BookingSelectOnlySessionRequest {
     )
     private String date;
 
+    @NotBlank(message = "活動名稱不可為空")
+    @Size(min = 2, max = 50, message = "活動名稱長度需介於 2~50 字")
+    private String activityName;
+
     private String token;
 
     public String getDate() {
@@ -33,6 +40,14 @@ public class BookingSelectOnlySessionRequest {
 
     public void setDate(String date) {
         this.date = date;
+    }
+
+    public String getActivityName() {
+        return activityName;
+    }
+
+    public void setActivityName(String activityName) {
+        this.activityName = activityName;
     }
 
     public String getToken() {

@@ -18,9 +18,12 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,6 +33,9 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class LoginServiceImpl implements LoginService {
+
+    @Value("${auth.cookie.secure:false}")
+    private boolean refreshCookieSecure;
 
     private final Logger logger = LoggerFactory.getLogger(LoginServiceImpl.class);
 
@@ -88,6 +94,7 @@ public class LoginServiceImpl implements LoginService {
             loginMapper.create(register);
         } catch (DuplicateKeyException e) {
             logger.error("電子信箱或帳號已存在", e);
+            throw e;
         }
         dataMap.put("remark", "註冊成功");
         dataMap.put("name", name);
@@ -130,19 +137,19 @@ public class LoginServiceImpl implements LoginService {
         Map<String, Object> dataMap = new TreeMap<>();
         String remark = "登入失敗";
         boolean judge = false;
+        String refreshToken = null;
+        int refreshTokenMaxAge = 0;
         if (userDataSelect != null) {
             final String userDataPassword = userDataSelect.get("password").toString();
             if (passwordEncoder.matches(password, userDataPassword)) {
                 final String jti = UUID.randomUUID().toString();
                 int refreshExpirationSecondsAddRndomNumber = refreshExpirationSecondsAddRndomNumber();
-                Boolean success = jwtTokenService.createRefreshToken(
+                refreshToken = jwtTokenService.createRefreshToken(
                         jti,
                         refreshExpirationSecondsAddRndomNumber,
                         login.getAccount()
                 );
-                if (Boolean.FALSE.equals(success)) {
-                    logger.error("{} : (登入 Token)已經存在", account);
-                }
+                refreshTokenMaxAge = refreshExpirationSecondsAddRndomNumber;
                 logger.error("{} : (登入 Token)成功", account);
                 remark = "登入成功";
                 judge = true;
@@ -153,8 +160,18 @@ public class LoginServiceImpl implements LoginService {
         dataMap.put("judge", judge);
         data.add(dataMap);
         HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(status);
+        if (refreshToken != null) {
+            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                    .httpOnly(true)
+                    .secure(refreshCookieSecure)
+                    .sameSite("Lax")
+                    .path("/api/v1/login")
+                    .maxAge(refreshTokenMaxAge)
+                    .build();
+            response.header(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
+        return response
                 .body(ApiResponse.api(
                         status,
                         data
@@ -190,14 +207,10 @@ public class LoginServiceImpl implements LoginService {
     @Override
     public ResponseEntity<?> validate(LoginTokenValidateRequest request) {
         final String account = request.getAccount().trim();
+        final String refreshToken = request.getRefreshToken();
         int idx = account.indexOf('@');
         String accountCutOff = idx >= 0 ? account.substring(0, idx) : account;
         List<Map<String, Object>> data = new ArrayList<>();
-        final String refreshRedisKey = String.format(
-                RedisKey.redisKey.get("refresh"),
-                accountCutOff
-        );
-        Boolean exists = stringRedisTemplate.hasKey(refreshRedisKey);
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("remark", "驗證失敗");
         dataMap.put("account", accountCutOff);
@@ -206,10 +219,13 @@ public class LoginServiceImpl implements LoginService {
         dataMap.put("email", "");
         dataMap.put("phone", "");
         dataMap.put("judge", false);
-        if (Boolean.TRUE.equals(exists)) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
             try {
-                Claims claims = jwtTokenService.refreshTokenInRedis(refreshRedisKey);
+                Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
                 String accountJwt = claims.getSubject();
+                if (!accountJwt.equals(accountCutOff)) {
+                    throw new JwtException("Refresh token 與帳號不符");
+                }
                 Login login = new Login(accountJwt);
                 Map<String, Object> userDataSelect;
                 final String userDataOnly = String.format(
@@ -328,12 +344,7 @@ public class LoginServiceImpl implements LoginService {
         dataMap.put("phone", "");
         dataMap.put("birthday", "");
         dataMap.put("judge", false);
-        final String refreshRedisKey = String.format(
-                RedisKey.redisKey.get("refresh"),
-                emailCutOff
-        );
         try {
-            jwtTokenService.refreshTokenInRedis(refreshRedisKey);
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
             String accessJwt = accessClaims.getSubject();
             List<String> accessAuthorities = accessClaims.get("authorities", List.class);
@@ -443,8 +454,16 @@ public class LoginServiceImpl implements LoginService {
         }
         data.add(dataMap);
         HttpStatus status = HttpStatus.OK;
+        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .sameSite("Lax")
+                .path("/api/v1/login")
+                .maxAge(0)
+                .build();
         return ResponseEntity
                 .status(status)
+                .header(HttpHeaders.SET_COOKIE, expiredCookie.toString())
                 .body(ApiResponse.api(
                         status,
                         data

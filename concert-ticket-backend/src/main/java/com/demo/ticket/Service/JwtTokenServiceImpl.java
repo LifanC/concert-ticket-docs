@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
+import io.jsonwebtoken.JwtException;
 
 @Service
 public class JwtTokenServiceImpl implements JwtTokenService {
@@ -40,7 +41,7 @@ public class JwtTokenServiceImpl implements JwtTokenService {
     }
 
     @Override
-    public Boolean createRefreshToken(String jti, int refreshExpirationSecondsAddRndomNumber, String account) {
+    public String createRefreshToken(String jti, int refreshExpirationSecondsAddRndomNumber, String account) {
         // JWT 簽名與驗證用的「祕密字串（secret）」
         final String refreshRedisKey = String.format(
                 RedisKey.redisKey.get("refresh"),
@@ -57,21 +58,30 @@ public class JwtTokenServiceImpl implements JwtTokenService {
                 )
                 .signWith(getKeyForToday())
                 .compact();
-        return stringRedisTemplate.opsForValue().setIfAbsent(
+        stringRedisTemplate.opsForValue().set(
                 refreshRedisKey,
                 refreshToken,
                 Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber)
         );
+        return refreshToken;
     }
 
     @Override
-    public Claims refreshTokenInRedis(String refreshRedisKey) {
-        String refreshTokenInRedis = stringRedisTemplate.opsForValue().get(refreshRedisKey);
-        return Jwts.parserBuilder()
+    public Claims validateRefreshToken(String refreshToken) {
+        Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getKeyForToday())  // 你生成 token 時用的密鑰
                 .build()
-                .parseClaimsJws(refreshTokenInRedis)
+                .parseClaimsJws(refreshToken)
                 .getBody();
+        String refreshRedisKey = String.format(
+                RedisKey.redisKey.get("refresh"),
+                claims.getSubject()
+        );
+        String storedToken = stringRedisTemplate.opsForValue().get(refreshRedisKey);
+        if (storedToken == null || !storedToken.equals(refreshToken)) {
+            throw new JwtException("Refresh token 已失效");
+        }
+        return claims;
     }
 
     @Override

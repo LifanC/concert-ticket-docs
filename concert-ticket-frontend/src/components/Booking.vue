@@ -1,13 +1,11 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import axios from "axios";
+import { bookingApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 import { email } from '@vuelidate/validators';
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 
-axios.defaults.baseURL = 'http://localhost:8080/api/v1/booking'
-axios.defaults.withCredentials = true;
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +28,7 @@ const selectOnlyActivities = async () => {
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'get',
         url: '/selectOnlyActivities',
         params: {
@@ -68,11 +66,12 @@ const selectOnlyActivities = async () => {
 
 const handleDateChange = async (datedate, accessToken) => {
   try {
-    const response = await axios({
+    const response = await bookingApi({
       method: 'get',
       url: '/selectOnlySession',
       params: {
-        date: datedate
+        date: datedate,
+        activityName: route.query.activity_name
       },
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -80,7 +79,7 @@ const handleDateChange = async (datedate, accessToken) => {
     });
     sessions.value = response.data
     selectedSession.value = route.query.activity_time
-    const responsePrice = await axios({
+    const responsePrice = await bookingApi({
       method: 'get',
       url: '/selectOnlyActivitiesPrice',
       params: {
@@ -174,7 +173,7 @@ const createOrder = async () => {
       }
     )
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'post',
         url: '/saveTicket',
         data: ticketForm,
@@ -222,7 +221,7 @@ const cancelOrder = async (ticket) => {
       }
     )
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'put',
         url: '/cancelOrder',
         data: ticketForm,
@@ -279,7 +278,7 @@ const payprice = async (payprice) => {
       }
     )
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'post',
         url: '/sessionSalesDate',
         data: paypriceForm,
@@ -326,7 +325,7 @@ const dopayprice = async () => {
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'put',
         url: '/dopayprice',
         data: paypricedataForm,
@@ -376,7 +375,7 @@ const myTicketsVisibleDialog = async () => {
     myTicketsVisible.value = true
     // selectAllTicket
     try {
-      const response = await axios({
+      const response = await bookingApi({
         method: 'get',
         url: '/selectOnlyTicket',
         params: {},

@@ -5,6 +5,10 @@ jwt:
   refreshExpirationSeconds: 1800
   accessExpirationSeconds: 300
 
+auth:
+  cookie:
+    secure: ${REFRESH_COOKIE_SECURE:false}
+
 # -----------------------------
 # Server ??
 # -----------------------------

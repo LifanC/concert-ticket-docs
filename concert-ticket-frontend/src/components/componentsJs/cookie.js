@@ -3,7 +3,7 @@
  * @param name 新增cookie的值
  */
 function clearCookie(name) {
-    document.cookie = `${name}=; max-age=0; path=/`;
+    document.cookie = `${name}=; max-age=0; path=/; SameSite=Lax`;
 }
 
 /**
@@ -17,6 +17,10 @@ function addCookie(name, value, maxAge = null) {
             ? JSON.stringify(value)
             : value;
     let cookieStr = `${name}=${encodeURIComponent(val)}; path=/`;
+    cookieStr += '; SameSite=Lax';
+    if (window.location.protocol === 'https:') {
+        cookieStr += '; Secure';
+    }
     // 👇 有設定才變成「持久 cookie」
     if (maxAge !== null) {
         cookieStr += `; max-age=${maxAge}`;

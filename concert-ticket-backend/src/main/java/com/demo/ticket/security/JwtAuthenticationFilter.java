@@ -3,6 +3,7 @@ package com.demo.ticket.security;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -64,7 +65,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
-        Claims claims = jwtTokenService.accessTokenInRedis(token);
+        if (token == null || token.isBlank()) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "缺少存取權杖");
+            return;
+        }
+        Claims claims;
+        try {
+            claims = jwtTokenService.accessTokenInRedis(token);
+        } catch (JwtException | IllegalArgumentException exception) {
+            SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "無效或已過期的存取權杖");
+            return;
+        }
         String account = claims.getSubject();
         List<String> authorities = claims.get("authorities", List.class);
         logger.info("account={}", account);

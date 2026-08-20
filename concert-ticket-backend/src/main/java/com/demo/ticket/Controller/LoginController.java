@@ -46,7 +46,9 @@ public class LoginController {
     public ResponseEntity<?> validate(
             @Valid
             @RequestBody
-            LoginTokenValidateRequest request) {
+            LoginTokenValidateRequest request,
+            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
+        request.setRefreshToken(refreshToken);
         return loginService.validate(request);
     }
 

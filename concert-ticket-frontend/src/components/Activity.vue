@@ -1,10 +1,8 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import axios from "axios";
+import { activityApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 
-axios.defaults.baseURL = 'http://localhost:8080/api/v1/activity'
-axios.defaults.withCredentials = true;
 
 const router = useRouter()
 const keyword = ref('')
@@ -16,7 +14,7 @@ const currentActivity = ref(null)
 executeFirst()
 async function executeFirst() {
   // selectAllActivities活動管理
-  const response = await axios({
+  const response = await activityApi({
     method: 'get',
     url: '/selectAllActivities',
   });

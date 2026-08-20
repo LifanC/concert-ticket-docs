@@ -38,6 +38,7 @@
                 "session".capacity as available
         FROM "interviewworks_ticket"."session" "session"
         where "session"."date" = #{date}
+          and "session".activity = #{activityName}
         ORDER BY "session"."date"
     </select>
 
@@ -47,6 +48,12 @@
             activity.price
         FROM "interviewworks_ticket"."activity" activity
         where activity.id = #{activityId}
+    </select>
+
+    <select id="selectActivityPrice" resultType="java.math.BigDecimal">
+        select price
+        from "interviewworks_ticket"."activity"
+        where "name" = #{activityName}
     </select>
 
     <insert id="saveTicket">
@@ -72,15 +79,7 @@
                 #{status},
                 #{price}
             )
-            ON CONFLICT (orderno)
-        DO UPDATE SET
-                       customer = EXCLUDED.customer,
-                       email = EXCLUDED.email,
-                       "name" = EXCLUDED."name",
-                       "date" = EXCLUDED."date",
-                       "time" = EXCLUDED."time",
-                       status = EXCLUDED.status,
-                       price = EXCLUDED.price
+        ON CONFLICT (orderno) DO NOTHING
     </insert>
 
     <select id="selectOnlyTicket" resultType="java.util.Map">
@@ -102,8 +101,10 @@
 
     <update id="cancelTicket">
         update "interviewworks_ticket".ticket ticket
-        set status = #{status}
+        set status = '已取消'
         where orderno = #{orderno}
+          and customer = #{customer}
+          and status in ('已成立', '待付款')
     </update>
 
     <select id="sessionSalesDate" resultType="java.util.Map">
@@ -132,12 +133,13 @@
           AND ticket."date" = #{date}
           AND ticket."time" = #{time}
           AND ticket.status = '待付款'
-          AND EXISTS (
-            SELECT 1
-            FROM interviewworks_ticket."session" AS s
+           AND EXISTS (
+             SELECT 1
+             FROM interviewworks_ticket."session" AS s
             WHERE s.activity = ticket."name"
               AND s."date" = ticket."date"
               AND s."time" = ticket."time"
+              AND s.capacity > 0
         )
             RETURNING ticket."name", ticket."date", ticket."time"
 )
@@ -149,6 +151,7 @@
         WHERE s.activity = p."name"
           AND s."date" = p."date"
           AND s."time" = p."time"
+          AND s.capacity > 0
     </update>
 
 </mapper>

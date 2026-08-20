@@ -17,17 +17,17 @@ import jakarta.validation.constraints.Size;
 public class BookingSelectOnlyActivitiesPriceRequest {
 
     @Schema(
-            description = "訂單編號",
-            example = "CT20260815001",
-            minLength = 13,
-            maxLength = 13,
+            description = "活動編號",
+            example = "ACT-2026-001",
+            minLength = 12,
+            maxLength = 12,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "訂單編號不可為空")
-    @Size(min = 13, max = 13, message = "訂單編號長度需為 13 個字元")
+    @NotBlank(message = "活動編號不可為空")
+    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
     @Pattern(
-            regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
-            message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
+            regexp = "^ACT-\\d{4}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
     )
     private String activity_id;
 

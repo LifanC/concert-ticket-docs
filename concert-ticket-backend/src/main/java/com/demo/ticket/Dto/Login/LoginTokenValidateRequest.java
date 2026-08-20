@@ -28,8 +28,17 @@ public class LoginTokenValidateRequest {
     )
     private String account;
 
+    private String refreshToken;
+
     public String getAccount() {
         return account;
     }
 
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
 }
