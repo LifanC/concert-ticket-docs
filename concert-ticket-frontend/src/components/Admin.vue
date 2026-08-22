@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { adminApi } from '@/services/api'
-import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
+import { toFindCookie, clearCookie } from "@/components/componentsJs/cookie";
 
 
 const router = useRouter()
@@ -15,84 +15,53 @@ const orders = ref([])
 
 executeFirst()
 async function executeFirst() {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    let judge = true
-    if (judge) {
-      // selectAllActivities活動管理
-      try {
-        const response = await adminApi({
-          method: 'get',
-          url: '/selectAllActivities',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        activities.value = response.data
-      } catch (error) {
-        let status = error.response.status ?? {}
-        if (status === 403 || status === 500) {
-          judge = false
-        }
-      }
-    }
-    if (judge) {
-      // selectAllSessions建立場次
-      try {
-        const response = await adminApi({
-          method: 'get',
-          url: '/selectAllSessions',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        sessions.value = response.data
-      } catch (error) {
-        let status = error.response.status ?? {}
-        if (status === 403 || status === 500) {
-          judge = false
-        }
-      }
-    }
-    if (judge) {
-      // selectAllticket
-      try {
-        const response = await adminApi({
-          method: 'get',
-          url: '/selectAllticket',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        orders.value = response.data
-      } catch (error) {
-        let status = error.response.status ?? {}
-        if (status === 403 || status === 500) {
-          judge = false
-        }
-      }
-    }
-    if (!judge) {
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: false
-          }
-        }
-      )
-      clearCookie('accessToken')
-    }
-  } else {
+  // selectAllActivities活動管理
+  let judge = false
+  try {
+    const response = await adminApi({
+      method: 'get',
+      url: '/selectAllActivities',
+    });
+    activities.value = response.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    judge = (status === 403) ? true : false
+  }
+  // selectAllSessions建立場次
+  try {
+    const response = await adminApi({
+      method: 'get',
+      url: '/selectAllSessions',
+    });
+    sessions.value = response.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    judge = (status === 403) ? true : false
+  }
+  // selectAllticket
+  try {
+    const response = await adminApi({
+      method: 'get',
+      url: '/selectAllticket',
+    });
+    orders.value = response.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    judge = (status === 403) ? true : false
+  }
+  if (judge) {
+    ElMessage({
+      type: 'error',
+      message: `${'權限不足'}`,
+    })
     router.push(
       {
         path: '/User',
         query: {
-          isLoggedIn: false
+          isLoggedIn: true
         }
       }
     )
-    clearCookie('accessToken')
   }
 }
 
@@ -448,7 +417,8 @@ const statusType = (status) => (
               </el-form-item>
               <el-row :gutter="16">
                 <el-col :xs="24" :sm="12">
-                  <el-form-item label="開演日期" required :error="sessionFormNotOk.date !== '' ? sessionFormNotOk.date : ''">
+                  <el-form-item label="開演日期" required
+                    :error="sessionFormNotOk.date !== '' ? sessionFormNotOk.date : ''">
                     <el-date-picker v-model="sessionForm.date" type="date" value-format="YYYY-MM-DD"
                       style="width: 100%" />
                   </el-form-item>

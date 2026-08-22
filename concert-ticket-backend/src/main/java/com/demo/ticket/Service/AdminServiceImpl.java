@@ -1,13 +1,10 @@
 package com.demo.ticket.Service;
 
-
 import com.demo.ticket.Dto.Admin.*;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Mapper.AdminMapper;
-import com.demo.ticket.Mapper.SecretMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -15,9 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Service
@@ -25,23 +20,15 @@ public class AdminServiceImpl implements AdminService{
 
     private final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
 
-    private final SecretMapper secretMapper;
     private final AdminMapper adminMapper;
     private final JwtTokenService jwtTokenService;
 
     public AdminServiceImpl(
-            SecretMapper secretMapper,
             AdminMapper adminMapper,
             JwtTokenService jwtTokenService
     ) {
-        this.secretMapper = secretMapper;
         this.adminMapper = adminMapper;
         this.jwtTokenService = jwtTokenService;
-    }
-
-    private SecretKey getKeyForToday() {
-        String secret = secretMapper.getSecretOnly();
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override

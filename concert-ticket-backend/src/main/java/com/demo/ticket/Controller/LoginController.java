@@ -59,8 +59,10 @@ public class LoginController {
             @RequestBody
             LoginSaveProfileRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader,
+            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
         request.setAuthHeader(authHeader);
+        request.setRefreshToken(refreshToken);
         return loginService.saveProfile(request);
     }
 
@@ -71,8 +73,10 @@ public class LoginController {
             @RequestBody
             LoginLogoutRequest request,
             @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader,
+            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
         request.setAuthHeader(authHeader);
+        request.setRefreshToken(refreshToken);
         return loginService.logout(request);
     }
 

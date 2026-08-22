@@ -1,10 +1,7 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
 import { bookingApi } from '@/services/api'
-import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
-import { email } from '@vuelidate/validators';
-import SockJS from "sockjs-client";
-import { Client } from "@stomp/stompjs";
+import { toFindCookie, clearCookie } from "@/components/componentsJs/cookie";
 
 
 const route = useRoute()
@@ -14,8 +11,6 @@ const selectedActivityName = computed(() => {
   let activity_id = route.query.activity_id
   let activity_sessionid = route.query.activity_sessionid
   let activity_name = route.query.activity_name
-  let activity_date = route.query.activity_date
-  let activity_time = route.query.activity_time
   if (activity_id === undefined || activity_sessionid === undefined) {
     nextStep_disabled.value = true
   } else {
@@ -25,83 +20,72 @@ const selectedActivityName = computed(() => {
   return activity_name
 })
 const selectOnlyActivities = async () => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    try {
-      const response = await bookingApi({
-        method: 'get',
-        url: '/selectOnlyActivities',
-        params: {
-          activity_name: route.query.activity_name
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      selectedDate.value = route.query.activity_date
-      handleDateChange(route.query.activity_date, accessToken)
-      dates.value = response.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
+  try {
+
+    const response_selectOnlyActivities = await bookingApi({
+      method: 'get',
+      url: '/selectOnlyActivities',
+      params: {
+        activity_name: route.query.activity_name
+      },
+    });
+    selectedDate.value = route.query.activity_date
+    dates.value = response_selectOnlyActivities.data
+    handleDateChange()
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
           }
-        )
-        clearCookie('accessToken')
-      }
+        }
+      )
     }
-  } else {
-    ElMessage({
-      type: 'error',
-      message: `${'尚未登入'}`,
-    })
-    nextStep_disabled.value = true
   }
 }
 
-const handleDateChange = async (datedate, accessToken) => {
+const handleDateChange = async () => {
   try {
-    const response = await bookingApi({
+    const response_selectOnlySession = await bookingApi({
       method: 'get',
       url: '/selectOnlySession',
       params: {
-        date: datedate,
+        date: route.query.activity_date,
         activityName: route.query.activity_name
       },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
     });
-    sessions.value = response.data
     selectedSession.value = route.query.activity_time
+    sessions.value = response_selectOnlySession.data
     const responsePrice = await bookingApi({
       method: 'get',
       url: '/selectOnlyActivitiesPrice',
       params: {
         activity_id: route.query.activity_id
       },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
     });
     selectedPrice.value = responsePrice.data.price
   } catch (error) {
     let status = error.response.status ?? {}
-    if (status === 403 || status === 500) {
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
       router.push(
         {
           path: '/User',
           query: {
-            isLoggedIn: false
+            isLoggedIn: true
           }
         }
       )
-      clearCookie('accessToken')
     }
   }
 }
@@ -177,9 +161,6 @@ const createOrder = async () => {
         method: 'post',
         url: '/saveTicket',
         data: ticketForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
       myTicketsVisible.value = true
       ticketDialogVisible.value = false
@@ -225,9 +206,6 @@ const cancelOrder = async (ticket) => {
         method: 'put',
         url: '/cancelOrder',
         data: ticketForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
       let data = response.data.data[0] ?? {}
       if (data.judge) {
@@ -282,9 +260,6 @@ const payprice = async (payprice) => {
         method: 'post',
         url: '/sessionSalesDate',
         data: paypriceForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
       Object.assign(
         paypricedataForm,
@@ -329,9 +304,6 @@ const dopayprice = async () => {
         method: 'put',
         url: '/dopayprice',
         data: paypricedataForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
       let data = response.data.data[0] ?? {}
       if (data.judge) {
@@ -370,52 +342,31 @@ const statusType = (status) => (
   }[status] || 'warning'
 )
 const myTicketsVisibleDialog = async () => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    myTicketsVisible.value = true
-    // selectAllTicket
-    try {
-      const response = await bookingApi({
-        method: 'get',
-        url: '/selectOnlyTicket',
-        params: {},
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      tickets.value = response.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
+  myTicketsVisible.value = true
+  // selectAllTicket
+  try {
+    const response = await bookingApi({
+      method: 'get',
+      url: '/selectOnlyTicket',
+      params: {},
+    });
+    tickets.value = response.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
           }
-        )
-        clearCookie('accessToken')
-        ElMessage({
-          type: 'info',
-          message: `${'重新登入'}`,
-        })
-      }
-    }
-  } else {
-    router.push(
-      {
-        path: '/User',
-        query: {
-          isLoggedIn: false
         }
-      }
-    )
-    clearCookie('accessToken')
-    ElMessage({
-      type: 'info',
-      message: `${'重新登入'}`,
-    })
+      )
+    }
   }
 }
 </script>

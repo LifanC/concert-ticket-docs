@@ -1,7 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { activityApi } from '@/services/api'
-import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 
 
 const router = useRouter()

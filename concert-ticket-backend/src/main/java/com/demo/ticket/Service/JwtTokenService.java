@@ -4,7 +4,7 @@ import io.jsonwebtoken.Claims;
 
 public interface JwtTokenService {
 
-    String createRefreshToken(String jti, int refreshExpirationSecondsAddRndomNumber, String account);
+    String createRefreshToken(String refreshRedisKey, String jti, int refreshExpirationSecondsAddRndomNumber, String account);
 
     Claims validateRefreshToken(String refreshToken);
 

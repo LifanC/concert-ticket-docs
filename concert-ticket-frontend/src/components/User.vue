@@ -1,14 +1,14 @@
 <script setup>
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { loginApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
 
 const route = useRoute()
-const router = useRouter()
 const activeTab = ref('login')
 const isLoggedIn = ref(false)
+const accessName = ref('')
 const loginForm = reactive(
   {
     account: '',
@@ -60,26 +60,13 @@ const registerFormNotOk = ref(
 
 executeFirst()
 function executeFirst() {
-  let isLoggedIn_ = false
-  let is = route.query.isLoggedIn
-  if (is != undefined) {
-    if (is === 'false') {
-      isLoggedIn_ = false
-    }
+  isLoggedIn.value = !!toFindCookie('accessToken')
+  if (isLoggedIn.value) {
+    accessName.value = toFindCookie('accessName') ?? ''
   } else {
-    let accessToken = toFindCookie('accessToken')
-    if (accessToken) {
-      isLoggedIn_ = true
-    } else {
-      isLoggedIn_ = false
-    }
-  }
-  isLoggedIn.value = isLoggedIn_
-  if (!isLoggedIn_) {
+    clearCookie('accessName')
     clearCookie('accessToken')
     disconnectWebSocket()
-  } else {
-    connectWebSocket()
   }
 }
 
@@ -92,7 +79,7 @@ const submitLogin = async () => {
     !loginForm.account ||
     !loginForm.password
   ) return
-  let judge = false
+  let isLoggedIn_ = false
   try {
     const response = await loginApi({
       method: 'post',
@@ -102,62 +89,57 @@ const submitLogin = async () => {
     let data = response.data.data[0] ?? {}
     validateForm.account = data.account
     if (data.judge) {
-      judge = true
+      activeTab.value = 'login'
+      try {
+        const response = await loginApi({
+          method: 'post',
+          url: '/validate',
+          data: validateForm,
+        });
+        let data = response.data.data[0] ?? {}
+        if (data.judge) {
+          if (data.accessToken) {
+            activeTab.value = 'profile'
+            isLoggedIn_ = true
+            addCookie('accessName', data.name)
+            addCookie('accessToken', data.accessToken)
+            Object.assign(
+              profileForm,
+              {
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                birthday: data.birthday
+              }
+            )
+            accessName.value = toFindCookie('accessName') ?? ''
+          }
+        } else {
+          activeTab.value = 'login'
+          ElMessage({
+            type: 'info',
+            message: `${'重新登入'}`,
+          })
+        }
+      } catch (error) {
+        let data = error.response.data.data[1]?.error ?? {}
+        loginFormNotOk.value = {
+          account: data.account ?? '',
+          password: data.password ?? '',
+        }
+      }
     } else {
       ElMessage({
-        type: 'info',
-        message: `${'重新登入'}`,
+        type: 'error',
+        message: `${'登入錯誤'}`,
       })
     }
-    clearCookie('accessToken')
   } catch (error) {
     let data = error.response.data.data[1]?.error ?? {}
     loginFormNotOk.value = {
       account: data.account ?? '',
       password: data.password ?? '',
     }
-  }
-  let isLoggedIn_ = false
-  if (judge) {
-    activeTab.value = 'login'
-    try {
-      const response = await loginApi({
-        method: 'post',
-        url: '/validate',
-        data: validateForm,
-      });
-      let data = response.data.data[0] ?? {}
-      if (data.judge) {
-        if (data.accessToken) {
-          activeTab.value = 'profile'
-          isLoggedIn_ = true
-          addCookie('accessToken', data.accessToken)
-          Object.assign(
-            profileForm,
-            {
-              name: data.name,
-              email: data.email,
-              phone: data.phone,
-              birthday: data.birthday
-            }
-          )
-        }
-      } else {
-        ElMessage({
-          type: 'info',
-          message: `${'重新登入'}`,
-        })
-      }
-    } catch (error) {
-      let data = error.response.data.data[1]?.error ?? {}
-      loginFormNotOk.value = {
-        account: data.account ?? '',
-        password: data.password ?? '',
-      }
-    }
-  } else {
-    activeTab.value = 'login'
-    isLoggedIn_ = false
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
@@ -227,15 +209,11 @@ const saveProfile = async () => {
   let isLoggedIn_ = false
   let accessToken = toFindCookie('accessToken')
   if (accessToken) {
-    let judge = false
     try {
       const response = await loginApi({
         method: 'put',
         url: '/saveProfile',
-        data: profileForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        data: profileForm
       });
       let data = response.data.data[0] ?? {}
       if (data.judge) {
@@ -249,7 +227,15 @@ const saveProfile = async () => {
           type: 'info',
           message: `${'修改會員資料失敗'}`,
         })
-        isLoggedIn_ = false
+        Object.assign(
+          profileForm,
+          {
+            name: '',
+            email: '',
+            phone: '',
+            birthday: ''
+          }
+        )
       }
     } catch (error) {
       let data = error.response.data.data[1]?.error ?? {}
@@ -257,18 +243,14 @@ const saveProfile = async () => {
         phone: data.phone ?? '',
         birthday: data.birthday ?? '',
       }
-      isLoggedIn_ = false
     }
     activeTab.value = 'profile'
   } else {
-    isLoggedIn_ = false
     activeTab.value = 'login';
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
     disconnectWebSocket()
-  } else {
-    connectWebSocket()
   }
 }
 const logout = async () => {
@@ -279,10 +261,7 @@ const logout = async () => {
       const response = await loginApi({
         method: 'post',
         url: '/logout',
-        data: {},
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        data: {}
       });
       let data = response.data.data[0] ?? {}
       if (data.judge) {
@@ -299,7 +278,6 @@ const logout = async () => {
             birthday: ''
           }
         )
-        isLoggedIn_ = false
         activeTab.value = 'login'
         loginForm.account = '';
         loginForm.password = '';
@@ -311,7 +289,6 @@ const logout = async () => {
         type: 'error',
         message: `${'登出'}`,
       })
-      isLoggedIn.value = false
       Object.assign(
         profileForm,
         {
@@ -322,11 +299,10 @@ const logout = async () => {
         }
       )
     }
-  } else {
-    isLoggedIn_ = false
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
+    clearCookie('accessName')
     clearCookie('accessToken')
     disconnectWebSocket()
   } else {
@@ -342,7 +318,7 @@ const logout = async () => {
         <h1>會員中心</h1>
         <el-text type="info">管理帳戶資料，讓訂票與票券服務更順暢。</el-text>
       </div>
-      <el-tag :type="isLoggedIn ? 'success' : 'info'" effect="light">{{ isLoggedIn ? `已登入・${profileForm.name}` : '尚未登入'
+      <el-tag :type="isLoggedIn ? 'success' : 'info'" effect="light">{{ isLoggedIn ? `已登入・${accessName}` : '尚未登入'
       }}</el-tag>
     </el-header>
     <el-main>

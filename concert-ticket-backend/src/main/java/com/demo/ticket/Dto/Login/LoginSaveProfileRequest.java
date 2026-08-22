@@ -73,6 +73,8 @@ public class LoginSaveProfileRequest {
 
     private String token;
 
+    private String refreshToken;
+
     public String getName() {
         return name;
     }
@@ -97,4 +99,11 @@ public class LoginSaveProfileRequest {
         this.token = ConvertFormat.resolveToken(authHeader);
     }
 
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
 }
