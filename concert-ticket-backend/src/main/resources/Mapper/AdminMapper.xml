@@ -19,17 +19,20 @@
 
     <select id="selectAllSessions" resultType="java.util.Map">
         select
-            id,
-            activity,
-            "date",
-            "time",
-            salesdate,
-            salestime,
-            capacity,
-            sold
+            "session".id,
+            "session".activity_id,
+            activity."name",
+            "session"."date",
+            "session"."time",
+            "session".salesdate,
+            "session".salestime,
+            "session".capacity,
+            "session".sold
         from
-            "interviewworks_ticket"."session"
-        order by id
+            "interviewworks_ticket"."session" "session"
+                inner join "interviewworks_ticket".activity activity
+                           on "session".activity_id = activity.id
+        order by "session".id
     </select>
 
     <select id="selectAllticket" resultType="java.util.Map">
@@ -90,7 +93,7 @@
         INSERT INTO "interviewworks_ticket"."session"
         (
             id,
-            activity,
+            activity_id,
             "date",
             "time",
             salesdate,
@@ -101,7 +104,7 @@
         VALUES
             (
                 #{id},
-                #{activity},
+                #{activity_id},
                 #{date},
                 #{time},
                 #{salesdate},
@@ -111,7 +114,7 @@
             )
             ON CONFLICT (id)
         DO UPDATE SET
-                       activity = EXCLUDED.activity,
+                       activity_id = EXCLUDED.activity_id,
                        "date" = EXCLUDED."date",
                        "time" = EXCLUDED."time",
                        salesdate = EXCLUDED.salesdate,

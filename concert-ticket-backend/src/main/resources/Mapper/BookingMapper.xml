@@ -19,9 +19,9 @@
                 WHEN 7 THEN '日'
                 end || ') ' AS "label"
         FROM "interviewworks_ticket"."activity" activity
-                INNER JOIN "interviewworks_ticket"."session" "session"
-                           ON activity."name" = "session".activity
-        where activity."name" = #{activityName}
+                 INNER JOIN "interviewworks_ticket"."session" "session"
+                            ON activity.id = "session".activity_id
+        where activity.id = #{activity_id}
         ORDER BY activity.id
     </select>
 
@@ -38,7 +38,7 @@
                 "session".capacity as available
         FROM "interviewworks_ticket"."session" "session"
         where "session"."date" = #{date}
-          and "session".activity = #{activityName}
+        and "session".activity_id = #{activity_id}
         ORDER BY "session"."date"
     </select>
 
@@ -47,19 +47,20 @@
             activity.id,
             activity.price
         FROM "interviewworks_ticket"."activity" activity
-        where activity.id = #{activityId}
+        where activity.id = #{activity_id}
     </select>
 
     <select id="selectActivityPrice" resultType="java.math.BigDecimal">
         select price
         from "interviewworks_ticket"."activity"
-        where "name" = #{activityName}
+        where id = #{activity_id}
     </select>
 
     <insert id="saveTicket">
         INSERT INTO "interviewworks_ticket".ticket
         (
             orderno,
+            session_id,
             customer,
             email,
             "name",
@@ -71,6 +72,7 @@
         VALUES
             (
                 #{orderno},
+                #{session_id},
                 #{customer},
                 #{email},
                 #{name},

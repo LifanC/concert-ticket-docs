@@ -20,16 +20,36 @@ async function executeFirst() {
   activities.value = response.data
 }
 
-const categories = ['全部', '音樂演唱會', '舞台劇', '展覽特展']
-const statuses = ['全部', '即將開賣', '售票中', '已結束']
+const categories = [
+  { value: '全部', label: '全部' },
+  { value: 'MUSIC_CONCERT', label: '音樂演唱會' },
+  { value: 'STAGE_PLAY', label: '舞台劇' },
+  { value: 'SPECIAL_EXHIBITION', label: '展覽特展' },
+]
+const statuses = [
+  { value: '全部', label: '全部' },
+  { value: 'COMING_SOON', label: '即將開賣' },
+  { value: 'TICKETS_ARE_ON_SALE', label: '售票中' },
+  { value: 'ENDED', label: '已結束' },
+]
+const categoryMap = {
+  MUSIC_CONCERT: '音樂演唱會',
+  STAGE_PLAY: '舞台劇',
+  SPECIAL_EXHIBITION: '展覽特展',
+}
+const statusMap = {
+  COMING_SOON: '即將開賣',
+  TICKETS_ARE_ON_SALE: '售票中',
+  ENDED: '已結束',
+}
 
 const activities = ref([])
 
 const filteredActivities = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase()
   return activities.value.filter((activity) => {
-    const matchesKeyword = !normalizedKeyword || [activity.name, activity.venue, activity.id].some((value) => {
-      value.toLowerCase().includes(normalizedKeyword)
+    const matchesKeyword = !normalizedKeyword || [activity.name].some((value) => {
+      return value.toLowerCase().includes(normalizedKeyword)
     })
     const matchesCategory = selectedCategory.value === '全部' || activity.category === selectedCategory.value
     const matchesStatus = selectedStatus.value === '全部' || activity.status === selectedStatus.value
@@ -48,13 +68,14 @@ const openDetail = (activity) => {
 }
 const goBooking = () => {
   if (!currentActivity.value) return
-  if (currentActivity.value.status != '已結束') {
+  if (currentActivity.value.status != 'ENDED') {
     detailVisible.value = false
     router.push(
       {
         path: '/booking',
         query: {
           activity_id: currentActivity.value.id,
+          session_id: currentActivity.value.sessionid,
           activity_sessionid: currentActivity.value.sessionid,
           activity_name: currentActivity.value.name,
           activity_date: currentActivity.value.date,
@@ -62,13 +83,18 @@ const goBooking = () => {
         }
       }
     )
+  } else {
+    ElMessage({
+      type: 'error',
+      message: `活動${statusMap[currentActivity.value.status]}`,
+    })
   }
 }
 const statusType = (status) => (
   {
-    '即將開賣': 'warning',
-    '售票中': 'success',
-    '已結束': 'info'
+    'COMING_SOON': 'warning',
+    'TICKETS_ARE_ON_SALE': 'success',
+    'ENDED': 'info'
   }[status] || 'info'
 )
 </script>
@@ -89,12 +115,22 @@ const statusType = (status) => (
           </el-form-item>
           <el-form-item label="活動類型">
             <el-select v-model="selectedCategory" style="width: 160px">
-              <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
+              <el-option
+                v-for="category in categories"
+                :key="category.value"
+                :label="category.label"
+                :value="category.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="售票狀態">
             <el-select v-model="selectedStatus" style="width: 140px">
-              <el-option v-for="status in statuses" :key="status" :label="status" :value="status" />
+              <el-option 
+                v-for="status in statuses" 
+                :key="status.value" 
+                :label="status.label" 
+                :value="status.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label=" ">
@@ -114,8 +150,9 @@ const statusType = (status) => (
               <div class="activity-name">
                 {{ scope.row.name }}
               </div>
-              <el-text size="small" type="info">{{ scope.row.id }} · {{ scope.row.sessionid }} · {{ scope.row.category
-              }}</el-text>
+              <el-text size="small" type="info">
+                {{ scope.row.id }} · {{ scope.row.sessionid }} · {{ categoryMap[scope.row.category] }}
+              </el-text>
             </template>
           </el-table-column>
           <el-table-column prop="date" label="活動日期" min-width="190" />
@@ -123,7 +160,7 @@ const statusType = (status) => (
           <el-table-column prop="price" label="票價" width="120" />
           <el-table-column label="狀態" width="120">
             <template #default="scope">
-              <el-tag :type="statusType(scope.row.status)" effect="light">{{ scope.row.status }}</el-tag>
+              <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right">
@@ -140,14 +177,18 @@ const statusType = (status) => (
       <div class="detail-heading">
         <div>
           <h2>{{ currentActivity.name }}</h2>
-          <el-text type="info">{{ currentActivity.id }} · {{ currentActivity.sessionid }} · {{ currentActivity.category
-          }}</el-text>
+          <el-text type="info">
+            {{ currentActivity.id }} · {{ currentActivity.sessionid }} · {{ categoryMap[currentActivity.category] }}
+          </el-text>
         </div>
-        <el-tag :type="statusType(currentActivity.status)" effect="dark">{{ currentActivity.status }}</el-tag>
+        <el-tag :type="statusType(currentActivity.status)" effect="dark">
+          {{ statusMap[currentActivity.status] }}
+        </el-tag>
       </div>
       <el-descriptions :column="1" border class="detail-list">
-        <el-descriptions-item label="活動日期">{{ currentActivity.date }} {{ currentActivity.dow }} {{ currentActivity.time
-        }}</el-descriptions-item>
+        <el-descriptions-item label="活動日期">
+          {{ currentActivity.date }} {{ currentActivity.dow }} {{ currentActivity.time }}
+        </el-descriptions-item>
         <el-descriptions-item label="活動場地">{{ currentActivity.venue }}</el-descriptions-item>
         <el-descriptions-item label="開賣時間">{{ currentActivity.sales_start }}</el-descriptions-item>
         <el-descriptions-item label="票價">{{ currentActivity.price }}</el-descriptions-item>

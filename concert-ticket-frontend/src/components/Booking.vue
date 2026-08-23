@@ -1,7 +1,6 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
 import { bookingApi } from '@/services/api'
-import { toFindCookie, clearCookie } from "@/components/componentsJs/cookie";
 
 
 const route = useRoute()
@@ -9,9 +8,10 @@ const router = useRouter()
 const nextStep_disabled = ref(false)
 const selectedActivityName = computed(() => {
   let activity_id = route.query.activity_id
+  let session_id = route.query.session_id
   let activity_sessionid = route.query.activity_sessionid
   let activity_name = route.query.activity_name
-  if (activity_id === undefined || activity_sessionid === undefined) {
+  if (activity_id === undefined || session_id === undefined || activity_sessionid === undefined) {
     nextStep_disabled.value = true
   } else {
     nextStep_disabled.value = false
@@ -26,7 +26,7 @@ const selectOnlyActivities = async () => {
       method: 'get',
       url: '/selectOnlyActivities',
       params: {
-        activity_name: route.query.activity_name
+        activity_id: route.query.activity_id
       },
     });
     selectedDate.value = route.query.activity_date
@@ -37,7 +37,7 @@ const selectOnlyActivities = async () => {
     if (status === 403) {
       ElMessage({
         type: 'error',
-        message: `${'權限不足'}`,
+        message: `${'無權限'}`,
       })
       router.push(
         {
@@ -58,7 +58,7 @@ const handleDateChange = async () => {
       url: '/selectOnlySession',
       params: {
         date: route.query.activity_date,
-        activityName: route.query.activity_name
+        activity_id: route.query.activity_id
       },
     });
     selectedSession.value = route.query.activity_time
@@ -76,7 +76,7 @@ const handleDateChange = async () => {
     if (status === 403) {
       ElMessage({
         type: 'error',
-        message: `${'權限不足'}`,
+        message: `${'無權限'}`,
       })
       router.push(
         {
@@ -137,100 +137,90 @@ const previousStep = () => {
 }
 
 const createOrder = async () => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    const now = new Date()
-    const date =
-      now.getFullYear() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0')
-    const orderno = `CT${date}${String(tickets.value.length + 1).padStart(3, '0')}`
-    Object.assign(
-      ticketForm,
-      {
-        orderno: orderno,
-        name: selectedActivityName.value,
-        date: selectedDate.value,
-        time: selectedSession.value,
-        price: selectedPrice,
-        status: '待付款'
-      }
-    )
-    try {
-      const response = await bookingApi({
-        method: 'post',
-        url: '/saveTicket',
-        data: ticketForm,
-      });
-      myTicketsVisible.value = true
-      ticketDialogVisible.value = false
-      tickets.value = response.data.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('accessToken')
-      }
-      myTicketsVisible.value = false
-      ticketDialogVisible.value = true
+  const now = new Date()
+  const date =
+    now.getFullYear() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0')
+  const orderno = `CT${date}${String(tickets.value.length + 1).padStart(3, '0')}`
+  Object.assign(
+    ticketForm,
+    {
+      orderno: orderno,
+      session_id: route.query.session_id,
+      activity_id: route.query.activity_id,
+      name: selectedActivityName.value,
+      date: selectedDate.value,
+      time: selectedSession.value,
+      price: selectedPrice,
+      status: 'PENDING_PAYMENT'
     }
-  } else {
-    ElMessage({
-      type: 'error',
-      message: `${'尚未登入'}`,
-    })
+  )
+  try {
+    const response = await bookingApi({
+      method: 'post',
+      url: '/saveTicket',
+      data: ticketForm,
+    });
     myTicketsVisible.value = true
     ticketDialogVisible.value = false
+    tickets.value = response.data.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'無權限'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
+        }
+      )
+    }
+    myTicketsVisible.value = false
+    ticketDialogVisible.value = true
   }
 }
 
 const cancelOrder = async (ticket) => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    Object.assign(
-      ticketForm,
-      {
-        orderno: ticket.orderno,
-        status: '已取消'
-      }
-    )
-    try {
-      const response = await bookingApi({
-        method: 'put',
-        url: '/cancelOrder',
-        data: ticketForm,
-      });
-      let data = response.data.data[0] ?? {}
-      if (data.judge) {
-        ticket.status = '已取消'
-      }
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('accessToken')
-      }
-      myTicketsVisible.value = false
+  Object.assign(
+    ticketForm,
+    {
+      orderno: ticket.orderno,
+      status: 'CANCELLED'
     }
-  } else {
-    ElMessage({
-      type: 'error',
-      message: `${'尚未登入'}`,
-    })
+  )
+  try {
+    const response = await bookingApi({
+      method: 'put',
+      url: '/cancelOrder',
+      data: ticketForm,
+    });
+    let data = response.data.data[0] ?? {}
+    if (data.judge) {
+      ticket.status = 'CANCELLED'
+    }
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'無權限'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
+        }
+      )
+    }
+    myTicketsVisible.value = false
   }
 }
 
@@ -245,100 +235,97 @@ const paypricedataForm = reactive(
   }
 )
 const payprice = async (payprice) => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
+  Object.assign(
+    paypriceForm,
+    {
+      name: payprice.name,
+      date: payprice.date,
+      time: payprice.time
+    }
+  )
+  try {
+    const response = await bookingApi({
+      method: 'post',
+      url: '/sessionSalesDate',
+      data: paypriceForm,
+    });
     Object.assign(
-      paypriceForm,
+      paypricedataForm,
       {
-        name: payprice.name,
-        date: payprice.date,
-        time: payprice.time
+        orderno: payprice.orderno,
+        activity: response.data.activity,
+        date: response.data.date,
+        time: response.data.time,
+        salesdate: response.data.salesdate,
+        salestime: response.data.salestime
       }
     )
-    try {
-      const response = await bookingApi({
-        method: 'post',
-        url: '/sessionSalesDate',
-        data: paypriceForm,
-      });
-      Object.assign(
-        paypricedataForm,
+    paypriceDialogVisible.value = true
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'無權限'}`,
+      })
+      router.push(
         {
-          orderno: payprice.orderno,
-          activity: response.data.activity,
-          date: response.data.date,
-          time: response.data.time,
-          salesdate: response.data.salesdate,
-          salestime: response.data.salestime
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
         }
       )
-      paypriceDialogVisible.value = true
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('accessToken')
-      }
-      paypriceDialogVisible.value = false
     }
-  } else {
-    ElMessage({
-      type: 'error',
-      message: `${'尚未登入'}`,
-    })
     paypriceDialogVisible.value = false
   }
 }
 const dopayprice = async () => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    try {
-      const response = await bookingApi({
-        method: 'put',
-        url: '/dopayprice',
-        data: paypricedataForm,
-      });
-      let data = response.data.data[0] ?? {}
-      if (data.judge) {
-        paypriceDialogVisible.value = false
-        myTicketsVisible.value = false
-      }
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('accessToken')
-        paypriceDialogVisible.value = false
-        myTicketsVisible.value = false
-      }
+  try {
+    const response = await bookingApi({
+      method: 'put',
+      url: '/dopayprice',
+      data: paypricedataForm,
+    });
+    let data = response.data.data[0] ?? {}
+    if (data.judge) {
+      paypriceDialogVisible.value = false
+      myTicketsVisible.value = false
     }
-  } else {
-    ElMessage({
-      type: 'error',
-      message: `${'尚未登入'}`,
-    })
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'無權限'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
+        }
+      )
+      paypriceDialogVisible.value = false
+      myTicketsVisible.value = false
+    }
   }
+}
+const ticketsMap = {
+  PENDING_PAYMENT: '等待付款',
+  PAID: '已付款',
+  CANCELLED: '取消',
+  EXPIRED: '超過付款期限',
+  REFUNDED: '已退款',
 }
 const statusType = (status) => (
   {
-    '已成立': 'success',
-    '已付款': 'success',
-    '待付款': 'warning',
-    '已取消': 'info'
+    'PENDING_PAYMENT': 'success',
+    'PAID': 'success',
+    'CANCELLED': 'warning',
+    'EXPIRED': 'warning',
+    'REFUNDED': 'info'
   }[status] || 'warning'
 )
 const myTicketsVisibleDialog = async () => {
@@ -356,7 +343,7 @@ const myTicketsVisibleDialog = async () => {
     if (status === 403) {
       ElMessage({
         type: 'error',
-        message: `${'權限不足'}`,
+        message: `${'無權限'}`,
       })
       router.push(
         {
@@ -446,8 +433,9 @@ const myTicketsVisibleDialog = async () => {
 
   <el-dialog v-model="paypriceDialogVisible" title="付款" width="min(520px, 92vw)">
     <el-alert title="請完成付款。" type="warning" :closable="false" show-icon />
-    <p class="confirm-seat"> {{ paypricedataForm.orderno }} 請於期限內 {{ paypricedataForm.salesdate }} {{
-      paypricedataForm.salestime }} 完成付款</p>
+    <p class="confirm-seat">
+      {{ paypricedataForm.orderno }} 請於期限內 {{ paypricedataForm.salesdate }} {{ paypricedataForm.salestime }} 完成付款
+    </p>
     <template #footer>
       <el-button @click="paypriceDialogVisible = false">返回</el-button>
       <el-button type="primary" @click="dopayprice">付款</el-button>
@@ -463,19 +451,19 @@ const myTicketsVisibleDialog = async () => {
       <el-table-column prop="timename" label="" min-width="70" />
       <el-table-column label="狀態" width="100">
         <template #default="scope">
-          <el-tag :type="statusType(scope.row.status)" effect="light">{{ scope.row.status }}</el-tag>
+          <el-tag :type="statusType(scope.row.status)" effect="light">{{ ticketsMap[scope.row.status] }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="100">
         <template #default="scope">
-          <el-button text type="danger" :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'"
+          <el-button text type="danger" :disabled="scope.row.status === 'PAID' || scope.row.status === 'CANCELLED'"
             @click="cancelOrder(scope.row)">取消訂單</el-button>
         </template>
       </el-table-column>
       <el-table-column label="" width="100">
         <template #default="scope">
           <el-button text :type="statusType(scope.row.status)"
-            :disabled="scope.row.status === '已付款' || scope.row.status === '已取消'" @click="payprice(scope.row)">付款
+            :disabled="scope.row.status === 'PAID' || scope.row.status === 'CANCELLED'" @click="payprice(scope.row)">付款
           </el-button>
         </template>
       </el-table-column>

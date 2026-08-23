@@ -60,7 +60,7 @@ public class AdminSaveActivityRequest {
     )
     @NotBlank(message = "活動類型不可為空")
     @Pattern(
-            regexp = "^(音樂演唱會|舞台劇|展覽特展)$",
+            regexp = "^(MUSIC_CONCERT|STAGE_PLAY|SPECIAL_EXHIBITION)$",
             message = "活動類型只能為 音樂演唱會、舞台劇、展覽特展"
     )
     private String category;
@@ -98,7 +98,7 @@ public class AdminSaveActivityRequest {
     )
     @NotBlank(message = "狀態不可為空")
     @Pattern(
-            regexp = "^(即將開賣|售票中|已結束)$",
+            regexp = "^(COMING_SOON|TICKETS_ARE_ON_SALE|ENDED)$",
             message = "狀態只能為 即將開賣、售票中、已結束"
     )
     private String status;

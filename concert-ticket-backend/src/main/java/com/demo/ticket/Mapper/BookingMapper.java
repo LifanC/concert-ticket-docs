@@ -14,17 +14,17 @@ import java.math.BigDecimal;
 @Mapper
 public interface BookingMapper {
 
-    List<Map<String, Object>> selectOnlyActivities(String activityName);
+    List<Map<String, Object>> selectOnlyActivities(String activity_id);
 
     List<Map<String, Object>> selectOnlySession(
             @Param("date") String date,
-            @Param("activityName") String activityName
+            @Param("activity_id") String activity_id
     );
 
     @MapKey("id")
-    Map<String, Map<String, Object>> selectOnlyActivitiesPrice(String activityId);
+    Map<String, Map<String, Object>> selectOnlyActivitiesPrice(String activity_id);
 
-    BigDecimal selectActivityPrice(String activityName);
+    BigDecimal selectActivityPrice(String activity_id);
 
     int saveTicket(BookingSaveTicket bookingSaveTicket);
 

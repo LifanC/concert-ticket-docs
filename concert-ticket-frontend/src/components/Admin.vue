@@ -1,8 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { adminApi } from '@/services/api'
-import { toFindCookie, clearCookie } from "@/components/componentsJs/cookie";
-
 
 const router = useRouter()
 const activeTab = ref('activities')
@@ -15,38 +13,25 @@ const orders = ref([])
 
 executeFirst()
 async function executeFirst() {
-  // selectAllActivities活動管理
   let judge = false
   try {
-    const response = await adminApi({
+    const response_selectAllActivities = await adminApi({
       method: 'get',
       url: '/selectAllActivities',
     });
-    activities.value = response.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    judge = (status === 403) ? true : false
-  }
-  // selectAllSessions建立場次
-  try {
-    const response = await adminApi({
+    activities.value = response_selectAllActivities.data
+    const response_selectAllSessions = await adminApi({
       method: 'get',
       url: '/selectAllSessions',
     });
-    sessions.value = response.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    judge = (status === 403) ? true : false
-  }
-  // selectAllticket
-  try {
-    const response = await adminApi({
+    sessions.value = response_selectAllSessions.data
+    const response_selectAllticket = await adminApi({
       method: 'get',
       url: '/selectAllticket',
     });
-    orders.value = response.data
+    orders.value = response_selectAllticket.data
   } catch (error) {
-    let status = error.response.status ?? {}
+    let status = error.response?.status
     judge = (status === 403) ? true : false
   }
   if (judge) {
@@ -65,15 +50,21 @@ async function executeFirst() {
   }
 }
 
+const statusMap = {
+  COMING_SOON: '即將開賣',
+  TICKETS_ARE_ON_SALE: '售票中',
+  ENDED: '已結束',
+}
+
 const activityForm = reactive(
   {
     id: '',
     name: '',
-    category: '音樂演唱會',
+    category: '',
     date: '',
     venue: '',
     price: 0,
-    status: '即將開賣',
+    status: '',
     description: ''
   }
 )
@@ -141,11 +132,11 @@ const openAdd = () => {
     {
       id: '',
       name: '',
-      category: '音樂演唱會',
+      category: 'MUSIC_CONCERT',
       date: '',
       venue: '',
       price: 1280,
-      status: '售票中',
+      status: 'COMING_SOON',
       description: ''
     }
   )
@@ -167,107 +158,81 @@ const saveActivity = async () => {
   if (!activityForm.name || !activityForm.date || !activityForm.venue) {
     return
   }
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    const index = activities.value.findIndex(item => item.id === activityForm.id)
-    if (index < 0) {
-      Object.assign(
-        activityForm,
-        {
-          id: `ACT-2026-${String(activities.value.length + 1).padStart(3, '0')}`
-        }
-      )
-    }
-    try {
-      const response = await adminApi({
-        method: 'post',
-        url: '/saveActivity',
-        data: activityForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      activities.value = response.data.data
-      dialogVisible.value = false
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
-          }
-        )
-        clearCookie('accessToken')
-      } else {
-        let data = error.response.data.data[1]?.error ?? {}
-        activityFormNotOk.value = {
-          id: data.id ?? '',
-          name: data.name ?? '',
-          date: data.date ?? '',
-          venue: data.venue ?? '',
-          status: data.status ?? '',
-        }
-      }
-      dialogVisible.value = true
-    }
-  } else {
-    router.push(
-      {
-        path: '/User',
-        query: {
-          isLoggedIn: false
-        }
-      }
-    )
-    clearCookie('accessToken')
-  }
-}
-const deleteActivity = async (activity) => {
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
+  const index = activities.value.findIndex(item => item.id === activityForm.id)
+  if (index < 0) {
     Object.assign(
       activityForm,
       {
-        id: activity.id
+        id: `ACT-2026-${String(activities.value.length + 1).padStart(3, '0')}`
       }
     )
-    try {
-      const response = await adminApi({
-        method: 'delete',
-        url: '/deleteActivity',
-        data: activityForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      activities.value = response.data.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
+  }
+  try {
+    const response = await adminApi({
+      method: 'post',
+      url: '/saveActivity',
+      data: activityForm,
+    });
+    activities.value = response.data.data
+    dialogVisible.value = false
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
           }
-        )
-        clearCookie('accessToken')
+        }
+      )
+    } else {
+      let data = error.response.data.data[1]?.error ?? {}
+      activityFormNotOk.value = {
+        id: data.id ?? '',
+        name: data.name ?? '',
+        date: data.date ?? '',
+        venue: data.venue ?? '',
+        status: data.status ?? '',
       }
     }
-  } else {
-    router.push(
-      {
-        path: '/User',
-        query: {
-          isLoggedIn: false
+    dialogVisible.value = true
+  }
+}
+const deleteActivity = async (activity) => {
+  Object.assign(
+    activityForm,
+    {
+      id: activity.id
+    }
+  )
+  try {
+    const response = await adminApi({
+      method: 'delete',
+      url: '/deleteActivity',
+      data: activityForm,
+    });
+    activities.value = response.data.data
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
+          }
         }
-      }
-    )
-    clearCookie('accessToken')
+      )
+    }
   }
 }
 const createSession = async () => {
@@ -280,66 +245,55 @@ const createSession = async () => {
   if (!sessionForm.activity || !sessionForm.date || !sessionForm.time) {
     return
   }
-  let accessToken = toFindCookie('accessToken')
-  if (accessToken) {
-    Object.assign(
-      sessionForm,
-      {
-        id: `S-${String(sessions.value.length + 1).padStart(3, '0')}`,
-        sold: 0
-      }
-    )
-    try {
-      const response = await adminApi({
-        method: 'post',
-        url: '/createSession',
-        data: sessionForm,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-      sessions.value = response.data.data
-    } catch (error) {
-      let status = error.response.status ?? {}
-      if (status === 403 || status === 500) {
-        router.push(
-          {
-            path: '/User',
-            query: {
-              isLoggedIn: false
-            }
+  Object.assign(
+    sessionForm,
+    {
+      id: `S-${String(sessions.value.length + 1).padStart(3, '0')}`,
+      sold: 0
+    }
+  )
+  try {
+    const response = await adminApi({
+      method: 'post',
+      url: '/createSession',
+      data: sessionForm,
+    });
+    sessions.value = response.data.data
+    ElMessage({
+      type: 'success',
+      message: `${'成功'}`,
+    })
+  } catch (error) {
+    let status = error.response.status ?? {}
+    if (status === 403) {
+      ElMessage({
+        type: 'error',
+        message: `${'權限不足'}`,
+      })
+      router.push(
+        {
+          path: '/User',
+          query: {
+            isLoggedIn: true
           }
-        )
-        clearCookie('accessToken')
-      } else {
-        let data = error.response.data.data[1]?.error ?? {}
-        sessionFormNotOk.value = {
-          activity: data.activity ?? '',
-          date: data.date ?? '',
-          time: data.time ?? '',
-          capacity: data.capacity ?? '',
         }
+      )
+    } else {
+      let data = error.response.data.data[1]?.error ?? {}
+      sessionFormNotOk.value = {
+        activity: data.activity ?? '',
+        date: data.date ?? '',
+        time: data.time ?? '',
+        capacity: data.capacity ?? '',
       }
     }
-  } else {
-    router.push(
-      {
-        path: '/User',
-        query: {
-          isLoggedIn: false
-        }
-      }
-    )
-    clearCookie('accessToken')
   }
 }
 const statusType = (status) => (
   {
-    '已成立': 'success',
-    '售票中': 'success',
-    '即將開賣': 'warning',
-    '已付款': 'success',
-    '待付款': 'warning'
+    'COMING_SOON': 'warning',
+    'TICKETS_ARE_ON_SALE': 'success',
+    'ENDED': 'info'
   }[status] || 'info'
 )
 </script>
@@ -372,7 +326,7 @@ const statusType = (status) => (
                 <el-text type="info">共 {{ filteredActivities.length }} 個活動</el-text>
               </div>
             </template>
-            <el-table :data="filteredActivities" stripe>
+            <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
               <el-table-column prop="id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動名稱" min-width="190" />
               <el-table-column prop="date" label="日期" min-width="130" />
@@ -382,7 +336,7 @@ const statusType = (status) => (
               </el-table-column>
               <el-table-column label="狀態" width="110">
                 <template #default="scope">
-                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ scope.row.status }}</el-tag>
+                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="150" fixed="right">
@@ -412,7 +366,7 @@ const statusType = (status) => (
                 :error="sessionFormNotOk.activity !== '' ? sessionFormNotOk.activity : ''">
                 <el-select v-model="sessionForm.activity" placeholder="請選擇活動" style="width: 100%">
                   <el-option v-for="activity in activities" :key="activity.id" :label="activity.name"
-                    :value="activity.name" />
+                    :value="activity.id" />
                 </el-select>
               </el-form-item>
               <el-row :gutter="16">
@@ -459,9 +413,10 @@ const statusType = (status) => (
                 <span>已建立場次</span>
               </div>
             </template>
-            <el-table :data="sessions" stripe>
+            <el-table :data="sessions" stripe style="width: 100%" empty-text="找不到場次">
               <el-table-column prop="id" label="場次編號" width="110" />
-              <el-table-column prop="activity" label="活動" min-width="180" />
+              <el-table-column prop="activity_id" label="活動編號" width="110" />
+              <el-table-column prop="name" label="活動" min-width="180" />
               <el-table-column prop="date" label="日期" width="130" />
               <el-table-column prop="time" label="時間" width="100" />
               <el-table-column prop="salesdate" label="開賣日期" width="130" />
@@ -480,7 +435,7 @@ const statusType = (status) => (
                 <el-text type="info">最近訂單</el-text>
               </div>
             </template>
-            <el-table :data="orders" stripe>
+            <el-table :data="orders" stripe style="width: 100%" empty-text="找不到訂單">
               <el-table-column prop="orderno" label="訂單編號" min-width="150" />
               <el-table-column prop="customer" label="會員" width="110" />
               <el-table-column prop="name" label="活動" min-width="180" />
@@ -506,9 +461,9 @@ const statusType = (status) => (
       </el-form-item>
       <el-form-item label="活動類型" :error="activityFormNotOk.category !== '' ? activityFormNotOk.category : ''">
         <el-select v-model="activityForm.category" style="width: 100%">
-          <el-option label="音樂演唱會" value="音樂演唱會" />
-          <el-option label="舞台劇" value="舞台劇" />
-          <el-option label="展覽特展" value="展覽特展" />
+          <el-option label="音樂演唱會" value="MUSIC_CONCERT" />
+          <el-option label="舞台劇" value="STAGE_PLAY" />
+          <el-option label="展覽特展" value="SPECIAL_EXHIBITION" />
         </el-select>
       </el-form-item>
       <el-row :gutter="16">
@@ -520,9 +475,9 @@ const statusType = (status) => (
         <el-col :span="12">
           <el-form-item label="售票狀態" :error="activityFormNotOk.status !== '' ? activityFormNotOk.status : ''">
             <el-select v-model="activityForm.status" style="width: 100%">
-              <el-option label="即將開賣" value="即將開賣" />
-              <el-option label="售票中" value="售票中" />
-              <el-option label="已結束" value="已結束" />
+              <el-option label="即將開賣" value="COMING_SOON" />
+              <el-option label="售票中" value="TICKETS_ARE_ON_SALE" />
+              <el-option label="已結束" value="ENDED" />
             </el-select>
           </el-form-item>
         </el-col>

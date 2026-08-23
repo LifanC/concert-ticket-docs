@@ -3,6 +3,7 @@ package com.demo.ticket.security;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
@@ -65,16 +66,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
-        if (token == null || token.isBlank()) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "缺少存取權杖");
-            return;
-        }
         Claims claims;
         try {
             claims = jwtTokenService.accessTokenInRedis(token);
-        } catch (JwtException | IllegalArgumentException exception) {
+        } catch (ExpiredJwtException e) {
             SecurityContextHolder.clearContext();
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "無效或已過期的存取權杖");
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("""
+                    {
+                      "status": 401,
+                      "message": "JWT 已過期"
+                    }
+                    """);
+            return;
+
+        } catch (JwtException | IllegalArgumentException e) {
+            SecurityContextHolder.clearContext();
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("""
+                    {
+                      "status": 401,
+                      "message": "JWT 無效"
+                    }
+                    """);
             return;
         }
         String account = claims.getSubject();
@@ -94,6 +112,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder
                 .getContext()
                 .setAuthentication(authentication);
+        logger.info("authentication after={}", SecurityContextHolder.getContext().getAuthentication());
         filterChain.doFilter(request, response);
     }
 

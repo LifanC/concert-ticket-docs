@@ -187,7 +187,7 @@ public class AdminServiceImpl implements AdminService{
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> createSession(AdminCreateSessionRequest request) {
         final String id = request.getId().trim();
-        final String activity = request.getActivity().trim();
+        final String activity_id = request.getActivity().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String salesdate = request.getSalesdate().trim();
@@ -208,7 +208,7 @@ public class AdminServiceImpl implements AdminService{
             );
             Session session = new Session();
             session.setId(id);
-            session.setActivity(activity);
+            session.setActivity_id(activity_id);
             session.setDate(date);
             session.setTime(time);
             session.setSalesdate(salesdate);

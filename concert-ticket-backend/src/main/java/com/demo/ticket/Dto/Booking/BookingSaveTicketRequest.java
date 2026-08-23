@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 @JsonPropertyOrder(
         {
                 "orderno",
+                "session_id",
+                "activity_id",
                 "name",
                 "date",
                 "time",
@@ -35,6 +37,36 @@ public class BookingSaveTicketRequest {
             message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
     )
     private String orderno;
+
+    @Schema(
+            description = "場次編號",
+            example = "S-001",
+            minLength = 5,
+            maxLength = 5,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "場次編號不可為空")
+    @Size(min = 5, max = 5, message = "場次編號長度需為 5 個字元")
+    @Pattern(
+            regexp = "^S-\\d{3}$",
+            message = "場次編號格式需為 S-NNN，例如 S-001"
+    )
+    private String session_id;
+
+    @Schema(
+            description = "活動編號",
+            example = "ACT-2026-001",
+            minLength = 12,
+            maxLength = 12,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "活動編號不可為空")
+    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
+    @Pattern(
+            regexp = "^ACT-\\d{4}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+    )
+    private String activity_id;
 
     @Schema(
             description = "活動名稱",
@@ -80,7 +112,7 @@ public class BookingSaveTicketRequest {
     )
     @NotBlank(message = "狀態不可為空")
     @Pattern(
-            regexp = "^(待付款)$",
+            regexp = "^(PENDING_PAYMENT)$",
             message = "狀態只能為 待付款"
     )
     private String status;
@@ -99,6 +131,14 @@ public class BookingSaveTicketRequest {
 
     public String getOrderno() {
         return orderno;
+    }
+
+    public String getSession_id() {
+        return session_id;
+    }
+
+    public String getActivity_id() {
+        return activity_id;
     }
 
     public String getName() {

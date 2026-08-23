@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public class BookingSaveTicket {
 
     private String orderno;
+    private String session_id;
     private String customer;
     private String email;
     private String name;
@@ -19,6 +20,14 @@ public class BookingSaveTicket {
 
     public void setOrderno(String orderno) {
         this.orderno = orderno;
+    }
+
+    public String getSession_id() {
+        return session_id;
+    }
+
+    public void setSession_id(String session_id) {
+        this.session_id = session_id;
     }
 
     public String getCustomer() {

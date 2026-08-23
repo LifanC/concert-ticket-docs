@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 @JsonPropertyOrder(
         {
                 "date",
-                "activityName",
+                "activity_id",
                 "token",
         }
 )
@@ -28,9 +28,20 @@ public class BookingSelectOnlySessionRequest {
     )
     private String date;
 
-    @NotBlank(message = "活動名稱不可為空")
-    @Size(min = 2, max = 50, message = "活動名稱長度需介於 2~50 字")
-    private String activityName;
+    @Schema(
+            description = "活動編號",
+            example = "ACT-2026-001",
+            minLength = 12,
+            maxLength = 12,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "活動編號不可為空")
+    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
+    @Pattern(
+            regexp = "^ACT-\\d{4}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+    )
+    private String activity_id;
 
     private String token;
 
@@ -42,12 +53,12 @@ public class BookingSelectOnlySessionRequest {
         this.date = date;
     }
 
-    public String getActivityName() {
-        return activityName;
+    public String getActivity_id() {
+        return activity_id;
     }
 
-    public void setActivityName(String activityName) {
-        this.activityName = activityName;
+    public void setActivity_id(String activity_id) {
+        this.activity_id = activity_id;
     }
 
     public String getToken() {

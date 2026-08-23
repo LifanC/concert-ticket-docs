@@ -1,8 +1,11 @@
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 import {
   clearCookie,
   toFindCookie
 } from '@/components/componentsJs/cookie'
+
+const router = useRouter()
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/$/, '')
 
@@ -29,7 +32,8 @@ function setupAuthInterceptor(client) {
     response => response,
 
     error => {
-      if (error.response?.status === 401) {
+      let status = error.response?.status
+      if (status === 401) {
         clearCookie('accessToken')
 
         if (router.currentRoute.value.name !== 'User') {

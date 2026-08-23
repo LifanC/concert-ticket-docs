@@ -38,7 +38,7 @@
         FROM
             "interviewworks_ticket"."activity" activity
                 INNER JOIN "interviewworks_ticket"."session" "session"
-                           ON activity."name" = "session".activity
+                           ON activity.id = "session".activity_id
         ORDER BY activity.id
     </select>
 

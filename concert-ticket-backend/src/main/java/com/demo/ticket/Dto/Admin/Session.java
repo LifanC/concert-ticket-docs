@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 public class Session {
 
     private String id;
-    private String activity;
+    private String activity_id;
     private String date;
     private String time;
     private String salesdate;
@@ -21,12 +21,12 @@ public class Session {
         this.id = id;
     }
 
-    public String getActivity() {
-        return activity;
+    public String getActivity_id() {
+        return activity_id;
     }
 
-    public void setActivity(String activity) {
-        this.activity = activity;
+    public void setActivity_id(String activity_id) {
+        this.activity_id = activity_id;
     }
 
     public String getDate() {

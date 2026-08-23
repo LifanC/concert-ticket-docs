@@ -45,7 +45,7 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyActivities(BookingSelectOnlyActivitiesRequest request) {
         final String accessToken = request.getToken().trim();
-        final String activityName = request.getActivity_name().trim();
+        final String activity_id = request.getActivity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
@@ -62,7 +62,7 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (單一活動) Token 已過期", accessJwt);
             } else {
-                data = bookingMapper.selectOnlyActivities(activityName);
+                data = bookingMapper.selectOnlyActivities(activity_id);
             }
         } catch (JwtException e) {
             // JWT 不合法
@@ -77,7 +77,7 @@ public class BookingServiceImpl implements BookingService {
     public List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request) {
         final String accessToken = request.getToken().trim();
         final String date = request.getDate().trim();
-        final String activityName = request.getActivityName().trim();
+        final String activity_id = request.getActivity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
@@ -94,7 +94,7 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (單一場次資料) Token 已過期", accessJwt);
             } else {
-                data = bookingMapper.selectOnlySession(date, activityName);
+                data = bookingMapper.selectOnlySession(date, activity_id);
             }
         } catch (JwtException e) {
             // JWT 不合法
@@ -137,7 +137,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> selectOnlyActivitiesPrice(BookingSelectOnlyActivitiesPriceRequest request) {
-        final String activityId = request.getActivity_id().trim();
+        final String activity_id = request.getActivity_id().trim();
         final String accessToken = request.getToken().trim();
         Map<String, Object> data = new HashMap<>();
         try {
@@ -155,7 +155,7 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (單一場次金額) Token 已過期", accessJwt);
             } else {
-                data = bookingMapper.selectOnlyActivitiesPrice(activityId).get(activityId);
+                data = bookingMapper.selectOnlyActivitiesPrice(activity_id).get(activity_id);
             }
         } catch (JwtException e) {
             // JWT 不合法
@@ -169,9 +169,12 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request) {
         final String orderno = request.getOrderno().trim();
+        final String session_id = request.getSession_id().trim();
+        final String activity_id = request.getActivity_id().trim();
         final String name = request.getName().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
+        final String ticket_status = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
@@ -199,13 +202,14 @@ public class BookingServiceImpl implements BookingService {
                 } else {
                     BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
                     bookingSaveTicket.setOrderno(orderno);
+                    bookingSaveTicket.setSession_id(session_id);
                     bookingSaveTicket.setCustomer(emailCutOff);
                     bookingSaveTicket.setEmail(accessJwt);
                     bookingSaveTicket.setName(name);
                     bookingSaveTicket.setDate(date);
                     bookingSaveTicket.setTime(time);
-                    bookingSaveTicket.setStatus("待付款");
-                    BigDecimal price = bookingMapper.selectActivityPrice(name);
+                    bookingSaveTicket.setStatus(ticket_status);
+                    BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
                     if (price == null) {
                         throw new IllegalArgumentException("活動不存在");
                     }
