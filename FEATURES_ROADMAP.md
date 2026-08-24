@@ -38,7 +38,7 @@
 
 ### 3. 完整訂單狀態流程
 
-建議使用固定代碼或 Enum 狀態：ticket
+建議使用固定代碼或 Enum 狀態：ticket_status
 
 | 狀態 | 說明 |
 | --- | --- |
@@ -64,7 +64,7 @@
 | `TICKETS_ARE_ON_SALE` | 售票中 |
 | `ENDED` | 已結束 |
 
-建議使用固定代碼或 Enum 狀態：ticket
+狀態：ticket
 | 狀態 | 說明 |
 | --- | --- |
 | `expires_at` | 付款到期時間 |

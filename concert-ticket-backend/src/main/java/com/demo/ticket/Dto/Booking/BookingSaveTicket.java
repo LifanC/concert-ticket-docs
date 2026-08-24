@@ -1,6 +1,7 @@
 package com.demo.ticket.Dto.Booking;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 public class BookingSaveTicket {
 
@@ -13,6 +14,9 @@ public class BookingSaveTicket {
     private String time;
     private String status;
     private BigDecimal price;
+    private Date expires_at;
+    private Date paid_at;
+    private Date cancelled_at;
 
     public String getOrderno() {
         return orderno;
@@ -84,5 +88,29 @@ public class BookingSaveTicket {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public Date getExpires_at() {
+        return expires_at;
+    }
+
+    public void setExpires_at(Date expires_at) {
+        this.expires_at = expires_at;
+    }
+
+    public Date getPaid_at() {
+        return paid_at;
+    }
+
+    public void setPaid_at(Date paid_at) {
+        this.paid_at = paid_at;
+    }
+
+    public Date getCancelled_at() {
+        return cancelled_at;
+    }
+
+    public void setCancelled_at(Date cancelled_at) {
+        this.cancelled_at = cancelled_at;
     }
 }

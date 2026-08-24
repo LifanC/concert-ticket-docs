@@ -107,13 +107,13 @@ public class BookingSaveTicketRequest {
 
     @Schema(
             description = "狀態",
-            example = "狀態只能為 待付款",
+            example = "狀態只能為 等待付款",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "狀態不可為空")
     @Pattern(
             regexp = "^(PENDING_PAYMENT)$",
-            message = "狀態只能為 待付款"
+            message = "狀態只能為 等待付款"
     )
     private String status;
 

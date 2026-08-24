@@ -1,6 +1,6 @@
 package com.demo.ticket.Dto.Booking;
 
-public class SalesDate {
+public class BookingSalesDate {
 
     private String activity;
     private String date;

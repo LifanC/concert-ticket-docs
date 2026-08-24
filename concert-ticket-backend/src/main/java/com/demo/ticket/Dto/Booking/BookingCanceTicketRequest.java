@@ -32,13 +32,13 @@ public class BookingCanceTicketRequest {
 
     @Schema(
             description = "狀態",
-            example = "狀態只能為 已成立、待付款、已取消",
+            example = "狀態只能為 等待付款",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "狀態不可為空")
     @Pattern(
-            regexp = "^(已成立|待付款|已取消)$",
-            message = "狀態只能為 已成立、待付款、已取消"
+            regexp = "^(PENDING_PAYMENT)$",
+            message = "狀態只能為 等待付款"
     )
     private String status;
 

@@ -17,6 +17,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Service
@@ -200,33 +202,58 @@ public class BookingServiceImpl implements BookingService {
                 if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                     logger.error("{} : (新增訂單)Token 已被撤銷", accessJwt);
                 } else {
-                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-                    bookingSaveTicket.setOrderno(orderno);
-                    bookingSaveTicket.setSession_id(session_id);
-                    bookingSaveTicket.setCustomer(emailCutOff);
-                    bookingSaveTicket.setEmail(accessJwt);
-                    bookingSaveTicket.setName(name);
-                    bookingSaveTicket.setDate(date);
-                    bookingSaveTicket.setTime(time);
-                    bookingSaveTicket.setStatus(ticket_status);
-                    BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
-                    if (price == null) {
-                        throw new IllegalArgumentException("活動不存在");
+                    BookingSession bookingSession = new BookingSession();
+                    bookingSession.setSession_id(session_id);
+                    // 數量固定為 1
+                    bookingSession.setQuantity(BigDecimal.ONE);
+                    int cnt = bookingMapper.updateSession(bookingSession);
+                    if (cnt > 0) {
+                        BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+                        bookingSaveTicket.setOrderno(orderno);
+                        bookingSaveTicket.setSession_id(session_id);
+                        bookingSaveTicket.setCustomer(emailCutOff);
+                        bookingSaveTicket.setEmail(accessJwt);
+                        bookingSaveTicket.setName(name);
+                        bookingSaveTicket.setDate(date);
+                        bookingSaveTicket.setTime(time);
+                        BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
+                        if (price == null) {
+                            throw new IllegalArgumentException("活動不存在");
+                        }
+                        bookingSaveTicket.setStatus(ticket_status);
+                        bookingSaveTicket.setPrice(price);
+                        // 可付款時間10分鐘
+                        int minutes = 10;
+                        Date dateNow = new Date();
+                        Date dateExpiresAt = Date.from(dateNow
+                                .toInstant()
+                                .plus(minutes, ChronoUnit.MINUTES)
+                        );
+                        bookingSaveTicket.setExpires_at(dateExpiresAt);
+                        int inserted = bookingMapper.saveTicket(bookingSaveTicket);
+                        if (inserted == 0) {
+                            throw new IllegalStateException("訂單編號已存在");
+                        }
+                        data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
+                        Map<String, Object> sessionData = bookingMapper.selectOnlySession(session_id).get(session_id);
+                        BigDecimal available = new BigDecimal(sessionData.get("available").toString());
+                        NotificationMessage message =
+                                new NotificationMessage(
+                                        accessJwt,
+                                        "新通知：請在 " + minutes + " 分鐘內完成付款，剩餘庫存：" + available,
+                                        "尚未付款，付款期限：" +
+                                                dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
+                                );
+                        notifier.sendNotification(message);
+                    } else {
+                        NotificationMessage message =
+                                new NotificationMessage(
+                                        accessJwt,
+                                        "新通知",
+                                        name + "的庫存低於安全庫存量"
+                                );
+                        notifier.sendNotification(message);
                     }
-                    bookingSaveTicket.setPrice(price);
-                    int inserted = bookingMapper.saveTicket(bookingSaveTicket);
-                    if (inserted == 0) {
-                        throw new IllegalStateException("訂單編號已存在");
-                    }
-                    data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
-
-                    NotificationMessage message =
-                            new NotificationMessage(
-                                    accessJwt,
-                                    "新通知",
-                                    "尚未付款"
-                            );
-                    notifier.sendNotification(message);
                 }
             }
         } catch (JwtException e) {
@@ -243,10 +270,16 @@ public class BookingServiceImpl implements BookingService {
                 ));
     }
 
+    private String dateFormat(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return sdf.format(date);
+    }
+
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request) {
         final String orderno = request.getOrderno().trim();
+        final String ticket_status = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();
@@ -273,15 +306,17 @@ public class BookingServiceImpl implements BookingService {
                 if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                     logger.error("{} : (取消訂單)Token 已被撤銷", accessJwt);
                 } else {
-                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-                    bookingSaveTicket.setOrderno(orderno);
-                    bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-                    bookingSaveTicket.setStatus("已取消");
-                    int cnt = bookingMapper.cancelTicket(bookingSaveTicket);
-                    if (cnt > 0) {
-                        dataMap.put("judge", true);
-                    }
-                    data.add(dataMap);
+//                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+//                    bookingSaveTicket.setOrderno(orderno);
+//                    bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
+//                    if ("PENDING_PAYMENT".equals(ticket_status)) {
+//                        bookingSaveTicket.setStatus("CANCELLED");
+//                        int cnt = bookingMapper.cancelTicket(bookingSaveTicket);
+//                        if (cnt > 0) {
+//                            dataMap.put("judge", true);
+//                        }
+//                    }
+//                    data.add(dataMap);
                 }
             }
         } catch (JwtException e) {
@@ -328,14 +363,14 @@ public class BookingServiceImpl implements BookingService {
                 if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                     logger.error("{} : (售賣日期)Token 已被撤銷", accessJwt);
                 } else {
-                    SalesDate salesDate = new SalesDate();
-                    salesDate.setActivity(name);
-                    salesDate.setDate(date);
-                    salesDate.setTime(time);
-                    List<Map<String, Object>> data = bookingMapper.sessionSalesDate(salesDate);
-                    if (!data.isEmpty()) {
-                        dataMap = data.getFirst();
-                    }
+//                    BookingSalesDate bookingSalesDate = new BookingSalesDate();
+//                    bookingSalesDate.setActivity(name);
+//                    bookingSalesDate.setDate(date);
+//                    bookingSalesDate.setTime(time);
+//                    List<Map<String, Object>> data = bookingMapper.sessionSalesDate(bookingSalesDate);
+//                    if (!data.isEmpty()) {
+//                        dataMap = data.getFirst();
+//                    }
                 }
             }
         } catch (JwtException e) {
@@ -373,25 +408,25 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (付款) Token 已過期", accessJwt);
             } else {
-                BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
-                bookingDopaypriceTicket.setOrderno(orderno);
-                bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-                bookingDopaypriceTicket.setActivity(activity);
-                bookingDopaypriceTicket.setDate(date);
-                bookingDopaypriceTicket.setTime(time);
-                int cnt = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
-                if (cnt > 0) {
-                    dataMap.put("judge", true);
-
-                    NotificationMessage message =
-                            new NotificationMessage(
-                                    accessJwt,
-                                    "新通知",
-                                    "付款成功"
-                            );
-                    notifier.sendNotification(message);
-                }
-                data.add(dataMap);
+//                BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
+//                bookingDopaypriceTicket.setOrderno(orderno);
+//                bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
+//                bookingDopaypriceTicket.setActivity(activity);
+//                bookingDopaypriceTicket.setDate(date);
+//                bookingDopaypriceTicket.setTime(time);
+//                int cnt = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
+//                if (cnt > 0) {
+//                    dataMap.put("judge", true);
+//
+//                    NotificationMessage message =
+//                            new NotificationMessage(
+//                                    accessJwt,
+//                                    "新通知",
+//                                    "付款成功"
+//                            );
+//                    notifier.sendNotification(message);
+//                }
+//                data.add(dataMap);
             }
         } catch (JwtException e) {
             // JWT 不合法

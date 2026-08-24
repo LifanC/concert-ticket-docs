@@ -42,12 +42,44 @@
         ORDER BY "session"."date"
     </select>
 
+    <select id="selectOnlyTicket" resultType="java.util.Map">
+        select
+            ticket.orderno,
+            ticket."name",
+            ticket."date",
+            ticket."time",
+            CASE
+                WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
+			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
+			    ELSE '星空場'
+        END AS timename,
+            ticket.status
+        FROM "interviewworks_ticket".ticket ticket
+        WHERE ticket.customer = #{customer}
+        ORDER BY ticket.orderno desc
+    </select>
+
     <select id="selectOnlyActivitiesPrice" resultType="java.util.Map">
         select
             activity.id,
             activity.price
         FROM "interviewworks_ticket"."activity" activity
         where activity.id = #{activity_id}
+    </select>
+
+    <update id="updateSession">
+        update "interviewworks_ticket"."session" "session"
+        set "session".reserved = "session".reserved + #{quantity}
+        where "session".id = #{session_id}
+          and "session".capacity - "session".reserved - "session".sold >= #{quantity}
+    </update>
+
+    <select id="selectOnlySession" resultType="java.util.Map">
+        select
+            "session".id,
+            "session".capacity - "session".reserved - "session".sold as available
+        from "interviewworks_ticket"."session" "session"
+        where "session".id = #{session_id}
     </select>
 
     <select id="selectActivityPrice" resultType="java.math.BigDecimal">
@@ -67,7 +99,10 @@
             "date",
             "time",
             status,
-            price
+            price,
+            expires_at,
+            paid_at,
+            cancelled_at
         )
         VALUES
             (
@@ -79,31 +114,17 @@
                 #{date},
                 #{time},
                 #{status},
-                #{price}
+                #{price},
+                #{expires_at},
+                #{paid_at},
+                #{cancelled_at}
             )
         ON CONFLICT (orderno) DO NOTHING
     </insert>
 
-    <select id="selectOnlyTicket" resultType="java.util.Map">
-        select
-            ticket.orderno,
-            ticket."name",
-            ticket."date",
-            ticket."time",
-            CASE
-                WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
-			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
-			    ELSE '星空場'
-        END AS timename,
-            ticket.status
-        FROM "interviewworks_ticket".ticket ticket
-        WHERE ticket.customer = #{customer}
-        ORDER BY ticket.orderno desc
-    </select>
-
     <update id="cancelTicket">
         update "interviewworks_ticket".ticket ticket
-        set status = '已取消'
+        set status = #{status}
         where orderno = #{orderno}
           and customer = #{customer}
           and status in ('已成立', '待付款')

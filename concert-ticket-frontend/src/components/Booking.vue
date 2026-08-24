@@ -108,7 +108,7 @@ const ticketForm = reactive(
     customer: '',
     name: '',
     date: '',
-    status: '已成立',
+    status: 'PENDING_PAYMENT',
     price: 0
   }
 )
