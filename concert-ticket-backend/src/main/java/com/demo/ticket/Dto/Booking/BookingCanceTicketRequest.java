@@ -8,6 +8,7 @@ import jakarta.validation.constraints.*;
 @JsonPropertyOrder(
         {
                 "orderno",
+                "session_id",
                 "status",
                 "token",
         }
@@ -31,6 +32,21 @@ public class BookingCanceTicketRequest {
     private String orderno;
 
     @Schema(
+            description = "場次編號",
+            example = "S-001",
+            minLength = 5,
+            maxLength = 5,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "場次編號不可為空")
+    @Size(min = 5, max = 5, message = "場次編號長度需為 5 個字元")
+    @Pattern(
+            regexp = "^S-\\d{3}$",
+            message = "場次編號格式需為 S-NNN，例如 S-001"
+    )
+    private String session_id;
+
+    @Schema(
             description = "狀態",
             example = "狀態只能為 等待付款",
             requiredMode = Schema.RequiredMode.REQUIRED
@@ -46,6 +62,10 @@ public class BookingCanceTicketRequest {
 
     public String getOrderno() {
         return orderno;
+    }
+
+    public String getSession_id() {
+        return session_id;
     }
 
     public String getStatus() {

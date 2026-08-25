@@ -1,10 +1,9 @@
 <script setup>
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { bookingApi } from '@/services/api'
 
 
 const route = useRoute()
-const router = useRouter()
 const nextStep_disabled = ref(false)
 const selectedActivityName = computed(() => {
   let activity_id = route.query.activity_id
@@ -20,80 +19,45 @@ const selectedActivityName = computed(() => {
   return activity_name
 })
 const selectOnlyActivities = async () => {
-  try {
-
-    const response_selectOnlyActivities = await bookingApi({
-      method: 'get',
-      url: '/selectOnlyActivities',
-      params: {
-        activity_id: route.query.activity_id
-      },
-    });
-    selectedDate.value = route.query.activity_date
-    dates.value = response_selectOnlyActivities.data
-    handleDateChange()
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
-  }
+  const response_selectOnlyActivities = await bookingApi({
+    method: 'get',
+    url: '/selectOnlyActivities',
+    params: {
+      activity_id: route.query.activity_id
+    },
+  });
+  selectedDate.value = route.query.activity_date
+  dates.value = response_selectOnlyActivities.data
+  handleDateChange()
 }
 
 const handleDateChange = async () => {
-  try {
-    const response_selectOnlySession = await bookingApi({
-      method: 'get',
-      url: '/selectOnlySession',
-      params: {
-        date: route.query.activity_date,
-        activity_id: route.query.activity_id
-      },
-    });
-    selectedSession.value = route.query.activity_time
-    sessions.value = response_selectOnlySession.data
-    const responsePrice = await bookingApi({
-      method: 'get',
-      url: '/selectOnlyActivitiesPrice',
-      params: {
-        activity_id: route.query.activity_id
-      },
-    });
-    selectedPrice.value = responsePrice.data.price
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
-  }
+  const response_selectOnlySession = await bookingApi({
+    method: 'get',
+    url: '/selectOnlySession',
+    params: {
+      date: route.query.activity_date,
+      activity_id: route.query.activity_id
+    },
+  });
+  sessionId.value = route.query.session_id
+  selectedSession.value = route.query.activity_time
+  sessions.value = response_selectOnlySession.data
+  const responsePrice = await bookingApi({
+    method: 'get',
+    url: '/selectOnlyActivitiesPrice',
+    params: {
+      activity_id: route.query.activity_id
+    },
+  });
+  selectedPrice.value = responsePrice.data.price
 }
 
 const step = ref(0)
 const ticketDialogVisible = ref(false)
 const myTicketsVisible = ref(false)
 const paypriceDialogVisible = ref(false)
+const sessionId = ref()
 const selectedDate = ref()
 const selectedSession = ref()
 const selectedPrice = ref(0)
@@ -104,7 +68,6 @@ const sessions = ref([])
 
 const ticketForm = reactive(
   {
-    orderno: '',
     customer: '',
     name: '',
     date: '',
@@ -137,16 +100,9 @@ const previousStep = () => {
 }
 
 const createOrder = async () => {
-  const now = new Date()
-  const date =
-    now.getFullYear() +
-    String(now.getMonth() + 1).padStart(2, '0') +
-    String(now.getDate()).padStart(2, '0')
-  const orderno = `CT${date}${String(tickets.value.length + 1).padStart(3, '0')}`
   Object.assign(
     ticketForm,
     {
-      orderno: orderno,
       session_id: route.query.session_id,
       activity_id: route.query.activity_id,
       name: selectedActivityName.value,
@@ -166,21 +122,6 @@ const createOrder = async () => {
     ticketDialogVisible.value = false
     tickets.value = response.data.data
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
     myTicketsVisible.value = false
     ticketDialogVisible.value = true
   }
@@ -191,7 +132,8 @@ const cancelOrder = async (ticket) => {
     ticketForm,
     {
       orderno: ticket.orderno,
-      status: 'CANCELLED'
+      session_id: ticket.session_id,
+      status: 'PENDING_PAYMENT'
     }
   )
   try {
@@ -205,21 +147,6 @@ const cancelOrder = async (ticket) => {
       ticket.status = 'CANCELLED'
     }
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
     myTicketsVisible.value = false
   }
 }
@@ -262,21 +189,6 @@ const payprice = async (payprice) => {
     )
     paypriceDialogVisible.value = true
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
     paypriceDialogVisible.value = false
   }
 }
@@ -293,23 +205,8 @@ const dopayprice = async () => {
       myTicketsVisible.value = false
     }
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-      paypriceDialogVisible.value = false
-      myTicketsVisible.value = false
-    }
+    paypriceDialogVisible.value = false
+    myTicketsVisible.value = false
   }
 }
 const ticketsMap = {
@@ -331,30 +228,12 @@ const statusType = (status) => (
 const myTicketsVisibleDialog = async () => {
   myTicketsVisible.value = true
   // selectAllTicket
-  try {
-    const response = await bookingApi({
-      method: 'get',
-      url: '/selectOnlyTicket',
-      params: {},
-    });
-    tickets.value = response.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'無權限'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
-  }
+  const response = await bookingApi({
+    method: 'get',
+    url: '/selectOnlyTicket',
+    params: {},
+  });
+  tickets.value = response.data
 }
 </script>
 
@@ -405,6 +284,7 @@ const myTicketsVisibleDialog = async () => {
 
         <section v-else class="order-summary">
           <el-descriptions :column="1" border>
+            <el-descriptions-item label="編號">{{ sessionId }}</el-descriptions-item>
             <el-descriptions-item label="活動">{{ selectedActivityName }}</el-descriptions-item>
             <el-descriptions-item label="日期">{{ selectedDate }}</el-descriptions-item>
             <el-descriptions-item label="場次">{{ selectedSession }}</el-descriptions-item>
@@ -442,9 +322,10 @@ const myTicketsVisibleDialog = async () => {
     </template>
   </el-dialog>
 
-  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(920px, 94vw)">
+  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1000px, 94vw)">
     <el-table :data="tickets" stripe empty-text="目前沒有票券">
       <el-table-column prop="orderno" label="訂單編號" min-width="145" />
+      <el-table-column prop="session_id" label="編號" min-width="100" />
       <el-table-column prop="name" label="活動" min-width="150" />
       <el-table-column prop="date" label="場次" min-width="100" />
       <el-table-column prop="time" label="時間" min-width="100" />

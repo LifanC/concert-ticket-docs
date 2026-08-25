@@ -45,6 +45,7 @@
     <select id="selectOnlyTicket" resultType="java.util.Map">
         select
             ticket.orderno,
+            ticket.session_id,
             ticket."name",
             ticket."date",
             ticket."time",
@@ -69,12 +70,14 @@
 
     <update id="updateSession">
         update "interviewworks_ticket"."session" "session"
-        set "session".reserved = "session".reserved + #{quantity}
+        set
+            capacity = capacity - 1,
+            reserved = reserved + 1
         where "session".id = #{session_id}
-          and "session".capacity - "session".reserved - "session".sold >= #{quantity}
+          and "session".capacity - "session".reserved - "session".sold >= 1
     </update>
 
-    <select id="selectOnlySession" resultType="java.util.Map">
+    <select id="selectOnlySessionId" resultType="java.util.Map">
         select
             "session".id,
             "session".capacity - "session".reserved - "session".sold as available
@@ -99,6 +102,7 @@
             "date",
             "time",
             status,
+            quantity,
             price,
             expires_at,
             paid_at,
@@ -114,6 +118,7 @@
                 #{date},
                 #{time},
                 #{status},
+                1,
                 #{price},
                 #{expires_at},
                 #{paid_at},
@@ -122,12 +127,24 @@
         ON CONFLICT (orderno) DO NOTHING
     </insert>
 
+    <update id="cancelSession">
+        update "interviewworks_ticket"."session" "session"
+        set
+            capacity = capacity + 1,
+            reserved = reserved - 1
+        where "session".id = #{session_id}
+          and "session".capacity - "session".reserved - "session".sold >= 1
+    </update>
+
     <update id="cancelTicket">
         update "interviewworks_ticket".ticket ticket
-        set status = #{status}
+        set
+            status = #{status},
+            quantity = 0,
+            cancelled_at = #{cancelled_at}
         where orderno = #{orderno}
           and customer = #{customer}
-          and status in ('已成立', '待付款')
+          and status in ('PENDING_PAYMENT')
     </update>
 
     <select id="sessionSalesDate" resultType="java.util.Map">

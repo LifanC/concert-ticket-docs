@@ -248,14 +248,10 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public ResponseEntity<?> validate(LoginTokenValidateRequest request) {
-        final String account = request.getAccount().trim();
         final String refreshToken = request.getRefreshToken();
-        int idx = account.indexOf('@');
-        String accountCutOff = idx >= 0 ? account.substring(0, idx) : account;
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("remark", "驗證失敗");
-        dataMap.put("account", accountCutOff);
         dataMap.put("accessToken", "");
         dataMap.put("name", "");
         dataMap.put("email", "");
@@ -266,14 +262,11 @@ public class LoginServiceImpl implements LoginService {
                 Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
                 final String accessJtId = claims.getId();
                 final String accountJwt = claims.getSubject();
-                if (!accountJwt.equals(accountCutOff)) {
-                    throw new JwtException("Refresh token 與帳號不符");
-                }
                 Login login = new Login(accountJwt);
                 Map<String, Object> userDataSelect;
                 final String userDataOnly = String.format(
                         RedisKey.redisUserDataKey.get("userDataOnly"),
-                        accountCutOff
+                        accountJwt
                 );
                 String json = stringRedisTemplate.opsForValue().get(userDataOnly);
                 if (json != null) {
@@ -329,16 +322,11 @@ public class LoginServiceImpl implements LoginService {
                             accessJtId,
                             userDataEmail
                     );
-                    Boolean success = stringRedisTemplate.opsForValue().setIfAbsent(
+                    stringRedisTemplate.opsForValue().setIfAbsent(
                             accessRedisKey,
                             accessToken,
                             Duration.ofSeconds(accessExpirationSecondsAddRndomNumber())
                     );
-                    if (Boolean.FALSE.equals(success)) {
-                        logger.error("{} : (驗證)Token 已經存在", account);
-                    }
-                    logger.error("{} : (驗證)Token 成功", account);
-
                     final String blacklistRedisKey = String.format(
                             RedisKey.redisKey.get("blacklist"),
                             accessJtId
@@ -357,7 +345,7 @@ public class LoginServiceImpl implements LoginService {
                 }
             } catch (JwtException e) {
                 // JWT 不合法
-                logger.error("{} : (Token驗證)無效的 JWT token", accountCutOff);
+                logger.error("(Token驗證)無效的 JWT token");
                 throw new JwtException("無效的 JWT token", e);
             }
         }

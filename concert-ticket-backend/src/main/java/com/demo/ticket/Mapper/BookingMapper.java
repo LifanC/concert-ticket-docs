@@ -26,11 +26,13 @@ public interface BookingMapper {
     int updateSession(BookingSession bookingSession);
 
     @MapKey("id")
-    Map<String, Map<String, Object>> selectOnlySession(String session_id);
+    Map<String, Map<String, Object>> selectOnlySessionId(String session_id);
 
     BigDecimal selectActivityPrice(String activity_id);
 
-    int saveTicket(BookingSaveTicket bookingSaveTicket);
+    void saveTicket(BookingSaveTicket bookingSaveTicket);
+
+    int cancelSession(BookingSession bookingSession);
 
     int cancelTicket(BookingSaveTicket bookingSaveTicket);
 

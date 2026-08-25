@@ -1,11 +1,8 @@
 <script setup>
-import { useRoute } from 'vue-router'
 import { loginApi } from '@/services/api'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
-
-const route = useRoute()
 const activeTab = ref('login')
 const isLoggedIn = ref(false)
 const accessName = ref('')
@@ -13,11 +10,6 @@ const loginForm = reactive(
   {
     account: '',
     password: '',
-  }
-)
-const validateForm = reactive(
-  {
-    account: '',
   }
 )
 const loginFormNotOk = ref(
@@ -87,14 +79,13 @@ const submitLogin = async () => {
       data: loginForm,
     });
     let data = response.data.data[0] ?? {}
-    validateForm.account = data.account
     if (data.judge) {
       activeTab.value = 'login'
       try {
         const response = await loginApi({
           method: 'post',
           url: '/validate',
-          data: validateForm,
+          data: {},
         });
         let data = response.data.data[0] ?? {}
         if (data.judge) {

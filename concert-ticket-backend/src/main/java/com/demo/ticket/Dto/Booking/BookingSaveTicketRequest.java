@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 
 @JsonPropertyOrder(
         {
-                "orderno",
                 "session_id",
                 "activity_id",
                 "name",
@@ -22,21 +21,6 @@ import java.math.BigDecimal;
 )
 @Schema(description = "新增訂單")
 public class BookingSaveTicketRequest {
-
-    @Schema(
-            description = "訂單編號",
-            example = "CT20260815001",
-            minLength = 13,
-            maxLength = 13,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "訂單編號不可為空")
-    @Size(min = 13, max = 13, message = "訂單編號長度需為 13 個字元")
-    @Pattern(
-            regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
-            message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
-    )
-    private String orderno;
 
     @Schema(
             description = "場次編號",
@@ -128,10 +112,6 @@ public class BookingSaveTicketRequest {
     private BigDecimal price;
 
     private String token;
-
-    public String getOrderno() {
-        return orderno;
-    }
 
     public String getSession_id() {
         return session_id;

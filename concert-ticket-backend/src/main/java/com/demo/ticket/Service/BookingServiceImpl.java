@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -168,9 +169,9 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request) {
-        final String orderno = request.getOrderno().trim();
         final String session_id = request.getSession_id().trim();
         final String activity_id = request.getActivity_id().trim();
         final String name = request.getName().trim();
@@ -204,11 +205,11 @@ public class BookingServiceImpl implements BookingService {
                 } else {
                     BookingSession bookingSession = new BookingSession();
                     bookingSession.setSession_id(session_id);
-                    // 數量固定為 1
-                    bookingSession.setQuantity(BigDecimal.ONE);
                     int cnt = bookingMapper.updateSession(bookingSession);
                     if (cnt > 0) {
                         BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+                        // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
+                        final String orderno = "";
                         bookingSaveTicket.setOrderno(orderno);
                         bookingSaveTicket.setSession_id(session_id);
                         bookingSaveTicket.setCustomer(emailCutOff);
@@ -217,11 +218,8 @@ public class BookingServiceImpl implements BookingService {
                         bookingSaveTicket.setDate(date);
                         bookingSaveTicket.setTime(time);
                         BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
-                        if (price == null) {
-                            throw new IllegalArgumentException("活動不存在");
-                        }
                         bookingSaveTicket.setStatus(ticket_status);
-                        bookingSaveTicket.setPrice(price);
+                        bookingSaveTicket.setPrice(price == null ? BigDecimal.ZERO : price);
                         // 可付款時間10分鐘
                         int minutes = 10;
                         Date dateNow = new Date();
@@ -230,12 +228,9 @@ public class BookingServiceImpl implements BookingService {
                                 .plus(minutes, ChronoUnit.MINUTES)
                         );
                         bookingSaveTicket.setExpires_at(dateExpiresAt);
-                        int inserted = bookingMapper.saveTicket(bookingSaveTicket);
-                        if (inserted == 0) {
-                            throw new IllegalStateException("訂單編號已存在");
-                        }
+                        bookingMapper.saveTicket(bookingSaveTicket);
                         data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
-                        Map<String, Object> sessionData = bookingMapper.selectOnlySession(session_id).get(session_id);
+                        Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
                         BigDecimal available = new BigDecimal(sessionData.get("available").toString());
                         NotificationMessage message =
                                 new NotificationMessage(
@@ -258,7 +253,7 @@ public class BookingServiceImpl implements BookingService {
             }
         } catch (JwtException e) {
             // JWT 不合法
-            logger.error("{} : (新增訂單)無效的 JWT token", orderno);
+            logger.error("(新增訂單)無效的 JWT token");
             throw new JwtException("無效的 JWT token", e);
         }
         HttpStatus status = HttpStatus.CREATED;
@@ -276,9 +271,11 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request) {
         final String orderno = request.getOrderno().trim();
+        final String session_id = request.getSession_id().trim();
         final String ticket_status = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
@@ -306,17 +303,24 @@ public class BookingServiceImpl implements BookingService {
                 if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                     logger.error("{} : (取消訂單)Token 已被撤銷", accessJwt);
                 } else {
-//                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-//                    bookingSaveTicket.setOrderno(orderno);
-//                    bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-//                    if ("PENDING_PAYMENT".equals(ticket_status)) {
-//                        bookingSaveTicket.setStatus("CANCELLED");
-//                        int cnt = bookingMapper.cancelTicket(bookingSaveTicket);
-//                        if (cnt > 0) {
-//                            dataMap.put("judge", true);
-//                        }
-//                    }
-//                    data.add(dataMap);
+                    BookingSession bookingSession = new BookingSession();
+                    bookingSession.setSession_id(session_id);
+                    int cntUpdateSession = bookingMapper.cancelSession(bookingSession);
+                    if (cntUpdateSession > 0) {
+                        BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+                        bookingSaveTicket.setOrderno(orderno);
+                        bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
+                        if ("PENDING_PAYMENT".equals(ticket_status)) {
+                            bookingSaveTicket.setStatus("CANCELLED");
+                            Date dateNow = new Date();
+                            bookingSaveTicket.setCancelled_at(dateNow);
+                            int cntCancelTicket = bookingMapper.cancelTicket(bookingSaveTicket);
+                            if (cntCancelTicket > 0) {
+                                dataMap.put("judge", true);
+                            }
+                        }
+                        data.add(dataMap);
+                    }
                 }
             }
         } catch (JwtException e) {

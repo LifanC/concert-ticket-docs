@@ -1,8 +1,6 @@
 <script setup>
-import { useRouter } from 'vue-router'
 import { adminApi } from '@/services/api'
 
-const router = useRouter()
 const activeTab = ref('activities')
 const dialogVisible = ref(false)
 const dialogMode = ref('')
@@ -13,41 +11,21 @@ const orders = ref([])
 
 executeFirst()
 async function executeFirst() {
-  let judge = false
-  try {
-    const response_selectAllActivities = await adminApi({
-      method: 'get',
-      url: '/selectAllActivities',
-    });
-    activities.value = response_selectAllActivities.data
-    const response_selectAllSessions = await adminApi({
-      method: 'get',
-      url: '/selectAllSessions',
-    });
-    sessions.value = response_selectAllSessions.data
-    const response_selectAllticket = await adminApi({
-      method: 'get',
-      url: '/selectAllticket',
-    });
-    orders.value = response_selectAllticket.data
-  } catch (error) {
-    let status = error.response?.status
-    judge = (status === 403) ? true : false
-  }
-  if (judge) {
-    ElMessage({
-      type: 'error',
-      message: `${'權限不足'}`,
-    })
-    router.push(
-      {
-        path: '/User',
-        query: {
-          isLoggedIn: true
-        }
-      }
-    )
-  }
+  const response_selectAllActivities = await adminApi({
+    method: 'get',
+    url: '/selectAllActivities',
+  });
+  activities.value = response_selectAllActivities.data
+  const response_selectAllSessions = await adminApi({
+    method: 'get',
+    url: '/selectAllSessions',
+  });
+  sessions.value = response_selectAllSessions.data
+  const response_selectAllticket = await adminApi({
+    method: 'get',
+    url: '/selectAllticket',
+  });
+  orders.value = response_selectAllticket.data
 }
 
 const statusMap = {
@@ -176,29 +154,13 @@ const saveActivity = async () => {
     activities.value = response.data.data
     dialogVisible.value = false
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'權限不足'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    } else {
-      let data = error.response.data.data[1]?.error ?? {}
-      activityFormNotOk.value = {
-        id: data.id ?? '',
-        name: data.name ?? '',
-        date: data.date ?? '',
-        venue: data.venue ?? '',
-        status: data.status ?? '',
-      }
+    let data = error.response.data.data[1]?.error ?? {}
+    activityFormNotOk.value = {
+      id: data.id ?? '',
+      name: data.name ?? '',
+      date: data.date ?? '',
+      venue: data.venue ?? '',
+      status: data.status ?? '',
     }
     dialogVisible.value = true
   }
@@ -210,30 +172,12 @@ const deleteActivity = async (activity) => {
       id: activity.id
     }
   )
-  try {
-    const response = await adminApi({
-      method: 'delete',
-      url: '/deleteActivity',
-      data: activityForm,
-    });
-    activities.value = response.data.data
-  } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'權限不足'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    }
-  }
+  const response = await adminApi({
+    method: 'delete',
+    url: '/deleteActivity',
+    data: activityForm,
+  });
+  activities.value = response.data.data
 }
 const createSession = async () => {
   sessionFormNotOk.value = {
@@ -264,28 +208,12 @@ const createSession = async () => {
       message: `${'成功'}`,
     })
   } catch (error) {
-    let status = error.response.status ?? {}
-    if (status === 403) {
-      ElMessage({
-        type: 'error',
-        message: `${'權限不足'}`,
-      })
-      router.push(
-        {
-          path: '/User',
-          query: {
-            isLoggedIn: true
-          }
-        }
-      )
-    } else {
-      let data = error.response.data.data[1]?.error ?? {}
-      sessionFormNotOk.value = {
-        activity: data.activity ?? '',
-        date: data.date ?? '',
-        time: data.time ?? '',
-        capacity: data.capacity ?? '',
-      }
+    let data = error.response.data.data[1]?.error ?? {}
+    sessionFormNotOk.value = {
+      activity: data.activity ?? '',
+      date: data.date ?? '',
+      time: data.time ?? '',
+      capacity: data.capacity ?? '',
     }
   }
 }

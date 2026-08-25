@@ -40,10 +40,13 @@ function connectWebSocket() {
 
                     ElMessage({
                         type: "success",
+                        dangerouslyUseHTMLString: true,
                         message:
                             notification.title +
-                            "：" +
-                            notification.content
+                            "<br>" +
+                            notification.content,
+                        duration: 60000,
+                        showClose: true
                     });
                 }
             );
