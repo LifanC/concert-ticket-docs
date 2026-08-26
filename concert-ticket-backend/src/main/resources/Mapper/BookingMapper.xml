@@ -46,6 +46,7 @@
         select
             ticket.orderno,
             ticket.session_id,
+            "session".activity_id,
             ticket."name",
             ticket."date",
             ticket."time",
@@ -53,9 +54,11 @@
                 WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
 			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
 			    ELSE '星空場'
-        END AS timename,
+            END AS timename,
             ticket.status
         FROM "interviewworks_ticket".ticket ticket
+		         INNER JOIN "interviewworks_ticket"."session" "session"
+		            ON ticket.session_id = "session".id
         WHERE ticket.customer = #{customer}
         ORDER BY ticket.orderno desc
     </select>
@@ -92,39 +95,55 @@
     </select>
 
     <insert id="saveTicket">
-        INSERT INTO "interviewworks_ticket".ticket
+        WITH next_order AS (
+        INSERT INTO "interviewworks_ticket".ticket_order_sequence
         (
-            orderno,
-            session_id,
-            customer,
-            email,
-            "name",
-            "date",
-            "time",
-            status,
-            quantity,
-            price,
-            expires_at,
-            paid_at,
-            cancelled_at
+            order_date,
+            current_no
         )
         VALUES
             (
-                #{orderno},
-                #{session_id},
-                #{customer},
-                #{email},
-                #{name},
-                #{date},
-                #{time},
-                #{status},
-                1,
-                #{price},
-                #{expires_at},
-                #{paid_at},
-                #{cancelled_at}
+                CURRENT_DATE,
+                1
             )
-        ON CONFLICT (orderno) DO NOTHING
+        ON CONFLICT (order_date)
+            DO UPDATE
+                   SET current_no = "interviewworks_ticket".ticket_order_sequence.current_no + 1
+                   RETURNING
+                   'CT' || TO_CHAR(order_date, 'YYYYMMDD') || LPAD(current_no::TEXT, 3, '0') AS orderno
+                )
+       INSERT INTO "interviewworks_ticket".ticket
+       (
+           orderno,
+           session_id,
+           customer,
+           email,
+           "name",
+           "date",
+           "time",
+           status,
+           quantity,
+           price,
+           expires_at,
+           paid_at,
+           cancelled_at
+       )
+        SELECT
+            next_order.orderno,
+            #{session_id},
+            #{customer},
+            #{email},
+            #{name},
+            #{date},
+            #{time},
+            #{status},
+            1,
+            #{price},
+            #{expires_at},
+            #{paid_at},
+            #{cancelled_at}
+        FROM next_order
+        RETURNING orderno
     </insert>
 
     <update id="cancelSession">
@@ -148,50 +167,42 @@
     </update>
 
     <select id="sessionSalesDate" resultType="java.util.Map">
-        select distinct
-            "session".activity,
+        select
+            "session".id,
+            "session".activity_id,
             "session"."date",
             "session"."time",
             "session".salesdate,
             "session".salestime
         from "interviewworks_ticket"."session" "session"
-        where "session".activity = #{activity}
+        where "session".id = #{session_id}
+          and "session".activity_id = #{activity_id}
           and "session"."date" = #{date}
           and "session"."time" = #{time}
         order by "session"."date" desc
     </select>
 
+    <update id="dopaypriceUpdateSession">
+        update "interviewworks_ticket"."session" "session"
+        set
+            reserved = reserved - 1,
+            sold = sold + 1
+        where "session".id = #{session_id}
+          and "session".capacity - "session".reserved - "session".sold >= 1
+    </update>
+
     <update id="dopaypriceTicket">
-        WITH paid_ticket AS (
-        UPDATE interviewworks_ticket.ticket AS ticket
-        SET
-            status = '已付款',
-            payprice = ticket.price
-        WHERE ticket.orderno = #{orderno}
-          AND ticket.customer = #{customer}
-          AND ticket."name" = #{activity}
-          AND ticket."date" = #{date}
-          AND ticket."time" = #{time}
-          AND ticket.status = '待付款'
-           AND EXISTS (
-             SELECT 1
-             FROM interviewworks_ticket."session" AS s
-            WHERE s.activity = ticket."name"
-              AND s."date" = ticket."date"
-              AND s."time" = ticket."time"
-              AND s.capacity > 0
-        )
-            RETURNING ticket."name", ticket."date", ticket."time"
-)
-        UPDATE interviewworks_ticket."session" AS s
-        SET
-            capacity = s.capacity - 1,
-            sold = s.sold + 1
-            FROM paid_ticket AS p
-        WHERE s.activity = p."name"
-          AND s."date" = p."date"
-          AND s."time" = p."time"
-          AND s.capacity > 0
+        update "interviewworks_ticket".ticket ticket
+        set
+            status = #{status},
+            payprice = price,
+            paid_at = #{paid_at}
+        where orderno = #{orderno}
+          and session_id = #{session_id}
+          and customer = #{customer}
+          and "date" = #{date}
+          and "time" = #{time}
+          and status in ('PENDING_PAYMENT')
     </update>
 
 </mapper>

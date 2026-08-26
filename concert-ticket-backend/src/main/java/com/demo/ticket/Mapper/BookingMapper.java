@@ -36,7 +36,10 @@ public interface BookingMapper {
 
     int cancelTicket(BookingSaveTicket bookingSaveTicket);
 
-    List<Map<String, Object>> sessionSalesDate(BookingSalesDate bookingSalesDate);
+    @MapKey("id")
+    Map<String, Map<String, Object>> sessionSalesDate(BookingSalesDate bookingSalesDate);
+
+    int dopaypriceUpdateSession(BookingSession bookingSession);
 
     int dopaypriceTicket(BookingDopaypriceTicket bookingDopaypriceTicket);
 }

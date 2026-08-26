@@ -133,6 +133,12 @@ ON interviewworks_ticket.ticket
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket_order_sequence
+(
+    order_date DATE PRIMARY KEY,
+    current_no INTEGER NOT NULL
+);
+
 
 
 

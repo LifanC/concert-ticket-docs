@@ -3,7 +3,6 @@ package com.demo.ticket.Dto.Booking;
 import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -11,7 +10,9 @@ import jakarta.validation.constraints.Size;
 @JsonPropertyOrder(
         {
                 "orderno",
-                "activity",
+                "session_id",
+                "activity_id",
+                "status",
                 "date",
                 "time",
                 "salesdate",
@@ -38,19 +39,46 @@ public class BookingDopaypriceRequest {
     private String orderno;
 
     @Schema(
-            description = "活動名稱",
-            example = "夏日星光音樂祭",
-            minLength = 2,
-            maxLength = 50,
+            description = "場次編號",
+            example = "S-001",
+            minLength = 5,
+            maxLength = 5,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "活動名稱不可為空")
-    @Size(min = 2, max = 50, message = "活動名稱長度需介於 2~50 字")
+    @NotBlank(message = "場次編號不可為空")
+    @Size(min = 5, max = 5, message = "場次編號長度需為 5 個字元")
     @Pattern(
-            regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
-            message = "活動名稱格式錯誤"
+            regexp = "^S-\\d{3}$",
+            message = "場次編號格式需為 S-NNN，例如 S-001"
     )
-    private String activity;
+    private String session_id;
+
+    @Schema(
+            description = "活動編號",
+            example = "ACT-2026-001",
+            minLength = 12,
+            maxLength = 12,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "活動編號不可為空")
+    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
+    @Pattern(
+            regexp = "^ACT-\\d{4}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+    )
+    private String activity_id;
+
+    @Schema(
+            description = "狀態",
+            example = "狀態只能為 等待付款",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "狀態不可為空")
+    @Pattern(
+            regexp = "^(PENDING_PAYMENT)$",
+            message = "狀態只能為 等待付款"
+    )
+    private String status;
 
     @Schema(
             description = "活動日期",
@@ -80,8 +108,16 @@ public class BookingDopaypriceRequest {
         return orderno;
     }
 
-    public String getActivity() {
-        return activity;
+    public String getSession_id() {
+        return session_id;
+    }
+
+    public String getActivity_id() {
+        return activity_id;
+    }
+
+    public String getStatus() {
+        return status;
     }
 
     public String getDate() {

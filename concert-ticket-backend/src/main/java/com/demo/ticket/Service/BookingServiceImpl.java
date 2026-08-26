@@ -208,9 +208,7 @@ public class BookingServiceImpl implements BookingService {
                     int cnt = bookingMapper.updateSession(bookingSession);
                     if (cnt > 0) {
                         BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-                        // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
-                        final String orderno = "";
-                        bookingSaveTicket.setOrderno(orderno);
+                        // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001" SQL處理
                         bookingSaveTicket.setSession_id(session_id);
                         bookingSaveTicket.setCustomer(emailCutOff);
                         bookingSaveTicket.setEmail(accessJwt);
@@ -340,7 +338,9 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> sessionSalesDate(BookingSessionSalesDateRequest request) {
-        final String name = request.getName().trim();
+        final String session_id = request.getSession_id().trim();
+        final String activity_id = request.getActivity_id().trim();
+        final String ticket_status = request.getStatus().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String accessToken = request.getToken().trim();
@@ -367,14 +367,14 @@ public class BookingServiceImpl implements BookingService {
                 if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                     logger.error("{} : (售賣日期)Token 已被撤銷", accessJwt);
                 } else {
-//                    BookingSalesDate bookingSalesDate = new BookingSalesDate();
-//                    bookingSalesDate.setActivity(name);
-//                    bookingSalesDate.setDate(date);
-//                    bookingSalesDate.setTime(time);
-//                    List<Map<String, Object>> data = bookingMapper.sessionSalesDate(bookingSalesDate);
-//                    if (!data.isEmpty()) {
-//                        dataMap = data.getFirst();
-//                    }
+                    if ("PENDING_PAYMENT".equals(ticket_status)) {
+                        BookingSalesDate bookingSalesDate = new BookingSalesDate();
+                        bookingSalesDate.setSession_id(session_id);
+                        bookingSalesDate.setActivity_id(activity_id);
+                        bookingSalesDate.setDate(date);
+                        bookingSalesDate.setTime(time);
+                        dataMap = bookingMapper.sessionSalesDate(bookingSalesDate).get(session_id);;
+                    }
                 }
             }
         } catch (JwtException e) {
@@ -390,7 +390,8 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request) {
         final String orderno = request.getOrderno().trim();
-        final String activity = request.getActivity().trim();
+        final String session_id = request.getSession_id().trim();
+        final String ticket_status = request.getStatus().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String accessToken = request.getToken().trim();
@@ -412,25 +413,35 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (付款) Token 已過期", accessJwt);
             } else {
-//                BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
-//                bookingDopaypriceTicket.setOrderno(orderno);
-//                bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-//                bookingDopaypriceTicket.setActivity(activity);
-//                bookingDopaypriceTicket.setDate(date);
-//                bookingDopaypriceTicket.setTime(time);
-//                int cnt = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
-//                if (cnt > 0) {
-//                    dataMap.put("judge", true);
-//
-//                    NotificationMessage message =
-//                            new NotificationMessage(
-//                                    accessJwt,
-//                                    "新通知",
-//                                    "付款成功"
-//                            );
-//                    notifier.sendNotification(message);
-//                }
-//                data.add(dataMap);
+                BookingSession bookingSession = new BookingSession();
+                bookingSession.setSession_id(session_id);
+                int cntUpdateSession = bookingMapper.dopaypriceUpdateSession(bookingSession);
+                if (cntUpdateSession > 0) {
+                    BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
+                    bookingDopaypriceTicket.setOrderno(orderno);
+                    bookingDopaypriceTicket.setSession_id(session_id);
+                    bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
+                    bookingDopaypriceTicket.setDate(date);
+                    bookingDopaypriceTicket.setTime(time);
+                    if ("PENDING_PAYMENT".equals(ticket_status)) {
+                        bookingDopaypriceTicket.setStatus("PAID");
+                        Date dateNow = new Date();
+                        bookingDopaypriceTicket.setPaid_at(dateNow);
+                        int cntCancelTicket = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
+                        if (cntCancelTicket > 0) {
+                            dataMap.put("judge", true);
+
+                            NotificationMessage message =
+                                    new NotificationMessage(
+                                            accessJwt,
+                                            "付款成功",
+                                            "您的票券已付款成功，可至訂單頁面查看票券資訊"
+                                    );
+                            notifier.sendNotification(message);
+                        }
+                    }
+                    data.add(dataMap);
+                }
             }
         } catch (JwtException e) {
             // JWT 不合法

@@ -76,12 +76,15 @@ const ticketForm = reactive(
   }
 )
 
-const paypriceForm = reactive(
+const paypricedataForm = reactive(
   {
     orderno: '',
-    name: '',
+    session_id: '',
+    activity_id: '',
     date: '',
-    time: ''
+    time: '',
+    salesdate: '',
+    salestime: '',
   }
 )
 
@@ -151,21 +154,13 @@ const cancelOrder = async (ticket) => {
   }
 }
 
-const paypricedataForm = reactive(
-  {
-    orderno: '',
-    activity: '',
-    date: '',
-    time: '',
-    salesdate: '',
-    salestime: '',
-  }
-)
 const payprice = async (payprice) => {
   Object.assign(
-    paypriceForm,
+    paypricedataForm,
     {
-      name: payprice.name,
+      session_id: payprice.session_id,
+      activity_id: payprice.activity_id,
+      status: 'PENDING_PAYMENT',
       date: payprice.date,
       time: payprice.time
     }
@@ -174,15 +169,12 @@ const payprice = async (payprice) => {
     const response = await bookingApi({
       method: 'post',
       url: '/sessionSalesDate',
-      data: paypriceForm,
+      data: paypricedataForm,
     });
     Object.assign(
       paypricedataForm,
       {
         orderno: payprice.orderno,
-        activity: response.data.activity,
-        date: response.data.date,
-        time: response.data.time,
         salesdate: response.data.salesdate,
         salestime: response.data.salestime
       }
@@ -193,20 +185,18 @@ const payprice = async (payprice) => {
   }
 }
 const dopayprice = async () => {
-  try {
-    const response = await bookingApi({
-      method: 'put',
-      url: '/dopayprice',
-      data: paypricedataForm,
-    });
-    let data = response.data.data[0] ?? {}
-    if (data.judge) {
-      paypriceDialogVisible.value = false
-      myTicketsVisible.value = false
-    }
-  } catch (error) {
+  const response = await bookingApi({
+    method: 'put',
+    url: '/dopayprice',
+    data: paypricedataForm,
+  });
+  let data = response.data.data[0] ?? {}
+  if (data.judge) {
     paypriceDialogVisible.value = false
     myTicketsVisible.value = false
+  } else {
+    paypriceDialogVisible.value = true
+    myTicketsVisible.value = true
   }
 }
 const ticketsMap = {
@@ -314,7 +304,12 @@ const myTicketsVisibleDialog = async () => {
   <el-dialog v-model="paypriceDialogVisible" title="付款" width="min(520px, 92vw)">
     <el-alert title="請完成付款。" type="warning" :closable="false" show-icon />
     <p class="confirm-seat">
-      {{ paypricedataForm.orderno }} 請於期限內 {{ paypricedataForm.salesdate }} {{ paypricedataForm.salestime }} 完成付款
+      {{ paypricedataForm.orderno }}
+    </p>
+    <p class="confirm-seat">
+      請於開賣後 {{ paypricedataForm.salesdate }} {{ paypricedataForm.salestime }}
+       ～ 
+      開演前 {{ paypricedataForm.date }} {{ paypricedataForm.time }} 完成付款
     </p>
     <template #footer>
       <el-button @click="paypriceDialogVisible = false">返回</el-button>
@@ -322,10 +317,11 @@ const myTicketsVisibleDialog = async () => {
     </template>
   </el-dialog>
 
-  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1000px, 94vw)">
+  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1250px, 94vw)">
     <el-table :data="tickets" stripe empty-text="目前沒有票券">
       <el-table-column prop="orderno" label="訂單編號" min-width="145" />
       <el-table-column prop="session_id" label="編號" min-width="100" />
+      <el-table-column prop="activity_id" label="活動編號" min-width="100" />
       <el-table-column prop="name" label="活動" min-width="150" />
       <el-table-column prop="date" label="場次" min-width="100" />
       <el-table-column prop="time" label="時間" min-width="100" />
