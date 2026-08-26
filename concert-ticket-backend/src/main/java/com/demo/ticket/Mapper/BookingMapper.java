@@ -30,7 +30,7 @@ public interface BookingMapper {
 
     BigDecimal selectActivityPrice(String activity_id);
 
-    void saveTicket(BookingSaveTicket bookingSaveTicket);
+    String saveTicket(BookingSaveTicket bookingSaveTicket);
 
     int cancelSession(BookingSession bookingSession);
 
@@ -42,4 +42,8 @@ public interface BookingMapper {
     int dopaypriceUpdateSession(BookingSession bookingSession);
 
     int dopaypriceTicket(BookingDopaypriceTicket bookingDopaypriceTicket);
+
+    String selectTicketStatus(BookingSaveTicket bookingSaveTicket);
+
+    void updateTicketExpiredAt(BookingSaveTicket bookingSaveTicket);
 }

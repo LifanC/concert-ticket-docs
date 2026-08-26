@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
@@ -31,17 +33,20 @@ public class BookingServiceImpl implements BookingService {
     private final StringRedisTemplate stringRedisTemplate;
     private final JwtTokenService jwtTokenService;
     private final NotifierConsumer notifier;
+    private final BookingPaymentScheduler bookingPaymentScheduler;
 
     public BookingServiceImpl(
             BookingMapper bookingMapper,
             StringRedisTemplate stringRedisTemplate,
             JwtTokenService jwtTokenService,
-            NotifierConsumer notifier
+            NotifierConsumer notifier,
+            BookingPaymentScheduler bookingPaymentScheduler
     ) {
         this.bookingMapper = bookingMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.jwtTokenService = jwtTokenService;
         this.notifier = notifier;
+        this.bookingPaymentScheduler = bookingPaymentScheduler;
     }
 
     @Override
@@ -226,8 +231,21 @@ public class BookingServiceImpl implements BookingService {
                                 .plus(minutes, ChronoUnit.MINUTES)
                         );
                         bookingSaveTicket.setExpires_at(dateExpiresAt);
-                        bookingMapper.saveTicket(bookingSaveTicket);
+                        String orderno = bookingMapper.saveTicket(bookingSaveTicket);
+                        logger.info("新增訂單成功，訂單編號：{}", orderno);
+                        bookingSaveTicket.setOrderno(orderno);
                         data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
+
+                        // Transaction commit 成功後，安排 expires_at 時執行
+                        TransactionSynchronizationManager.registerSynchronization(
+                                new TransactionSynchronization() {
+                                    @Override
+                                    public void afterCommit() {
+                                        bookingPaymentScheduler.scheduleExpiration(accessJwt, bookingSaveTicket);
+                                    }
+                                }
+                        );
+
                         Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
                         BigDecimal available = new BigDecimal(sessionData.get("available").toString());
                         NotificationMessage message =
@@ -317,6 +335,21 @@ public class BookingServiceImpl implements BookingService {
                                 dataMap.put("judge", true);
                             }
                         }
+
+                        TransactionSynchronizationManager.registerSynchronization(
+                                new TransactionSynchronization() {
+                                    @Override
+                                    public void afterCommit() {
+                                        boolean cancelled = bookingPaymentScheduler.cancelExpiration(orderno);
+                                        logger.info(
+                                                "訂單 {} 排程取消結果：{}",
+                                                orderno,
+                                                cancelled
+                                        );
+                                    }
+                                }
+                        );
+
                         data.add(dataMap);
                     }
                 }
@@ -373,7 +406,8 @@ public class BookingServiceImpl implements BookingService {
                         bookingSalesDate.setActivity_id(activity_id);
                         bookingSalesDate.setDate(date);
                         bookingSalesDate.setTime(time);
-                        dataMap = bookingMapper.sessionSalesDate(bookingSalesDate).get(session_id);;
+                        dataMap = bookingMapper.sessionSalesDate(bookingSalesDate).get(session_id);
+                        ;
                     }
                 }
             }

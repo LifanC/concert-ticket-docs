@@ -94,7 +94,7 @@
         where id = #{activity_id}
     </select>
 
-    <insert id="saveTicket">
+    <select id="saveTicket" resultType="java.lang.String">
         WITH next_order AS (
         INSERT INTO "interviewworks_ticket".ticket_order_sequence
         (
@@ -144,7 +144,7 @@
             #{cancelled_at}
         FROM next_order
         RETURNING orderno
-    </insert>
+    </select>
 
     <update id="cancelSession">
         update "interviewworks_ticket"."session" "session"
@@ -197,6 +197,25 @@
             status = #{status},
             payprice = price,
             paid_at = #{paid_at}
+        where orderno = #{orderno}
+          and session_id = #{session_id}
+          and customer = #{customer}
+          and "date" = #{date}
+          and "time" = #{time}
+          and status in ('PENDING_PAYMENT')
+    </update>
+
+    <select id="selectTicketStatus" resultType="java.lang.String">
+        select status
+        from "interviewworks_ticket".ticket ticket
+        where ticket.orderno = #{orderno}
+    </select>
+
+    <update id="updateTicketExpiredAt">
+        update "interviewworks_ticket".ticket ticket
+        set
+            status = #{status},
+            cancelled_at = #{cancelled_at}
         where orderno = #{orderno}
           and session_id = #{session_id}
           and customer = #{customer}

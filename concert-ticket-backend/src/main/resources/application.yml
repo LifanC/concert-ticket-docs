@@ -2,8 +2,8 @@
 # JWT ??
 # -----------------------------
 jwt:
-  refreshExpirationSeconds: 1800
-  accessExpirationSeconds: 300
+  refreshExpirationSeconds: 3600
+  accessExpirationSeconds: 1800
 
 auth:
   cookie:
