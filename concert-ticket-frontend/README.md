@@ -53,3 +53,7 @@ npm run dev
 ```powershell
 docker compose up --build
 ```
+
+## 延伸文件
+
+- [後端說明](concert-ticket-backend/README.md)
