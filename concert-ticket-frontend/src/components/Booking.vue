@@ -160,7 +160,7 @@ const payprice = async (payprice) => {
     {
       session_id: payprice.session_id,
       activity_id: payprice.activity_id,
-      status: 'PENDING_PAYMENT',
+      status: payprice.status,
       date: payprice.date,
       time: payprice.time
     }
@@ -185,19 +185,13 @@ const payprice = async (payprice) => {
   }
 }
 const dopayprice = async () => {
-  const response = await bookingApi({
+  await bookingApi({
     method: 'put',
     url: '/dopayprice',
     data: paypricedataForm,
   });
-  let data = response.data.data[0] ?? {}
-  if (data.judge) {
-    paypriceDialogVisible.value = false
-    myTicketsVisible.value = false
-  } else {
-    paypriceDialogVisible.value = true
-    myTicketsVisible.value = true
-  }
+  paypriceDialogVisible.value = false
+  myTicketsVisible.value = false
 }
 const ticketsMap = {
   PENDING_PAYMENT: '等待付款',
@@ -210,7 +204,7 @@ const statusType = (status) => (
   {
     'PENDING_PAYMENT': 'success',
     'PAID': 'success',
-    'CANCELLED': 'warning',
+    'CANCELLED': 'error',
     'EXPIRED': 'warning',
     'REFUNDED': 'info'
   }[status] || 'warning'
@@ -308,7 +302,7 @@ const myTicketsVisibleDialog = async () => {
     </p>
     <p class="confirm-seat">
       請於開賣後 {{ paypricedataForm.salesdate }} {{ paypricedataForm.salestime }}
-       ～ 
+      ～
       開演前 {{ paypricedataForm.date }} {{ paypricedataForm.time }} 完成付款
     </p>
     <template #footer>
@@ -333,14 +327,24 @@ const myTicketsVisibleDialog = async () => {
       </el-table-column>
       <el-table-column label="操作" width="100">
         <template #default="scope">
-          <el-button text type="danger" :disabled="scope.row.status === 'PAID' || scope.row.status === 'CANCELLED'"
-            @click="cancelOrder(scope.row)">取消訂單</el-button>
+          <el-button text type="danger"
+           :disabled="
+           scope.row.status === 'PAID' || 
+           scope.row.status === 'CANCELLED' || 
+           scope.row.status === 'EXPIRED' || 
+           scope.row.status === 'REFUNDED'
+           " @click="cancelOrder(scope.row)">取消訂單</el-button>
         </template>
       </el-table-column>
       <el-table-column label="" width="100">
         <template #default="scope">
           <el-button text :type="statusType(scope.row.status)"
-            :disabled="scope.row.status === 'PAID' || scope.row.status === 'CANCELLED'" @click="payprice(scope.row)">付款
+            :disabled="
+            scope.row.status === 'PAID' || 
+            scope.row.status === 'CANCELLED' || 
+            scope.row.status === 'EXPIRED' || 
+            scope.row.status === 'REFUNDED'
+            " @click="payprice(scope.row)">付款
           </el-button>
         </template>
       </el-table-column>

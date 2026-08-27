@@ -27,6 +27,7 @@
             "session".salesdate,
             "session".salestime,
             "session".capacity,
+            "session".reserved,
             "session".sold
         from
             "interviewworks_ticket"."session" "session"

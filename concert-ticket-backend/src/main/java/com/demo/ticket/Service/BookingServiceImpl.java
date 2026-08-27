@@ -326,14 +326,12 @@ public class BookingServiceImpl implements BookingService {
                         BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
                         bookingSaveTicket.setOrderno(orderno);
                         bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-                        if ("PENDING_PAYMENT".equals(ticket_status)) {
-                            bookingSaveTicket.setStatus("CANCELLED");
-                            Date dateNow = new Date();
-                            bookingSaveTicket.setCancelled_at(dateNow);
-                            int cntCancelTicket = bookingMapper.cancelTicket(bookingSaveTicket);
-                            if (cntCancelTicket > 0) {
-                                dataMap.put("judge", true);
-                            }
+                        bookingSaveTicket.setStatus("CANCELLED");
+                        Date dateNow = new Date();
+                        bookingSaveTicket.setCancelled_at(dateNow);
+                        int cntCancelTicket = bookingMapper.cancelTicket(bookingSaveTicket);
+                        if (cntCancelTicket > 0) {
+                            dataMap.put("judge", true);
                         }
 
                         TransactionSynchronizationManager.registerSynchronization(
@@ -407,7 +405,6 @@ public class BookingServiceImpl implements BookingService {
                         bookingSalesDate.setDate(date);
                         bookingSalesDate.setTime(time);
                         dataMap = bookingMapper.sessionSalesDate(bookingSalesDate).get(session_id);
-                        ;
                     }
                 }
             }
@@ -421,6 +418,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request) {
         final String orderno = request.getOrderno().trim();
@@ -457,22 +455,34 @@ public class BookingServiceImpl implements BookingService {
                     bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
                     bookingDopaypriceTicket.setDate(date);
                     bookingDopaypriceTicket.setTime(time);
-                    if ("PENDING_PAYMENT".equals(ticket_status)) {
-                        bookingDopaypriceTicket.setStatus("PAID");
-                        Date dateNow = new Date();
-                        bookingDopaypriceTicket.setPaid_at(dateNow);
-                        int cntCancelTicket = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
-                        if (cntCancelTicket > 0) {
-                            dataMap.put("judge", true);
+                    bookingDopaypriceTicket.setStatus("PAID");
+                    Date dateNow = new Date();
+                    bookingDopaypriceTicket.setPaid_at(dateNow);
+                    int cntDopaypriceTicket = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
+                    if (cntDopaypriceTicket > 0) {
+                        dataMap.put("judge", true);
 
-                            NotificationMessage message =
-                                    new NotificationMessage(
-                                            accessJwt,
-                                            "付款成功",
-                                            "您的票券已付款成功，可至訂單頁面查看票券資訊"
-                                    );
-                            notifier.sendNotification(message);
-                        }
+                        TransactionSynchronizationManager.registerSynchronization(
+                                new TransactionSynchronization() {
+                                    @Override
+                                    public void afterCommit() {
+                                        boolean cancelled = bookingPaymentScheduler.cancelExpiration(orderno);
+                                        logger.info(
+                                                "付款 {} 排程取消結果：{}",
+                                                orderno,
+                                                cancelled
+                                        );
+                                    }
+                                }
+                        );
+
+                        NotificationMessage message =
+                                new NotificationMessage(
+                                        accessJwt,
+                                        "付款成功",
+                                        "您的票券已付款成功，可至訂單頁面查看票券資訊"
+                                );
+                        notifier.sendNotification(message);
                     }
                     data.add(dataMap);
                 }

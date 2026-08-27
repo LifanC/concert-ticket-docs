@@ -28,12 +28,6 @@ async function executeFirst() {
   orders.value = response_selectAllticket.data
 }
 
-const statusMap = {
-  COMING_SOON: '即將開賣',
-  TICKETS_ARE_ON_SALE: '售票中',
-  ENDED: '已結束',
-}
-
 const activityForm = reactive(
   {
     id: '',
@@ -217,11 +211,26 @@ const createSession = async () => {
     }
   }
 }
+const statusMap = {
+  COMING_SOON: '即將開賣',
+  TICKETS_ARE_ON_SALE: '售票中',
+  ENDED: '已結束',
+  PENDING_PAYMENT: '等待付款',
+  PAID: '已付款',
+  CANCELLED: '取消',
+  EXPIRED: '超過付款期限',
+  REFUNDED: '已退款',
+}
 const statusType = (status) => (
   {
     'COMING_SOON': 'warning',
     'TICKETS_ARE_ON_SALE': 'success',
-    'ENDED': 'info'
+    'ENDED': 'info',
+    'PENDING_PAYMENT': 'success',
+    'PAID': 'success',
+    'CANCELLED': 'info',
+    'EXPIRED': 'warning',
+    'REFUNDED': 'info',
   }[status] || 'info'
 )
 </script>
@@ -350,6 +359,7 @@ const statusType = (status) => (
               <el-table-column prop="salesdate" label="開賣日期" width="130" />
               <el-table-column prop="salestime" label="開賣時間" width="100" />
               <el-table-column prop="capacity" label="座位數" width="100" />
+              <el-table-column prop="reserved" label="未付款數量" width="100" />
               <el-table-column prop="sold" label="已售" width="100" />
             </el-table>
           </el-card>
@@ -370,9 +380,9 @@ const statusType = (status) => (
               <el-table-column label="金額" width="120">
                 <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>
               </el-table-column>
-              <el-table-column label="狀態" width="110">
+              <el-table-column label="狀態" width="150">
                 <template #default="scope">
-                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ scope.row.status }}</el-tag>
+                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
                 </template>
               </el-table-column>
             </el-table>
