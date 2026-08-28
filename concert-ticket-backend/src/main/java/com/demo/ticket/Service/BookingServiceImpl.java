@@ -183,6 +183,7 @@ public class BookingServiceImpl implements BookingService {
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String ticket_status = request.getStatus().trim();
+        final String seat = request.getSeat().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
@@ -222,6 +223,7 @@ public class BookingServiceImpl implements BookingService {
                         bookingSaveTicket.setTime(time);
                         BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
                         bookingSaveTicket.setStatus(ticket_status);
+                        bookingSaveTicket.setSeat(seat);
                         bookingSaveTicket.setPrice(price == null ? BigDecimal.ZERO : price);
                         // 可付款時間10分鐘
                         int minutes = 10;
@@ -423,7 +425,6 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request) {
         final String orderno = request.getOrderno().trim();
         final String session_id = request.getSession_id().trim();
-        final String ticket_status = request.getStatus().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String accessToken = request.getToken().trim();
@@ -499,5 +500,91 @@ public class BookingServiceImpl implements BookingService {
                         status,
                         data
                 ));
+    }
+
+    @Override
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public List<Map<String, Object>> selectOnlySeats(BookingSelectOnlySeatsRequest request) {
+        final String accessToken = request.getToken().trim();
+        final String seat_id = request.getSeat_id().trim();
+        List<Map<String, Object>> data = new ArrayList<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (座位資料)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (座位資料) Token 已過期", accessJwt);
+            } else {
+                Map<String, Object> dataMapOnlySeats = bookingMapper.selectOnlySeats(seat_id).get(seat_id);
+                if (!dataMapOnlySeats.isEmpty()) {
+                    String seat_rows = dataMapOnlySeats.get("seat_rows").toString();
+                    String[] strings = seat_rows.split(",");
+                    for (String string : strings) {
+                        int seats_per_row = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
+                        for (int i = 0; i < seats_per_row; i++) {
+                            int number = i + 1;
+                            Map<String, Object> dataMap = new HashMap<>();
+                            dataMap.put("id", string + "-" + String.format("%02d", number));
+                            dataMap.put("row", string);
+                            dataMap.put("number", number);
+                            data.add(dataMap);
+                        }
+                    }
+                }
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(座位資料)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
+    }
+
+    @Override
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    public List<String> selectOnlyUnavailableSeats(BookingSelectOnlyUnavailableSeatsRequest request) {
+        final String date = request.getDate().trim();
+        final String time = request.getTime().trim();
+        final String accessToken = request.getToken().trim();
+        List<String> data = new ArrayList<>();
+        try {
+            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
+            String accessJwt = accessClaims.getSubject();
+            List<String> accessAuthorities = accessClaims.get("authorities", List.class);
+            String accessJtId = accessClaims.getId();
+            logger.error("{}(權限{}) : (已預訂座位資料)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    accessJtId,
+                    accessJwt
+            );
+            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
+            if (Boolean.FALSE.equals(accessExists)) {
+                logger.error("{} : (已預訂座位資料) Token 已過期", accessJwt);
+            } else {
+                BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+                bookingSaveTicket.setDate(date);
+                bookingSaveTicket.setTime(time);
+                List<Map<String, Object>> unavailableSeats = bookingMapper.selectOnlyUnavailableSeats(bookingSaveTicket);
+                if (!unavailableSeats.isEmpty()) {
+                    unavailableSeats.forEach(unavailableSeat -> {
+                        data.add(unavailableSeat.get("seat").toString());
+                    });
+                }
+            }
+        } catch (JwtException e) {
+            // JWT 不合法
+            logger.error("(已預訂座位資料)無效的 JWT token");
+            throw new JwtException("無效的 JWT token", e);
+        }
+        return data;
     }
 }

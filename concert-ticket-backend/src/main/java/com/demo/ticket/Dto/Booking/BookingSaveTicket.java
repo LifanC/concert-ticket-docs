@@ -13,6 +13,7 @@ public class BookingSaveTicket {
     private String date;
     private String time;
     private String status;
+    private String seat;
     private BigDecimal price;
     private Date expires_at;
     private Date paid_at;
@@ -80,6 +81,14 @@ public class BookingSaveTicket {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getSeat() {
+        return seat;
+    }
+
+    public void setSeat(String seat) {
+        this.seat = seat;
     }
 
     public BigDecimal getPrice() {

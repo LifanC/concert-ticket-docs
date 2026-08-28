@@ -24,4 +24,8 @@ public interface BookingService {
     Map<String, Object> sessionSalesDate(@Valid BookingSessionSalesDateRequest request);
 
     ResponseEntity<?> dopayprice(@Valid BookingDopaypriceRequest request);
+
+    List<Map<String, Object>> selectOnlySeats(@Valid BookingSelectOnlySeatsRequest request);
+
+    List<String> selectOnlyUnavailableSeats(@Valid BookingSelectOnlyUnavailableSeatsRequest request);
 }

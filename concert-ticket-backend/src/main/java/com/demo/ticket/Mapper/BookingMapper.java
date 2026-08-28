@@ -46,4 +46,9 @@ public interface BookingMapper {
     String selectTicketStatus(BookingSaveTicket bookingSaveTicket);
 
     void updateTicketExpiredAt(BookingSaveTicket bookingSaveTicket);
+
+    @MapKey("id")
+    Map<String, Map<String, Object>> selectOnlySeats(String seat_id);
+
+    List<Map<String, Object>> selectOnlyUnavailableSeats(BookingSaveTicket bookingSaveTicket);
 }

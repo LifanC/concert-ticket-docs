@@ -15,6 +15,7 @@ import java.math.BigDecimal;
                 "date",
                 "time",
                 "status",
+                "seat",
                 "total",
                 "token",
         }
@@ -102,6 +103,21 @@ public class BookingSaveTicketRequest {
     private String status;
 
     @Schema(
+            description = "座位號碼",
+            example = "A-01",
+            minLength = 4,
+            maxLength = 4,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "座位號碼不可為空")
+    @Size(min = 4, max = 4, message = "座位號碼長度需為 4 個字元")
+    @Pattern(
+            regexp = "^[A-Z]{1}-\\d{2}$",
+            message = "座位號碼格式需為 X-00，例如 A-01"
+    )
+    private String seat;
+
+    @Schema(
             description = "票價",
             example = "1280",
             requiredMode = Schema.RequiredMode.REQUIRED
@@ -135,6 +151,10 @@ public class BookingSaveTicketRequest {
 
     public String getStatus() {
         return status;
+    }
+
+    public String getSeat() {
+        return seat;
     }
 
     public BigDecimal getPrice() {

@@ -41,6 +41,14 @@ VALUES (
         '$2a$10$rJR4wuJFsMtZjxUVgMR13.ET4tqMzWNJlbRgehR9CP./mVs1NIyF2',
         '',
         'ADMIN'
+       ),
+	   (
+        'wang',
+        'wang@user.com',
+        '0912345678',
+        '$2a$10$L5E9otCIMi3PY847s7K2LO4JO4clzb5kRn2adOZhtQxbQQEpfhWb6',
+        '',
+        'USER'
        ) ON CONFLICT (email) DO NOTHING;
 
 
@@ -112,6 +120,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               "date" varchar NOT NULL,
                                               "time" varchar NOT NULL,
                                               status varchar NOT NULL,
+											  seat varchar NOT NULL,
 											  quantity int8 NULL DEFAULT 0,
                                               price int8 NULL DEFAULT 0,
                                               payprice int8 NULL DEFAULT 0,
@@ -139,26 +148,16 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket_order_sequence
     current_no INTEGER NOT NULL
 );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.seat
+(
+    id varchar PRIMARY KEY,
+    seat_rows varchar NOT NULL,
+    seats_per_row int8 NULL DEFAULT 0
+);
+INSERT INTO interviewworks_ticket.seat (id, seat_rows, seats_per_row)
+VALUES (
+        'AF-10',
+        'A,B,C,D,E,F',
+        10
+       ) ON CONFLICT (id) DO NOTHING;
 

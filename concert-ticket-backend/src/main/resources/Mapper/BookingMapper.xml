@@ -55,7 +55,8 @@
 			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
 			    ELSE '星空場'
             END AS timename,
-            ticket.status
+            ticket.status,
+            ticket.seat
         FROM "interviewworks_ticket".ticket ticket
 		         INNER JOIN "interviewworks_ticket"."session" "session"
 		            ON ticket.session_id = "session".id
@@ -122,6 +123,7 @@
            "date",
            "time",
            status,
+           seat,
            quantity,
            price,
            expires_at,
@@ -137,6 +139,7 @@
             #{date},
             #{time},
             #{status},
+            #{seat},
             1,
             #{price},
             #{expires_at},
@@ -223,6 +226,25 @@
           and "time" = #{time}
           and status in ('PENDING_PAYMENT')
     </update>
+
+    <select id="selectOnlySeats" resultType="java.util.Map">
+        select
+            seat.id,
+            seat.seat_rows,
+            seat.seats_per_row
+        from "interviewworks_ticket".seat seat
+        where seat.id = #{seat_id}
+    </select>
+
+    <select id="selectOnlyUnavailableSeats" resultType="java.util.Map">
+        select
+            ticket.seat
+        from "interviewworks_ticket".ticket ticket
+        where ticket.status in ('PENDING_PAYMENT', 'PAID')
+          and "date" = #{date}
+          and "time" = #{time}
+        order by ticket.seat
+    </select>
 
 </mapper>
 

@@ -123,4 +123,28 @@ public class BookingController {
         return bookingService.dopayprice(request);
     }
 
+    @Operation(summary = "7.座位資料", description = "座位資料")
+    @GetMapping("/selectOnlySeats")
+    public List<Map<String, Object>> selectOnlySeats(
+            @ModelAttribute
+            @Valid
+            BookingSelectOnlySeatsRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlySeats(request);
+    }
+
+    @Operation(summary = "8.已預訂座位資料", description = "已預訂座位資料")
+    @GetMapping("/selectOnlyUnavailableSeats")
+    public List<String> selectOnlyUnavailableSeats(
+            @ModelAttribute
+            @Valid
+            BookingSelectOnlyUnavailableSeatsRequest request,
+            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
+            @RequestHeader("Authorization") String authHeader) {
+        request.setAuthHeader(authHeader);
+        return bookingService.selectOnlyUnavailableSeats(request);
+    }
+
 }

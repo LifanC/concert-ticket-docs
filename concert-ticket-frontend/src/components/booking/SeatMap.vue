@@ -1,4 +1,6 @@
 <script setup>
+import { bookingApi } from '@/services/api'
+
 const props = defineProps({
   modelValue: {
     type: Array,
@@ -7,25 +9,31 @@ const props = defineProps({
   maxSelection: {
     type: Number,
     default: 1
+  },
+  unavailableSeats: {
+    type: Set,
+    default: () => new Set()
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-const rows = ['A', 'B', 'C', 'D', 'E', 'F']
-const seatsPerRow = 10
-const unavailableSeats = new Set(['A-03', 'A-04', 'B-08', 'C-02', 'D-06', 'E-09'])
+const seats = ref([])
 
-const seats = computed(() => rows.flatMap((row) => (
-  Array.from({ length: seatsPerRow }, (_, index) => ({
-    id: `${row}-${String(index + 1).padStart(2, '0')}`,
-    row,
-    number: index + 1
-  }))
-)))
+executeFirst()
+async function executeFirst() {
+  const response = await bookingApi({
+    method: 'get',
+    url: '/selectOnlySeats',
+    params: {
+      seat_id: 'AF-10',
+    },
+  });
+  seats.value = response.data
+}
 
 const isSelected = (seatId) => props.modelValue.includes(seatId)
-const isUnavailable = (seatId) => unavailableSeats.has(seatId)
+const isUnavailable = (seatId) => props.unavailableSeats.has(seatId)
 
 const selectSeat = (seatId) => {
   if (isUnavailable(seatId)) return
@@ -47,20 +55,12 @@ const selectSeat = (seatId) => {
     <div class="stage">舞台</div>
 
     <div class="seat-grid">
-      <button
-        v-for="seat in seats"
-        :key="seat.id"
-        type="button"
-        class="seat"
-        :class="{
-          selected: isSelected(seat.id),
-          unavailable: isUnavailable(seat.id)
-        }"
-        :disabled="isUnavailable(seat.id)"
+      <button v-for="seat in seats" :key="seat.id" type="button" class="seat" :class="{
+        selected: isSelected(seat.id),
+        unavailable: isUnavailable(seat.id)
+      }" :disabled="isUnavailable(seat.id)"
         :aria-label="`${seat.row} 排 ${seat.number} 號${isUnavailable(seat.id) ? '，不可選' : ''}`"
-        :aria-pressed="isSelected(seat.id)"
-        @click="selectSeat(seat.id)"
-      >
+        :aria-pressed="isSelected(seat.id)" @click="selectSeat(seat.id)">
         {{ seat.row }}{{ seat.number }}
       </button>
     </div>

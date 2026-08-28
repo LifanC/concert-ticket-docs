@@ -31,7 +31,6 @@ const selectOnlyActivities = async () => {
   dates.value = response_selectOnlyActivities.data
   handleDateChange()
 }
-
 const handleDateChange = async () => {
   const response_selectOnlySession = await bookingApi({
     method: 'get',
@@ -54,6 +53,18 @@ const handleDateChange = async () => {
   selectedPrice.value = responsePrice.data.price
 }
 
+const selectOnlyUnavailableSeats = async () => {
+  const response = await bookingApi({
+    method: 'get',
+    url: '/selectOnlyUnavailableSeats',
+    params: {
+      date: selectedDate.value,
+      time: selectedSession.value,
+    },
+  });
+  unavailableSeats.value = new Set(response.data)
+}
+
 const step = ref(0)
 const ticketDialogVisible = ref(false)
 const myTicketsVisible = ref(false)
@@ -63,6 +74,7 @@ const selectedDate = ref()
 const selectedSession = ref()
 const selectedPrice = ref(0)
 const selectedSeats = ref([])
+const unavailableSeats = ref(new Set())
 
 const bookingSteps = ['選日期', '選場次', '建立訂單']
 const dates = ref([])
@@ -74,7 +86,8 @@ const ticketForm = reactive(
     name: '',
     date: '',
     status: 'PENDING_PAYMENT',
-    price: 0
+    price: 0,
+    seat: ''
   }
 )
 
@@ -93,6 +106,9 @@ const paypricedataForm = reactive(
 const tickets = ref([])
 
 const nextStep = () => {
+  if (step.value >= 1) {
+    selectOnlyUnavailableSeats()
+  }
   if (step.value < bookingSteps.length - 1) {
     step.value += 1
   }
@@ -105,6 +121,13 @@ const previousStep = () => {
 }
 
 const createOrder = async () => {
+  if (selectedSeats.value.length != 1) {
+    ElMessage({
+      type: 'error',
+      message: `${'請選擇座位'}`,
+    })
+    return
+  }
   Object.assign(
     ticketForm,
     {
@@ -114,7 +137,8 @@ const createOrder = async () => {
       date: selectedDate.value,
       time: selectedSession.value,
       price: selectedPrice,
-      status: 'PENDING_PAYMENT'
+      status: 'PENDING_PAYMENT',
+      seat: selectedSeats.value[0]
     }
   )
   try {
@@ -125,7 +149,12 @@ const createOrder = async () => {
     });
     myTicketsVisible.value = true
     ticketDialogVisible.value = false
+    step.value = 0
     tickets.value = response.data.data
+    ElMessage({
+      type: 'success',
+      message: `${'建立訂單成功'}`,
+    })
   } catch (error) {
     myTicketsVisible.value = false
     ticketDialogVisible.value = true
@@ -187,13 +216,25 @@ const payprice = async (payprice) => {
   }
 }
 const dopayprice = async () => {
-  await bookingApi({
+  const response = await bookingApi({
     method: 'put',
     url: '/dopayprice',
     data: paypricedataForm,
   });
   paypriceDialogVisible.value = false
   myTicketsVisible.value = false
+  let data = response.data.data[0] ?? {}
+  if (data.judge) {
+    ElMessage({
+      type: 'success',
+      message: `${'付款成功'}`,
+    })
+  } else {
+    ElMessage({
+      type: 'error',
+      message: `${'付款失敗'}`,
+    })
+  }
 }
 const ticketsMap = {
   PENDING_PAYMENT: '等待付款',
@@ -290,7 +331,11 @@ const myTicketsVisibleDialog = async () => {
                 已選 {{ selectedSeats[0] }}
               </el-tag>
             </div>
-            <SeatMap v-model="selectedSeats" :max-selection="1" />
+            <SeatMap
+              v-model="selectedSeats"
+              :max-selection="1"
+              :unavailable-seats="unavailableSeats"
+            />
           </div>
         </section>
 
@@ -333,11 +378,12 @@ const myTicketsVisibleDialog = async () => {
   <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1250px, 94vw)">
     <el-table :data="tickets" stripe empty-text="目前沒有票券">
       <el-table-column prop="orderno" label="訂單編號" min-width="145" />
-      <el-table-column prop="session_id" label="編號" min-width="100" />
+      <el-table-column prop="session_id" label="編號" min-width="50" />
       <el-table-column prop="activity_id" label="活動編號" min-width="100" />
+      <el-table-column prop="seat" label="座位號碼" min-width="100" />
       <el-table-column prop="name" label="活動" min-width="150" />
       <el-table-column prop="date" label="場次" min-width="100" />
-      <el-table-column prop="time" label="時間" min-width="100" />
+      <el-table-column prop="time" label="時間" min-width="50" />
       <el-table-column prop="timename" label="" min-width="70" />
       <el-table-column label="狀態" width="100">
         <template #default="scope">
@@ -346,22 +392,18 @@ const myTicketsVisibleDialog = async () => {
       </el-table-column>
       <el-table-column label="操作" width="100">
         <template #default="scope">
-          <el-button text type="danger"
-           :disabled="
-           scope.row.status === 'PAID' || 
-           scope.row.status === 'CANCELLED' || 
-           scope.row.status === 'EXPIRED' || 
-           scope.row.status === 'REFUNDED'
-           " @click="cancelOrder(scope.row)">取消訂單</el-button>
+          <el-button text type="danger" :disabled="scope.row.status === 'PAID' ||
+            scope.row.status === 'CANCELLED' ||
+            scope.row.status === 'EXPIRED' ||
+            scope.row.status === 'REFUNDED'
+            " @click="cancelOrder(scope.row)">取消訂單</el-button>
         </template>
       </el-table-column>
       <el-table-column label="" width="100">
         <template #default="scope">
-          <el-button text :type="statusType(scope.row.status)"
-            :disabled="
-            scope.row.status === 'PAID' || 
-            scope.row.status === 'CANCELLED' || 
-            scope.row.status === 'EXPIRED' || 
+          <el-button text :type="statusType(scope.row.status)" :disabled="scope.row.status === 'PAID' ||
+            scope.row.status === 'CANCELLED' ||
+            scope.row.status === 'EXPIRED' ||
             scope.row.status === 'REFUNDED'
             " @click="payprice(scope.row)">付款
           </el-button>

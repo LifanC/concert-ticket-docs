@@ -45,7 +45,7 @@ function connectWebSocket() {
                             notification.title +
                             "<br>" +
                             notification.content,
-                        duration: 60000,
+                        duration: 600000,
                         showClose: true
                     });
                 }
