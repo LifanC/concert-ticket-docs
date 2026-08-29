@@ -2,6 +2,14 @@
 
 本專案提供演唱會活動瀏覽、會員管理、訂票與管理員後台功能。系統由 Vue 3 前端、Spring Boot 後端、PostgreSQL 與 Redis 組成，可透過 Docker Compose 一次啟動。
 
+**線上演唱會售票系統｜全端個人專案**
+1. 使用 Vue 3、Spring Boot、PostgreSQL 與 Redis 建置前後端分離售票平台，完成活動瀏覽、會員註冊登入、場次選擇、訂票、付款、取消訂單及後台活動管理流程。
+2. 以 Spring Security 搭配 JWT Access Token／Refresh Token 實作身分驗證與角色授權，區分一般會員及管理員 API 權限，並透過 Redis 管理 Token 狀態與登出失效機制。
+3. 設計訂單付款期限排程：訂票後建立到期任務，逾時自動將待付款訂單更新為 `EXPIRED`，付款或取消時同步撤銷排程，維持票券狀態一致性。
+4. 導入 STOMP WebSocket 個人訊息佇列，將付款逾時、付款完成與取消等訂單事件即時推送給指定使用者。
+5. 使用 MyBatis 處理 PostgreSQL 資料存取與交易流程，並以 Docker Compose 整合前端、後端、PostgreSQL、Redis 四項服務，降低本機建置成本。
+6. 使用 OpenAI Codex 協助需求拆解、程式碼重構、問題排查與文件整理，並由本人負責架構設計、功能實作及成果驗證。
+
 ## 功能概覽
 
 - 會員：註冊、登入、修改會員資料、登出。
@@ -82,22 +90,6 @@ MyBatis       Redis
    ▼
 PostgreSQL
 ```
-
-### 專案亮點與限制
-
-可主打亮點：
-
-- 有完整業務流程，而非單純 CRUD：訂票、付款、取消、逾時與通知彼此連動。
-- 有後端安全設計：JWT、Refresh Token、Redis 與角色權限。
-- 有非同步與即時處理概念：排程任務與 WebSocket 個人通知。
-- 有環境整合能力：前後端、資料庫與快取均已容器化。
-
-目前限制：
-
-- 逾時任務保存在單一 JVM 的記憶體 Map；服務重啟後任務不會自動復原，也不適合直接水平擴充。正式環境可改為資料庫掃描、Redis Delay Queue、Quartz 或訊息佇列。
-- 現有測試數量有限，尚不能宣稱完整測試覆蓋率。
-- Roadmap 中的 QR Code、候補、報表、Rate Limiting、CI/CD 等屬規劃項目，不列為已完成功能。
-- 尚無正式壓力測試結果，因此不宣稱高併發承載數字。
 
 ## 技術棧
 
