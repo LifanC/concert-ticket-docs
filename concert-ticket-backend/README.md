@@ -203,7 +203,3 @@ Docker profile 會將 PostgreSQL 與 Redis 主機分別連至 Compose 服務 `db
 ## 跨來源設定
 
 目前 CORS 僅允許 `http://localhost:5173`，並允許 `GET`、`POST`、`PUT`、`DELETE` 與 `OPTIONS` 方法。若前端改以其他網域或埠號執行，需同步調整 `security/SecurityConfig.java`。
-
-## 延伸文件
-
-- [後端說明](concert-ticket-backend/README.md)
