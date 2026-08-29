@@ -21,7 +21,7 @@
                 end || ')' AS dow,
             "session"."time" AS "time",
             activity.venue,
-            activity.status,
+            "session".status,
             activity.price,
             TO_CHAR(TO_DATE("session".salesdate, 'YYYY/MM/DD'), 'YYYY-MM-DD') ||
             ' (' ||

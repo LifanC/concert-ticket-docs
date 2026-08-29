@@ -37,11 +37,6 @@ const categoryMap = {
   STAGE_PLAY: '舞台劇',
   SPECIAL_EXHIBITION: '展覽特展',
 }
-const statusMap = {
-  COMING_SOON: '即將開賣',
-  TICKETS_ARE_ON_SALE: '售票中',
-  ENDED: '已結束',
-}
 
 const activities = ref([])
 
@@ -68,7 +63,7 @@ const openDetail = (activity) => {
 }
 const goBooking = () => {
   if (!currentActivity.value) return
-  if (currentActivity.value.status != 'ENDED') {
+  if (currentActivity.value.status === 'TICKETS_ARE_ON_SALE') {
     detailVisible.value = false
     router.push(
       {
@@ -85,15 +80,29 @@ const goBooking = () => {
     )
   } else {
     ElMessage({
-      type: 'error',
+      type: messageTypeMap[currentActivity.value.status] || 'info',
       message: `活動${statusMap[currentActivity.value.status]}`,
     })
   }
+}
+const messageTypeMap = {
+  COMING_SOON: 'warning',
+  TICKETS_ARE_ON_SALE: 'success',
+  SOLD_OUT: 'error',
+  ENDED: 'info',
+}
+
+const statusMap = {
+  COMING_SOON: '即將開賣',
+  TICKETS_ARE_ON_SALE: '售票中',
+  SOLD_OUT: '已售完',
+  ENDED: '已結束',
 }
 const statusType = (status) => (
   {
     'COMING_SOON': 'warning',
     'TICKETS_ARE_ON_SALE': 'success',
+    'SOLD_OUT': 'error',
     'ENDED': 'info'
   }[status] || 'info'
 )
@@ -114,23 +123,14 @@ const statusType = (status) => (
             <el-input v-model="keyword" clearable placeholder="活動名稱、場地或活動編號" style="width: 280px" />
           </el-form-item>
           <el-form-item label="活動類型">
-            <el-select v-model="selectedCategory" style="width: 160px">
-              <el-option
-                v-for="category in categories"
-                :key="category.value"
-                :label="category.label"
-                :value="category.value"
-              />
+            <el-select v-model="selectedCategory" style="width: 140px">
+              <el-option v-for="category in categories" :key="category.value" :label="category.label"
+                :value="category.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="售票狀態">
             <el-select v-model="selectedStatus" style="width: 140px">
-              <el-option 
-                v-for="status in statuses" 
-                :key="status.value" 
-                :label="status.label" 
-                :value="status.value"
-              />
+              <el-option v-for="status in statuses" :key="status.value" :label="status.label" :value="status.value" />
             </el-select>
           </el-form-item>
           <el-form-item label=" ">

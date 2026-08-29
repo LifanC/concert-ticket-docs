@@ -3,6 +3,8 @@ import { adminApi } from '@/services/api'
 
 const activeTab = ref('activities')
 const dialogVisible = ref(false)
+const dialogVisibleSessions = ref(false)
+const dialogVisibleSessionsStatus = ref(false)
 const dialogMode = ref('')
 const keyword = ref('')
 const activities = ref([])
@@ -33,21 +35,23 @@ const activityForm = reactive(
     id: '',
     name: '',
     category: '',
-    date: '',
     venue: '',
     price: 0,
-    status: '',
-    description: ''
+    seat: '',
+    description: '',
+    column: '',
+    row: '',
   }
 )
 const activityFormNotOk = ref(
   {
     name: '',
     category: '',
-    date: '',
     venue: '',
     price: '',
-    status: ''
+    seat: '',
+    column: '',
+    row: '',
   }
 )
 const formatDate = (date) => {
@@ -56,13 +60,15 @@ const formatDate = (date) => {
 }
 const getday = () => {
   const now = new Date()
-  const tomorrow = new Date(now)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
   const date = new Date(now)
+  date.setDate(date.getDate() + 30)
   // 往後找星期六
   const daysUntilSaturday = (6 - date.getDay() + 7) % 7
   date.setDate(date.getDate() + daysUntilSaturday)
+
+  const tomorrow = new Date(now)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
   return {
     date: `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`,
     time: `09:00`,
@@ -73,22 +79,23 @@ const getday = () => {
 const datetime = ref(getday())
 const sessionForm = reactive(
   {
-    activity: '',
+    id: '',
+    activity_id: '',
     date: formatDate(datetime.value.date),
     time: datetime.value.time,
     salesdate: formatDate(datetime.value.salesdate),
     salestime: datetime.value.salestime,
-    capacity: 500
+    status: 'COMING_SOON',
   }
 )
 const sessionFormNotOk = ref(
   {
-    activity: '',
+    activity_id: '',
     date: '',
     time: '',
     salesdate: '',
     salestime: '',
-    capacity: ''
+    status: ''
   }
 )
 
@@ -105,10 +112,8 @@ const openAdd = () => {
       id: '',
       name: '',
       category: 'MUSIC_CONCERT',
-      date: '',
       venue: '',
       price: 1280,
-      status: 'COMING_SOON',
       description: ''
     }
   )
@@ -123,21 +128,10 @@ const openEdit = (activity) => {
 const saveActivity = async () => {
   activityFormNotOk.value = {
     name: '',
-    date: '',
-    venue: '',
-    status: ''
+    venue: ''
   }
-  if (!activityForm.name || !activityForm.date || !activityForm.venue) {
+  if (!activityForm.name || !activityForm.venue || !activityForm.column || !activityForm.row) {
     return
-  }
-  const index = activities.value.findIndex(item => item.id === activityForm.id)
-  if (index < 0) {
-    Object.assign(
-      activityForm,
-      {
-        id: `ACT-2026-${String(activities.value.length + 1).padStart(3, '0')}`
-      }
-    )
   }
   try {
     const response = await adminApi({
@@ -150,11 +144,8 @@ const saveActivity = async () => {
   } catch (error) {
     let data = error.response.data.data[1]?.error ?? {}
     activityFormNotOk.value = {
-      id: data.id ?? '',
       name: data.name ?? '',
-      date: data.date ?? '',
       venue: data.venue ?? '',
-      status: data.status ?? '',
     }
     dialogVisible.value = true
   }
@@ -175,21 +166,18 @@ const deleteActivity = async (activity) => {
 }
 const createSession = async () => {
   sessionFormNotOk.value = {
-    activity: '',
+    activity_id: '',
     date: '',
     time: '',
-    capacity: ''
+    status: ''
   }
-  if (!sessionForm.activity || !sessionForm.date || !sessionForm.time) {
+  if (
+    !sessionForm.activity_id ||
+    !sessionForm.date || !sessionForm.time ||
+    !sessionForm.salesdate || !sessionForm.salestime
+  ) {
     return
   }
-  Object.assign(
-    sessionForm,
-    {
-      id: `S-${String(sessions.value.length + 1).padStart(3, '0')}`,
-      sold: 0
-    }
-  )
   try {
     const response = await adminApi({
       method: 'post',
@@ -204,16 +192,71 @@ const createSession = async () => {
   } catch (error) {
     let data = error.response.data.data[1]?.error ?? {}
     sessionFormNotOk.value = {
-      activity: data.activity ?? '',
+      activity_id: data.activity_id ?? '',
       date: data.date ?? '',
       time: data.time ?? '',
-      capacity: data.capacity ?? '',
     }
   }
+}
+const delayedDays = ref(7)
+const delayedDaysDate = ref('')
+const openSessionsEdit = (sessions) => {
+  Object.assign(sessionForm, sessions)
+  delayedDaysDate.value = getDaysSaveSessions(sessionForm.date, delayedDays.value)
+  dialogVisibleSessions.value = true
+}
+const delayed = (days) => {
+  delayedDaysDate.value = getDaysSaveSessions(sessionForm.date, days)
+};
+const saveSessions = () => {
+  let dateSession = getDaysSaveSessions(sessionForm.date, delayedDays.value)
+  Object.assign(
+    sessionForm,
+    {
+      date: dateSession
+    }
+  )
+  createSession()
+  dialogVisibleSessions.value = false
+}
+const getDaysSaveSessions = (saveDate, days) => {
+  const [year, month, day] = saveDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days)
+  return `${date.getFullYear()}` + "-" +
+    `${String(date.getMonth() + 1).padStart(2, '0')}` + "-" +
+    `${String(date.getDate()).padStart(2, '0')}`
+}
+const sessionStatusForm = reactive(
+  {
+    id: '',
+    activity_id: '',
+    date: '',
+    time: '',
+    status: '',
+  }
+)
+const openSessionsStatusEdit = (sessions) => {
+    Object.assign(sessionStatusForm, sessions)
+    dialogVisibleSessionsStatus.value = true
+}
+const saveSessionsStatus = async () => {
+  const response = await adminApi({
+    method: 'post',
+    url: '/createSession',
+    data: sessionStatusForm,
+  });
+  sessions.value = response.data.data
+  ElMessage({
+    type: 'success',
+    message: `${'成功'}`,
+  })
+  dialogVisibleSessionsStatus.value = false
 }
 const statusMap = {
   COMING_SOON: '即將開賣',
   TICKETS_ARE_ON_SALE: '售票中',
+  SOLD_OUT: '已售完',
   ENDED: '已結束',
   PENDING_PAYMENT: '等待付款',
   PAID: '已付款',
@@ -225,6 +268,7 @@ const statusType = (status) => (
   {
     'COMING_SOON': 'warning',
     'TICKETS_ARE_ON_SALE': 'success',
+    'SOLD_OUT': 'error',
     'ENDED': 'info',
     'PENDING_PAYMENT': 'success',
     'PAID': 'success',
@@ -266,15 +310,9 @@ const statusType = (status) => (
             <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
               <el-table-column prop="id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動名稱" min-width="190" />
-              <el-table-column prop="date" label="日期" min-width="130" />
               <el-table-column prop="venue" label="場地" min-width="160" />
               <el-table-column label="票價" width="110">
                 <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>
-              </el-table-column>
-              <el-table-column label="狀態" width="110">
-                <template #default="scope">
-                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
-                </template>
               </el-table-column>
               <el-table-column label="操作" width="150" fixed="right">
                 <template #default="scope">
@@ -295,13 +333,13 @@ const statusType = (status) => (
             <template #header>
               <div class="card-title">
                 <span>建立新場次</span>
-                <el-text type="info">新增後可進一步設定座位與票種。</el-text>
+                <el-text type="info">新增後可進一步設定票種與座位。</el-text>
               </div>
             </template>
             <el-form :model="sessionForm" label-position="top" class="session-form">
               <el-form-item label="活動" required
-                :error="sessionFormNotOk.activity !== '' ? sessionFormNotOk.activity : ''">
-                <el-select v-model="sessionForm.activity" placeholder="請選擇活動" style="width: 100%">
+                :error="sessionFormNotOk.activity_id !== '' ? sessionFormNotOk.activity_id : ''">
+                <el-select v-model="sessionForm.activity_id" placeholder="請選擇活動" style="width: 100%">
                   <el-option v-for="activity in activities" :key="activity.id" :label="activity.name"
                     :value="activity.id" />
                 </el-select>
@@ -338,9 +376,16 @@ const statusType = (status) => (
                   </el-form-item>
                 </el-col>
               </el-row>
-              <el-form-item label="可售座位數" :error="sessionFormNotOk.capacity !== '' ? sessionFormNotOk.capacity : ''">
-                <el-input-number v-model="sessionForm.capacity" :min="1" />
-              </el-form-item>
+              <el-row :gutter="16">
+                <el-col :xs="24" :sm="12">
+                  <el-form-item label="售票狀態" :error="sessionFormNotOk.status !== '' ? sessionFormNotOk.status : ''">
+                    <el-select v-model="sessionForm.status" style="width: 100%">
+                      <el-option label="即將開賣" value="COMING_SOON" />
+                      <el-option label="售票中" value="TICKETS_ARE_ON_SALE" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
               <el-button type="primary" @click="createSession">建立場次</el-button>
             </el-form>
           </el-card>
@@ -351,16 +396,35 @@ const statusType = (status) => (
               </div>
             </template>
             <el-table :data="sessions" stripe style="width: 100%" empty-text="找不到場次">
-              <el-table-column prop="id" label="場次編號" width="110" />
-              <el-table-column prop="activity_id" label="活動編號" width="110" />
+              <el-table-column prop="id" label="場次編號" width="140" />
+              <el-table-column prop="activity_id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動" min-width="180" />
-              <el-table-column prop="date" label="日期" width="130" />
-              <el-table-column prop="time" label="時間" width="100" />
+              <el-table-column label="狀態" width="110">
+                <template #default="scope">
+                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="date" label="開演日期" width="130" />
+              <el-table-column prop="time" label="開演時間" width="100" />
               <el-table-column prop="salesdate" label="開賣日期" width="130" />
               <el-table-column prop="salestime" label="開賣時間" width="100" />
               <el-table-column prop="capacity" label="座位數" width="100" />
               <el-table-column prop="reserved" label="未付款數量" width="100" />
               <el-table-column prop="sold" label="已售" width="100" />
+              <el-table-column label="操作" width="150" fixed="right">
+                <template #default="scope">
+                  <el-form-item>
+                    <el-button text :type="statusType(scope.row.status)" :disabled="scope.row.status === 'TICKETS_ARE_ON_SALE' ||
+                      scope.row.status === 'SOLD_OUT' ||
+                      scope.row.status === 'ENDED'
+                      " @click="openSessionsEdit(scope.row)">活動延後
+                    </el-button>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button text type="primary" @click="openSessionsStatusEdit(scope.row)">更改狀態</el-button>
+                  </el-form-item>
+                </template>
+              </el-table-column>
             </el-table>
           </el-card>
         </el-tab-pane>
@@ -404,27 +468,25 @@ const statusType = (status) => (
           <el-option label="展覽特展" value="SPECIAL_EXHIBITION" />
         </el-select>
       </el-form-item>
-      <el-row :gutter="16">
-        <el-col :span="12">
-          <el-form-item label="活動日期" required :error="activityFormNotOk.date !== '' ? activityFormNotOk.date : ''">
-            <el-date-picker v-model="activityForm.date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="售票狀態" :error="activityFormNotOk.status !== '' ? activityFormNotOk.status : ''">
-            <el-select v-model="activityForm.status" style="width: 100%">
-              <el-option label="即將開賣" value="COMING_SOON" />
-              <el-option label="售票中" value="TICKETS_ARE_ON_SALE" />
-              <el-option label="已結束" value="ENDED" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
       <el-form-item label="活動場地" required :error="activityFormNotOk.venue !== '' ? activityFormNotOk.venue : ''">
         <el-input v-model="activityForm.venue" />
       </el-form-item>
       <el-form-item label="起始票價" :error="activityFormNotOk.price !== '' ? activityFormNotOk.price : ''">
         <el-input-number v-model="activityForm.price" :min="0" />
+      </el-form-item>
+      <el-form-item label="座位編號" :error="activityFormNotOk.seat !== '' ? activityFormNotOk.seat : ''">
+        <el-row :gutter="16">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="欄" required :error="sessionFormNotOk.column !== '' ? sessionFormNotOk.column : ''">
+              <el-input v-model="activityForm.column" placeholder="ABCDEFG輸入AG" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="列" required :error="sessionFormNotOk.row !== '' ? sessionFormNotOk.row : ''">
+              <el-input v-model="activityForm.row" placeholder="輸入1~10" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form-item>
       <el-form-item label="活動說明">
         <el-input v-model="activityForm.description" type="textarea" :autosize="{ minRows: 5, maxRows: 10 }" />
@@ -433,6 +495,119 @@ const statusType = (status) => (
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
       <el-button type="primary" @click="saveActivity">儲存</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="dialogVisibleSessions" :title="dialogMode" width="min(620px, 92vw)" class="session-dialog">
+    <el-form :model="sessionForm" label-position="top">
+      <!-- 提示 -->
+      <el-alert title="活動延後" description="請設定活動延後天數，系統將自動計算新的開演日期。" type="warning" :closable="false" show-icon
+        class="mb-20" />
+      <!-- 活動資訊 -->
+      <div class="session-info-card">
+        <div class="info-row">
+          <span class="info-label">場次編號</span>
+          <span class="info-value">{{ sessionForm.id }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動編號</span>
+          <span class="info-value">{{ sessionForm.activity_id }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動名稱</span>
+          <span class="info-value">{{ sessionForm.name }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動狀態</span>
+          <span class="info-value">
+            <el-tag :type="statusType(sessionForm.status)" effect="light">
+              {{ statusMap[sessionForm.status] }}
+            </el-tag>
+          </span>
+        </div>
+      </div>
+      <!-- 延期設定 -->
+      <div class="delay-section">
+        <div class="delay-title">延期設定</div>
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="12">
+            <div class="date-box">
+              <span class="date-label">原開演日期</span>
+              <span class="date-value">{{ sessionForm.date }}</span>
+            </div>
+          </el-col>
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="延後天數">
+              <el-input-number v-model="delayedDays" :min="7" controls-position="right" style="width: 100%"
+                @change="delayed" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <div class="new-date-box">
+              <span class="new-date-label">新的開演日期</span>
+              <span class="new-date-value">
+                {{ delayedDaysDate || '-' }}
+              </span>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+    </el-form>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogVisibleSessions = false">取消</el-button>
+        <el-button type="primary" @click="saveSessions">確認延後</el-button>
+      </div>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="dialogVisibleSessionsStatus" :title="dialogMode" width="min(620px, 92vw)" class="session-dialog">
+    <el-form :model="sessionStatusForm" label-position="top">
+      <!-- 提示 -->
+      <el-alert title="狀態設定" description="請設定狀態。" type="warning" :closable="false" show-icon class="mb-20" />
+      <!-- 活動資訊 -->
+      <div class="session-info-card">
+        <div class="info-row">
+          <span class="info-label">場次編號</span>
+          <span class="info-value">{{ sessionStatusForm.id }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動編號</span>
+          <span class="info-value">{{ sessionStatusForm.activity_id }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動名稱</span>
+          <span class="info-value">{{ sessionStatusForm.name }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">活動狀態</span>
+          <span class="info-value">
+            <el-tag :type="statusType(sessionStatusForm.status)" effect="light">
+              {{ statusMap[sessionStatusForm.status] }}
+            </el-tag>
+          </span>
+        </div>
+      </div>
+      <!-- 狀態設定 -->
+      <div class="delay-section">
+        <div class="delay-title">狀態設定</div>
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="12">
+            <el-select v-model="sessionStatusForm.status" style="width: 100%">
+              <el-option label="即將開賣" value="COMING_SOON" />
+              <el-option label="售票中" value="TICKETS_ARE_ON_SALE" />
+              <el-option label="已售完" value="SOLD_OUT" />
+              <el-option label="已結束" value="ENDED" />
+            </el-select>
+          </el-col>
+        </el-row>
+      </div>
+    </el-form>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogVisibleSessionsStatus = false">取消</el-button>
+        <el-button type="primary" @click="saveSessionsStatus">確認</el-button>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -483,6 +658,100 @@ const statusType = (status) => (
   max-width: 620px;
 }
 
+.session-info-card {
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 10px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  gap: 16px;
+}
+
+.info-row+.info-row {
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.info-label {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 14px;
+}
+
+.info-value {
+  color: var(--el-text-color-primary);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.delay-section {
+  padding-top: 4px;
+}
+
+.delay-title {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.date-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.date-label {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.date-value {
+  height: 32px;
+  line-height: 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.new-date-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  margin-top: 4px;
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-7);
+  border-radius: 10px;
+}
+
+.new-date-label {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.new-date-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--el-color-warning-dark-2);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
 @media (max-width: 767px) {
   .page-header {
     align-items: flex-start;
@@ -497,6 +766,25 @@ const statusType = (status) => (
 
   .filter-card :deep(.el-input) {
     max-width: none !important;
+  }
+
+  .session-info-card {
+    padding: 12px 14px;
+  }
+
+  .info-row {
+    align-items: flex-start;
+    padding: 8px 0;
+  }
+
+  .info-label {
+    width: 76px;
+  }
+
+  .new-date-box {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 }
 </style>

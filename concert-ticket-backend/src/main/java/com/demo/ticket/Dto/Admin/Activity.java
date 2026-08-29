@@ -7,9 +7,7 @@ public class Activity {
     private String id;
     private String name;
     private String category;
-    private String date;
     private String venue;
-    private String status;
     private BigDecimal price;
     private String description;
 
@@ -37,28 +35,12 @@ public class Activity {
         this.category = category;
     }
 
-    public String getDate() {
-        return date;
-    }
-
-    public void setDate(String date) {
-        this.date = date;
-    }
-
     public String getVenue() {
         return venue;
     }
 
     public void setVenue(String venue) {
         this.venue = venue;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public BigDecimal getPrice() {

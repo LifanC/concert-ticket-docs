@@ -10,13 +10,12 @@ import java.math.BigDecimal;
 @JsonPropertyOrder(
         {
                 "id",
-                "activity",
+                "activity_id",
                 "date",
                 "time",
                 "salesdate",
                 "salestime",
-                "capacity",
-                "sold",
+                "status",
                 "token",
         }
 )
@@ -25,33 +24,31 @@ public class AdminCreateSessionRequest {
 
     @Schema(
             description = "場次編號",
-            example = "S-001",
-            minLength = 5,
-            maxLength = 5,
+            example = "S-20260801-001",
+            minLength = 14,
+            maxLength = 14,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "場次編號不可為空")
-    @Size(min = 5, max = 5, message = "場次編號長度需為 5 個字元")
     @Pattern(
-            regexp = "^S-\\d{3}$",
-            message = "場次編號格式需為 S-NNN，例如 S-001"
+            regexp = "^$|^S-\\d{8}-\\d{3}$",
+            message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
     private String id;
 
     @Schema(
             description = "活動編號",
-            example = "ACT-2026-001",
-            minLength = 12,
-            maxLength = 12,
+            example = "ACT-20260801-001",
+            minLength = 16,
+            maxLength = 16,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "活動編號不可為空")
-    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
+    @Size(min = 16, max = 16, message = "活動編號長度需為 16 個字元")
     @Pattern(
-            regexp = "^ACT-\\d{4}-\\d{3}$",
-            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+            regexp = "^ACT-\\d{8}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity;
+    private String activity_id;
 
     @Schema(
             description = "場次日期",
@@ -98,25 +95,16 @@ public class AdminCreateSessionRequest {
     private String salestime;
 
     @Schema(
-            description = "可售座位數",
-            example = "458",
+            description = "狀態",
+            example = "狀態只能為 即將開賣、售票中、已售完、已結束",
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotNull(message = "可售座位數不可為空")
-    @DecimalMin(value = "0", message = "可售座位數不可小於 0")
-    @Digits(integer = 10, fraction = 0, message = "可售座位數必須為整數")
-    private BigDecimal capacity;
-
-    @Schema(
-            description = "已售數",
-            example = "0",
-            requiredMode = Schema.RequiredMode.REQUIRED
+    @NotBlank(message = "狀態不可為空")
+    @Pattern(
+            regexp = "^(COMING_SOON|TICKETS_ARE_ON_SALE|SOLD_OUT|ENDED)$",
+            message = "狀態只能為 即將開賣、售票中、已售完、已結束"
     )
-    @NotNull(message = "已售數不可為空")
-    @DecimalMin(value = "0", message = "已售數必須為 0")
-    @DecimalMax(value = "0", message = "已售數必須為 0")
-    @Digits(integer = 10, fraction = 0, message = "已售數必須為整數")
-    private BigDecimal sold;
+    private String status;
 
     private String token;
 
@@ -124,8 +112,8 @@ public class AdminCreateSessionRequest {
         return id;
     }
 
-    public String getActivity() {
-        return activity;
+    public String getActivity_id() {
+        return activity_id;
     }
 
     public String getDate() {
@@ -144,12 +132,8 @@ public class AdminCreateSessionRequest {
         return salestime;
     }
 
-    public BigDecimal getCapacity() {
-        return capacity;
-    }
-
-    public BigDecimal getSold() {
-        return sold;
+    public String getStatus() {
+        return status;
     }
 
     public String getToken() {

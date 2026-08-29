@@ -12,11 +12,11 @@ import jakarta.validation.constraints.*;
                 "id",
                 "name",
                 "category",
-                "date",
                 "venue",
-                "status",
                 "price",
                 "description",
+                "column",
+                "row",
                 "token",
         }
 )
@@ -25,16 +25,14 @@ public class AdminSaveActivityRequest {
 
     @Schema(
             description = "活動編號",
-            example = "ACT-2026-001",
-            minLength = 12,
-            maxLength = 12,
+            example = "ACT-20260801-001",
+            minLength = 16,
+            maxLength = 16,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "活動編號不可為空")
-    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
     @Pattern(
-            regexp = "^ACT-\\d{4}-\\d{3}$",
-            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+            regexp = "^$|^ACT-\\d{8}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
     private String id;
 
@@ -66,17 +64,6 @@ public class AdminSaveActivityRequest {
     private String category;
 
     @Schema(
-            description = "活動日期",
-            example = "2026-08-15",
-            requiredMode = Schema.RequiredMode.NOT_REQUIRED
-    )
-    @Pattern(
-            regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
-            message = "活動日期格式需為 yyyy-MM-dd"
-    )
-    private String date;
-
-    @Schema(
             description = "場地名稱",
             example = "台北流行音樂中心",
             minLength = 2,
@@ -90,18 +77,6 @@ public class AdminSaveActivityRequest {
             message = "活動場地名稱格式錯誤"
     )
     private String venue;
-
-    @Schema(
-            description = "狀態",
-            example = "狀態只能為 即將開賣、售票中、已結束",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "狀態不可為空")
-    @Pattern(
-            regexp = "^(COMING_SOON|TICKETS_ARE_ON_SALE|ENDED)$",
-            message = "狀態只能為 即將開賣、售票中、已結束"
-    )
-    private String status;
 
     @Schema(
             description = "票價",
@@ -119,6 +94,29 @@ public class AdminSaveActivityRequest {
     )
     private String description;
 
+    @Schema(
+            description = "欄",
+            example = "AB",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "欄不可為空")
+    @Size(min = 2, max = 2, message = "欄長度需介於 2~50 字")
+    @Pattern(
+            regexp = "^[A-Z]{2}$",
+            message = "欄格式錯誤"
+    )
+    private String column;
+
+    @Schema(
+            description = "列",
+            example = "1~10",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotNull(message = "列不能為空")
+    @Min(value = 1, message = "列必須介於 1～10")
+    @Max(value = 10, message = "列必須介於 1～10")
+    private BigDecimal row;
+
     private String token;
 
     public String getId() {
@@ -133,16 +131,8 @@ public class AdminSaveActivityRequest {
         return category;
     }
 
-    public String getDate() {
-        return date;
-    }
-
     public String getVenue() {
         return venue;
-    }
-
-    public String getStatus() {
-        return status;
     }
 
     public BigDecimal getPrice() {
@@ -151,6 +141,14 @@ public class AdminSaveActivityRequest {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getColumn() {
+        return column;
+    }
+
+    public BigDecimal getRow() {
+        return row;
     }
 
     public String getToken() {

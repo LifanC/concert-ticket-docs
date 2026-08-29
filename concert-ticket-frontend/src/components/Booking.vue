@@ -15,6 +15,7 @@ const selectedActivityName = computed(() => {
     nextStep_disabled.value = true
   } else {
     nextStep_disabled.value = false
+    activityId.value = route.query.activity_id
     selectOnlyActivities()
   }
   return activity_name
@@ -69,6 +70,7 @@ const step = ref(0)
 const ticketDialogVisible = ref(false)
 const myTicketsVisible = ref(false)
 const paypriceDialogVisible = ref(false)
+const activityId = ref()
 const sessionId = ref()
 const selectedDate = ref()
 const selectedSession = ref()
@@ -151,10 +153,6 @@ const createOrder = async () => {
     ticketDialogVisible.value = false
     step.value = 0
     tickets.value = response.data.data
-    ElMessage({
-      type: 'success',
-      message: `${'建立訂單成功'}`,
-    })
   } catch (error) {
     myTicketsVisible.value = false
     ticketDialogVisible.value = true
@@ -224,12 +222,7 @@ const dopayprice = async () => {
   paypriceDialogVisible.value = false
   myTicketsVisible.value = false
   let data = response.data.data[0] ?? {}
-  if (data.judge) {
-    ElMessage({
-      type: 'success',
-      message: `${'付款成功'}`,
-    })
-  } else {
+  if (!data.judge) {
     ElMessage({
       type: 'error',
       message: `${'付款失敗'}`,
@@ -331,10 +324,10 @@ const myTicketsVisibleDialog = async () => {
                 已選 {{ selectedSeats[0] }}
               </el-tag>
             </div>
-            <SeatMap
-              v-model="selectedSeats"
-              :max-selection="1"
-              :unavailable-seats="unavailableSeats"
+            <SeatMap v-model="selectedSeats" 
+              :max-selection="1" 
+              :unavailable-seats="unavailableSeats" 
+              :activity-id="activityId" 
             />
           </div>
         </section>
@@ -375,33 +368,36 @@ const myTicketsVisibleDialog = async () => {
     </template>
   </el-dialog>
 
-  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1250px, 94vw)">
+  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1350px, 94vw)">
     <el-table :data="tickets" stripe empty-text="目前沒有票券">
-      <el-table-column prop="orderno" label="訂單編號" min-width="145" />
-      <el-table-column prop="session_id" label="編號" min-width="50" />
-      <el-table-column prop="activity_id" label="活動編號" min-width="100" />
+      <el-table-column prop="orderno" label="訂單編號" min-width="150" />
+      <el-table-column prop="session_id" label="編號" min-width="150" />
+      <el-table-column prop="activity_id" label="活動編號" min-width="150" />
       <el-table-column prop="seat" label="座位號碼" min-width="100" />
       <el-table-column prop="name" label="活動" min-width="150" />
       <el-table-column prop="date" label="場次" min-width="100" />
-      <el-table-column prop="time" label="時間" min-width="50" />
+      <el-table-column prop="time" label="時間" min-width="100" />
       <el-table-column prop="timename" label="" min-width="70" />
-      <el-table-column label="狀態" width="100">
+      <el-table-column label="狀態" width="100" fixed="right">
         <template #default="scope">
           <el-tag :type="statusType(scope.row.status)" effect="light">{{ ticketsMap[scope.row.status] }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="100">
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="scope">
-          <el-button text type="danger" :disabled="scope.row.status === 'PAID' ||
+          <el-button text type="danger" :disabled="
+            scope.row.status === 'PAID' ||
             scope.row.status === 'CANCELLED' ||
             scope.row.status === 'EXPIRED' ||
             scope.row.status === 'REFUNDED'
-            " @click="cancelOrder(scope.row)">取消訂單</el-button>
+            " @click="cancelOrder(scope.row)">取消訂單
+          </el-button>
         </template>
       </el-table-column>
-      <el-table-column label="" width="100">
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="scope">
-          <el-button text :type="statusType(scope.row.status)" :disabled="scope.row.status === 'PAID' ||
+          <el-button text :type="statusType(scope.row.status)" :disabled="
+            scope.row.status === 'PAID' ||
             scope.row.status === 'CANCELLED' ||
             scope.row.status === 'EXPIRED' ||
             scope.row.status === 'REFUNDED'

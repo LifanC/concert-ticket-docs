@@ -18,16 +18,16 @@ public class BookingSelectOnlyActivitiesPriceRequest {
 
     @Schema(
             description = "活動編號",
-            example = "ACT-2026-001",
-            minLength = 12,
-            maxLength = 12,
+            example = "ACT-20260801-001",
+            minLength = 16,
+            maxLength = 16,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "活動編號不可為空")
-    @Size(min = 12, max = 12, message = "活動編號長度需為 12 個字元")
+    @Size(min = 16, max = 16, message = "活動編號長度需為 16 個字元")
     @Pattern(
-            regexp = "^ACT-\\d{4}-\\d{3}$",
-            message = "活動編號格式需為 ACT-YYYY-NNN，例如 ACT-2026-001"
+            regexp = "^ACT-\\d{8}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
     private String activity_id;
 

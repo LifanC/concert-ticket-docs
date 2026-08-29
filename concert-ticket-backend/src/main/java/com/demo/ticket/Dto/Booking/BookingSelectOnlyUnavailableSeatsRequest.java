@@ -3,9 +3,7 @@ package com.demo.ticket.Dto.Booking;
 import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {

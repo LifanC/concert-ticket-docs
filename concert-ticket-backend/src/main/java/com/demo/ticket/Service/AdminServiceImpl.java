@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -104,16 +105,18 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveActivity(AdminSaveActivityRequest request) {
         final String id = request.getId().trim();
         final String name = request.getName().trim();
         final String category = request.getCategory().trim();
-        final String date = request.getDate().trim();
         final String venue = request.getVenue().trim();
-        final String activityStatus = request.getStatus().trim();
         final BigDecimal price = request.getPrice();
         final String description = request.getDescription().trim();
+        final String column = request.getColumn().trim();
+        final BigDecimal row = request.getRow();
+        final String seat_id = column + "-" + row.toString();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data;
         try {
@@ -130,12 +133,15 @@ public class AdminServiceImpl implements AdminService{
             activity.setId(id);
             activity.setName(name);
             activity.setCategory(category);
-            activity.setDate(date);
             activity.setVenue(venue);
-            activity.setStatus(activityStatus);
             activity.setPrice(price);
             activity.setDescription(description);
-            adminMapper.create_activity(activity);
+            String activity_id = adminMapper.create_activity(activity);
+            StringJoiner result = new StringJoiner(", ");
+            for (char c = column.charAt(0); c <= column.charAt(1); c++) {
+                result.add(String.valueOf(c));
+            }
+            adminMapper.create_seat(seat_id, activity_id, result.toString(), row);
             data = adminMapper.selectAllActivities();
         } catch (JwtException e) {
             // JWT 不合法
@@ -152,6 +158,7 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> deleteActivity(AdminDeleteActivityRequest request) {
         final String id = request.getId().trim();
@@ -184,17 +191,17 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
+    @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> createSession(AdminCreateSessionRequest request) {
         final String id = request.getId().trim();
-        final String activity_id = request.getActivity().trim();
+        final String activity_id = request.getActivity_id().trim();
         final String date = request.getDate().trim();
         final String time = request.getTime().trim();
         final String salesdate = request.getSalesdate().trim();
         final String salestime = request.getSalestime().trim();
-        final BigDecimal capacity = request.getCapacity();
-        final BigDecimal sold = request.getSold();
         final String accessToken = request.getToken().trim();
+        final String statusSession = request.getStatus().trim();
         List<Map<String, Object>> data;
         try {
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
@@ -213,8 +220,15 @@ public class AdminServiceImpl implements AdminService{
             session.setTime(time);
             session.setSalesdate(salesdate);
             session.setSalestime(salestime);
+            BigDecimal capacity = BigDecimal.ZERO;
+            Map<String, Object> dataMapOnlySeats = adminMapper.selectOnlySeats(activity_id).get(activity_id);
+            if (dataMapOnlySeats != null) {
+                String[] strings = dataMapOnlySeats.get("seat_rows").toString().split(",");
+                int seats_per_row = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
+                capacity = BigDecimal.valueOf(strings.length).multiply(BigDecimal.valueOf(seats_per_row));
+            }
             session.setCapacity(capacity);
-            session.setSold(sold);
+            session.setStatus(statusSession);
             adminMapper.create_session(session);
             data = adminMapper.selectAllSessions();
         } catch (JwtException e) {

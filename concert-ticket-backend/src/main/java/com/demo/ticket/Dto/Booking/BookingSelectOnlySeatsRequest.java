@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {
-                "seat_id",
+                "activity_id",
                 "token",
         }
 )
@@ -17,28 +17,28 @@ import jakarta.validation.constraints.Size;
 public class BookingSelectOnlySeatsRequest {
 
     @Schema(
-            description = "座位編號",
-            example = "AF-10",
-            minLength = 5,
-            maxLength = 5,
+            description = "活動編號",
+            example = "ACT-20260801-001",
+            minLength = 16,
+            maxLength = 16,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
-    @NotBlank(message = "座位編號不可為空")
-    @Size(min = 5, max = 5, message = "座位編號長度需為 5 個字元")
+    @NotBlank(message = "活動編號不可為空")
+    @Size(min = 16, max = 16, message = "活動編號長度需為 16 個字元")
     @Pattern(
-            regexp = "^[A-Z]{2}-\\d{2}$",
-            message = "座位編號格式需為 XX-00，例如 AF-10"
+            regexp = "^ACT-\\d{8}-\\d{3}$",
+            message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String seat_id;
+    private String activity_id;
 
     private String token;
 
-    public String getSeat_id() {
-        return seat_id;
+    public String getActivity_id() {
+        return activity_id;
     }
 
-    public void setSeat_id(String seat_id) {
-        this.seat_id = seat_id;
+    public void setActivity_id(String activity_id) {
+        this.activity_id = activity_id;
     }
 
     public String getToken() {

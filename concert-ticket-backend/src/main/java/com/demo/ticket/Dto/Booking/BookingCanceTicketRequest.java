@@ -33,16 +33,16 @@ public class BookingCanceTicketRequest {
 
     @Schema(
             description = "場次編號",
-            example = "S-001",
-            minLength = 5,
-            maxLength = 5,
+            example = "S-20260801-001",
+            minLength = 14,
+            maxLength = 14,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "場次編號不可為空")
-    @Size(min = 5, max = 5, message = "場次編號長度需為 5 個字元")
+    @Size(min = 14, max = 14, message = "場次編號長度需為 14 個字元")
     @Pattern(
-            regexp = "^S-\\d{3}$",
-            message = "場次編號格式需為 S-NNN，例如 S-001"
+            regexp = "^S-\\d{8}-\\d{3}$",
+            message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
     private String session_id;
 

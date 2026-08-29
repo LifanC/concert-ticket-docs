@@ -84,7 +84,7 @@
     <select id="selectOnlySessionId" resultType="java.util.Map">
         select
             "session".id,
-            "session".capacity - "session".reserved - "session".sold as available
+            "session".capacity
         from "interviewworks_ticket"."session" "session"
         where "session".id = #{session_id}
     </select>
@@ -97,7 +97,7 @@
 
     <select id="saveTicket" resultType="java.lang.String">
         WITH next_order AS (
-        INSERT INTO "interviewworks_ticket".ticket_order_sequence
+        INSERT INTO "interviewworks_ticket".ticket_sequence
         (
             order_date,
             current_no
@@ -109,7 +109,7 @@
             )
         ON CONFLICT (order_date)
             DO UPDATE
-                   SET current_no = "interviewworks_ticket".ticket_order_sequence.current_no + 1
+                   SET current_no = "interviewworks_ticket".ticket_sequence.current_no + 1
                    RETURNING
                    'CT' || TO_CHAR(order_date, 'YYYYMMDD') || LPAD(current_no::TEXT, 3, '0') AS orderno
                 )
@@ -230,10 +230,11 @@
     <select id="selectOnlySeats" resultType="java.util.Map">
         select
             seat.id,
+            seat.activity_id,
             seat.seat_rows,
             seat.seats_per_row
         from "interviewworks_ticket".seat seat
-        where seat.id = #{seat_id}
+        where seat.activity_id = #{activity_id}
     </select>
 
     <select id="selectOnlyUnavailableSeats" resultType="java.util.Map">

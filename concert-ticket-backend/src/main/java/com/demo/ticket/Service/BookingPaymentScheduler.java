@@ -3,6 +3,7 @@ package com.demo.ticket.Service;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.Booking.BookingSaveTicket;
+import com.demo.ticket.Dto.Booking.BookingSession;
 import com.demo.ticket.Mapper.BookingMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
@@ -164,6 +165,11 @@ public class BookingPaymentScheduler {
 
         bookingMapper.updateTicketExpiredAt(
                 bookingSaveTicket
+        );
+        BookingSession bookingSession = new BookingSession();
+        bookingSession.setSession_id(bookingSaveTicket.getSession_id());
+        bookingMapper.cancelSession(
+                bookingSession
         );
     }
 

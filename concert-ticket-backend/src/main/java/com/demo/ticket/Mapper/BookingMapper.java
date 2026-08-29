@@ -47,8 +47,8 @@ public interface BookingMapper {
 
     void updateTicketExpiredAt(BookingSaveTicket bookingSaveTicket);
 
-    @MapKey("id")
-    Map<String, Map<String, Object>> selectOnlySeats(String seat_id);
+    @MapKey("activity_id")
+    Map<String, Map<String, Object>> selectOnlySeats(String activity_id);
 
     List<Map<String, Object>> selectOnlyUnavailableSeats(BookingSaveTicket bookingSaveTicket);
 }

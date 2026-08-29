@@ -238,6 +238,17 @@ public class BookingServiceImpl implements BookingService {
                         bookingSaveTicket.setOrderno(orderno);
                         data = new ArrayList<>(bookingMapper.selectOnlyTicket(emailCutOff));
 
+                        Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
+                        BigDecimal capacity = new BigDecimal(sessionData.get("capacity").toString());
+                        NotificationMessage message =
+                                new NotificationMessage(
+                                        accessJwt,
+                                        "新通知：請在 " + minutes + " 分鐘內完成付款，剩餘庫存：" + capacity,
+                                        "尚未付款，付款期限：" +
+                                                dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
+                                );
+                        notifier.sendNotification(message);
+
                         // Transaction commit 成功後，安排 expires_at 時執行
                         TransactionSynchronizationManager.registerSynchronization(
                                 new TransactionSynchronization() {
@@ -247,17 +258,6 @@ public class BookingServiceImpl implements BookingService {
                                     }
                                 }
                         );
-
-                        Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
-                        BigDecimal available = new BigDecimal(sessionData.get("available").toString());
-                        NotificationMessage message =
-                                new NotificationMessage(
-                                        accessJwt,
-                                        "新通知：請在 " + minutes + " 分鐘內完成付款，剩餘庫存：" + available,
-                                        "尚未付款，付款期限：" +
-                                                dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
-                                );
-                        notifier.sendNotification(message);
                     } else {
                         NotificationMessage message =
                                 new NotificationMessage(
@@ -505,8 +505,8 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySeats(BookingSelectOnlySeatsRequest request) {
+        final String activity_id = request.getActivity_id().trim();
         final String accessToken = request.getToken().trim();
-        final String seat_id = request.getSeat_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         try {
             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
@@ -523,18 +523,19 @@ public class BookingServiceImpl implements BookingService {
             if (Boolean.FALSE.equals(accessExists)) {
                 logger.error("{} : (座位資料) Token 已過期", accessJwt);
             } else {
-                Map<String, Object> dataMapOnlySeats = bookingMapper.selectOnlySeats(seat_id).get(seat_id);
-                if (!dataMapOnlySeats.isEmpty()) {
+                Map<String, Object> dataMapOnlySeats = bookingMapper.selectOnlySeats(activity_id).get(activity_id);
+                if (dataMapOnlySeats != null) {
                     String seat_rows = dataMapOnlySeats.get("seat_rows").toString();
                     String[] strings = seat_rows.split(",");
+                    int seats_per_row = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
                     for (String string : strings) {
-                        int seats_per_row = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
                         for (int i = 0; i < seats_per_row; i++) {
-                            int number = i + 1;
+                            final int number = i + 1;
                             Map<String, Object> dataMap = new HashMap<>();
                             dataMap.put("id", string + "-" + String.format("%02d", number));
                             dataMap.put("row", string);
                             dataMap.put("number", number);
+                            dataMap.put("seats_per_row", seats_per_row);
                             data.add(dataMap);
                         }
                     }

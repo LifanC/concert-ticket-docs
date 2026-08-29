@@ -11,7 +11,7 @@ public class Session {
     private String salesdate;
     private String salestime;
     private BigDecimal capacity;
-    private BigDecimal sold;
+    private String status;
 
     public String getId() {
         return id;
@@ -69,11 +69,11 @@ public class Session {
         this.capacity = capacity;
     }
 
-    public BigDecimal getSold() {
-        return sold;
+    public String getStatus() {
+        return status;
     }
 
-    public void setSold(BigDecimal sold) {
-        this.sold = sold;
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

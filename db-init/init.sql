@@ -67,9 +67,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity (
                                               id varchar NOT NULL,
                                               "name" varchar NOT NULL,
 											  category varchar NOT NULL,
-                                              "date" varchar NOT NULL,
                                               venue varchar NOT NULL,
-                                              status varchar NOT NULL,
                                               price int8 NULL DEFAULT 0,
                                               description varchar NULL,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -77,9 +75,6 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity (
                                               CONSTRAINT activity_pk PRIMARY KEY (id),
                                               CONSTRAINT activity_category_check CHECK (
                                                 category IN ('MUSIC_CONCERT', 'STAGE_PLAY', 'SPECIAL_EXHIBITION')
-                                              ),
-                                              CONSTRAINT activity_status_check CHECK (
-                                                status IN ('COMING_SOON', 'TICKETS_ARE_ON_SALE', 'ENDED')
                                               )
 );
 
@@ -99,10 +94,14 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.session (
                                               capacity int8 NOT NULL DEFAULT 0,
                                               reserved int8 NOT NULL DEFAULT 0,
                                               sold int8 NOT NULL DEFAULT 0,
+											  status varchar NOT NULL,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               CONSTRAINT sessions_pk PRIMARY KEY (id),
-											  CONSTRAINT sessions_fk FOREIGN KEY (activity_id) REFERENCES interviewworks_ticket.activity(id)
+											  CONSTRAINT sessions_fk FOREIGN KEY (activity_id) REFERENCES interviewworks_ticket.activity(id),
+                                              CONSTRAINT session_status_check CHECK (
+                                                status IN ('COMING_SOON', 'TICKETS_ARE_ON_SALE', 'SOLD_OUT', 'ENDED')
+                                              )
 );
 
 CREATE TRIGGER trigger_session_updated_date
@@ -112,7 +111,8 @@ FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
-                                              orderno varchar NOT NULL,
+                                              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                              orderno varchar NOT NULL UNIQUE,
 											  session_id varchar NOT NULL,
                                               customer varchar NOT NULL,
                                               email varchar NOT NULL,
@@ -129,7 +129,6 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
 											  cancelled_at timestamp NULL,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              CONSTRAINT ticket_pk PRIMARY KEY (orderno),
 											  CONSTRAINT ticket_fk FOREIGN KEY (session_id) REFERENCES interviewworks_ticket.session(id),
                                               CONSTRAINT ticket_status_check CHECK (
                                                 status IN ('PENDING_PAYMENT', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED')
@@ -142,22 +141,31 @@ ON interviewworks_ticket.ticket
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
-CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket_order_sequence
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_sequence
 (
-    order_date DATE PRIMARY KEY,
+    activity_date DATE PRIMARY KEY,
+    current_no INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_sequence
+(
+    activity_date DATE PRIMARY KEY,
+    current_no INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_sequence
+(
+    session_date DATE PRIMARY KEY,
     current_no INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.seat
 (
-    id varchar PRIMARY KEY,
+    id varchar NOT NULL,
+    activity_id varchar NOT NULL,
     seat_rows varchar NOT NULL,
-    seats_per_row int8 NULL DEFAULT 0
+    seats_per_row int8 DEFAULT 0,
+
+    PRIMARY KEY (id, activity_id)
 );
-INSERT INTO interviewworks_ticket.seat (id, seat_rows, seats_per_row)
-VALUES (
-        'AF-10',
-        'A,B,C,D,E,F',
-        10
-       ) ON CONFLICT (id) DO NOTHING;
 

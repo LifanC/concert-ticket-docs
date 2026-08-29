@@ -13,12 +13,17 @@ const props = defineProps({
   unavailableSeats: {
     type: Set,
     default: () => new Set()
+  },
+  activityId: {
+    type: String,
+    default: () => ''
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const seats = ref([])
+const seatsPerRow = ref(0)
 
 executeFirst()
 async function executeFirst() {
@@ -26,10 +31,12 @@ async function executeFirst() {
     method: 'get',
     url: '/selectOnlySeats',
     params: {
-      seat_id: 'AF-10',
+      activity_id: props.activityId,
     },
   });
-  seats.value = response.data
+  const data = response.data
+  seats.value = data
+  seatsPerRow.value = data[0]?.seats_per_row ?? 0
 }
 
 const isSelected = (seatId) => props.modelValue.includes(seatId)
@@ -54,7 +61,9 @@ const selectSeat = (seatId) => {
   <div class="seat-map" aria-label="座位選擇區">
     <div class="stage">舞台</div>
 
-    <div class="seat-grid">
+    <div class="seat-grid" :style="{
+      gridTemplateColumns: `repeat(${seatsPerRow}, 42px)`
+    }">
       <button v-for="seat in seats" :key="seat.id" type="button" class="seat" :class="{
         selected: isSelected(seat.id),
         unavailable: isUnavailable(seat.id)
@@ -96,7 +105,6 @@ const selectSeat = (seatId) => {
 
 .seat-grid {
   display: grid;
-  grid-template-columns: repeat(10, 42px);
   justify-content: center;
   gap: 9px;
   min-width: 510px;

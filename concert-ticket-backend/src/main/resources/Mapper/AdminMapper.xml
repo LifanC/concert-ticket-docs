@@ -4,16 +4,14 @@
 
     <select id="selectAllActivities" resultType="java.util.Map">
         select
-            id,
-            "name",
-            category,
-            "date",
-            venue,
-            status,
-            price,
-            description
+            activity.id,
+            activity."name",
+            activity.category,
+            activity.venue,
+            activity.price,
+            activity.description
         from
-            "interviewworks_ticket"."activity"
+            "interviewworks_ticket"."activity" activity
         order by id
     </select>
 
@@ -28,7 +26,8 @@
             "session".salestime,
             "session".capacity,
             "session".reserved,
-            "session".sold
+            "session".sold,
+            "session".status
         from
             "interviewworks_ticket"."session" "session"
                 inner join "interviewworks_ticket".activity activity
@@ -38,51 +37,92 @@
 
     <select id="selectAllticket" resultType="java.util.Map">
         select
-            orderno,
-            customer,
-            "name",
-            "time",
-            "date",
-            "time",
-            status,
-            price
+            ticket.orderno,
+            ticket.customer,
+            ticket."name",
+            ticket."time",
+            ticket."date",
+            ticket."time",
+            ticket.status,
+            ticket.price
         from
-            "interviewworks_ticket".ticket
+            "interviewworks_ticket".ticket ticket
         order by ticket.created_date, ticket.updated_date
     </select>
 
-    <insert id="create_activity">
-        INSERT INTO "interviewworks_ticket"."activity"
+    <select id="create_activity" resultType="java.lang.String">
+        WITH next_activity AS (
+        INSERT INTO "interviewworks_ticket".activity_sequence
+        (
+            activity_date,
+            current_no
+        )
+        SELECT
+            CURRENT_DATE,
+            1
+            WHERE #{id} IS NULL OR #{id} = ''
+        ON CONFLICT (activity_date)
+            DO UPDATE
+                   SET current_no = "interviewworks_ticket".activity_sequence.current_no + 1
+                   RETURNING
+                   'ACT'
+                   || '-' || TO_CHAR(activity_date, 'YYYYMMDD')
+                   || '-' || LPAD(current_no::TEXT, 3, '0') AS id
+                   ),
+                   activity_id AS (
+               SELECT #{id} AS id
+               WHERE #{id} IS NOT NULL
+                 AND #{id} != ''
+               UNION ALL
+               SELECT id
+               FROM next_activity
+                   )
+               INSERT INTO "interviewworks_ticket"."activity"
+               (
+                   id,
+                   "name",
+                   category,
+                   venue,
+                   price,
+                   description
+               )
+        SELECT
+            activity_id.id,
+            #{name},
+            #{category},
+            #{venue},
+            #{price},
+            #{description}
+        FROM activity_id
+            ON CONFLICT (id)
+    DO UPDATE SET
+            "name" = EXCLUDED."name",
+                       category = EXCLUDED.category,
+                       venue = EXCLUDED.venue,
+                       price = EXCLUDED.price,
+                       description = EXCLUDED.description
+                       RETURNING id
+    </select>
+
+    <insert id="create_seat">
+        INSERT INTO "interviewworks_ticket"."seat"
         (
             id,
-            "name",
-            category,
-            "date",
-            venue,
-            status,
-            price,
-            description
+            activity_id,
+            seat_rows,
+            seats_per_row
         )
         VALUES
             (
                 #{id},
-                #{name},
-                #{category},
-                #{date},
-                #{venue},
-                #{status},
-                #{price},
-                #{description}
+                #{activity_id},
+                #{seat_rows},
+                #{seats_per_row}
             )
-            ON CONFLICT (id)
+            ON CONFLICT (id, activity_id)
         DO UPDATE SET
-                       "name" = EXCLUDED."name",
-                       category = EXCLUDED.category,
-                       "date" = EXCLUDED."date",
-                       venue = EXCLUDED.venue,
-                       status = EXCLUDED.status,
-                       price = EXCLUDED.price,
-                       description = EXCLUDED.description
+            seat_rows = EXCLUDED.seat_rows,
+            seats_per_row = EXCLUDED.seats_per_row
     </insert>
 
     <delete id="delete_activity">
@@ -90,39 +130,78 @@
         WHERE id = #{id}
     </delete>
 
-    <insert id="create_session">
-        INSERT INTO "interviewworks_ticket"."session"
+    <select id="create_session" resultType="java.lang.String">
+        WITH next_session AS (
+        INSERT INTO "interviewworks_ticket".session_sequence
         (
-            id,
-            activity_id,
-            "date",
-            "time",
-            salesdate,
-            salestime,
-            capacity,
-            sold
+            session_date,
+            current_no
         )
-        VALUES
-            (
-                #{id},
-                #{activity_id},
-                #{date},
-                #{time},
-                #{salesdate},
-                #{salestime},
-                #{capacity},
-                #{sold}
-            )
+        SELECT
+            CURRENT_DATE,
+            1
+            WHERE #{id} IS NULL OR #{id} = ''
+        ON CONFLICT (session_date)
+            DO UPDATE
+                   SET current_no = "interviewworks_ticket".session_sequence.current_no + 1
+                   RETURNING
+                   'S'
+                   || '-' || TO_CHAR(session_date, 'YYYYMMDD')
+                   || '-' || LPAD(current_no::TEXT, 3, '0') AS id
+                   ),
+                   session_id AS (
+               SELECT #{id} AS id
+               WHERE #{id} IS NOT NULL
+                 AND #{id} != ''
+               UNION ALL
+               SELECT id
+               FROM next_session
+                   )
+               INSERT INTO "interviewworks_ticket"."session"
+               (
+                   id,
+                   activity_id,
+                   "date",
+                   "time",
+                   salesdate,
+                   salestime,
+                   capacity,
+                   sold,
+                   status
+               )
+        SELECT
+            session_id.id,
+            #{activity_id},
+            #{date},
+            #{time},
+            #{salesdate},
+            #{salestime},
+            #{capacity},
+            0,
+            #{status}
+        FROM session_id
             ON CONFLICT (id)
-        DO UPDATE SET
-                       activity_id = EXCLUDED.activity_id,
+    DO UPDATE SET
+            activity_id = EXCLUDED.activity_id,
                        "date" = EXCLUDED."date",
                        "time" = EXCLUDED."time",
                        salesdate = EXCLUDED.salesdate,
                        salestime = EXCLUDED.salestime,
                        capacity = EXCLUDED.capacity,
-                       sold = EXCLUDED.sold
-    </insert>
+                       sold = EXCLUDED.sold,
+                       status = EXCLUDED.status
+                       RETURNING id
+    </select>
+
+    <select id="selectOnlySeats" resultType="java.util.Map">
+        select
+            seat.id,
+            seat.activity_id,
+            seat.seat_rows,
+            seat.seats_per_row
+        from "interviewworks_ticket".seat seat
+        where seat.activity_id = #{activity_id}
+    </select>
 
 </mapper>
 
