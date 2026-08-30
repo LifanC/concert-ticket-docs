@@ -10,4 +10,10 @@ public interface ActivityMapper {
 
     List<Map<String, Object>> selectAllActivities();
 
+    List<Map<String, Object>> selectOnlyFavoriteActivities(String user_email);
+
+    int saveFavoriteActivity(String user_email, String activity_id);
+
+    int deleteFavoriteActivity(String user_email, String activity_id);
+
 }

@@ -110,6 +110,20 @@ ON interviewworks_ticket.session
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_favorite (
+    user_email varchar NOT NULL,
+    activity_id varchar NOT NULL,
+    created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT activity_favorite_pk PRIMARY KEY (user_email, activity_id),
+    CONSTRAINT activity_favorite_user_fk FOREIGN KEY (user_email)
+        REFERENCES interviewworks_ticket.user_data(email) ON DELETE CASCADE,
+    CONSTRAINT activity_favorite_activity_fk FOREIGN KEY (activity_id)
+        REFERENCES interviewworks_ticket.activity(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS activity_favorite_activity_id_idx
+ON interviewworks_ticket.activity_favorite(activity_id);
+
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                                               orderno varchar NOT NULL UNIQUE,

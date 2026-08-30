@@ -42,6 +42,25 @@
         ORDER BY activity.id
     </select>
 
+    <select id="selectOnlyFavoriteActivities" resultType="java.util.Map">
+        SELECT activity_id
+        FROM interviewworks_ticket.activity_favorite
+        WHERE user_email = #{user_email}
+        ORDER BY created_date DESC
+    </select>
+
+    <insert id="saveFavoriteActivity">
+        INSERT INTO interviewworks_ticket.activity_favorite (user_email, activity_id)
+        VALUES (#{user_email}, #{activity_id})
+        ON CONFLICT (user_email, activity_id) DO NOTHING
+    </insert>
+
+    <delete id="deleteFavoriteActivity">
+        DELETE FROM interviewworks_ticket.activity_favorite
+        WHERE user_email = #{user_email}
+          AND activity_id = #{activity_id}
+    </delete>
+
 </mapper>
 
 

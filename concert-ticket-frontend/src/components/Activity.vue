@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { activityApi } from '@/services/api'
+import { toFindCookie } from '@/components/componentsJs/cookie'
 
 
 const router = useRouter()
@@ -9,6 +10,8 @@ const selectedCategory = ref('全部')
 const selectedStatus = ref('全部')
 const detailVisible = ref(false)
 const currentActivity = ref(null)
+const favoriteActivityIds = ref(new Set())
+const showFavoritesOnly = ref(false)
 
 executeFirst()
 async function executeFirst() {
@@ -18,6 +21,10 @@ async function executeFirst() {
     url: '/selectAllActivities',
   });
   activities.value = response.data
+  if (toFindCookie('accessToken')) {
+    const favoriteResponse = await activityApi.get('/selectOnlyFavoriteActivities')
+    favoriteActivityIds.value = new Set(favoriteResponse.data.map(item => item.activity_id))
+  }
 }
 
 const categories = [
@@ -48,7 +55,8 @@ const filteredActivities = computed(() => {
     })
     const matchesCategory = selectedCategory.value === '全部' || activity.category === selectedCategory.value
     const matchesStatus = selectedStatus.value === '全部' || activity.status === selectedStatus.value
-    return matchesKeyword && matchesCategory && matchesStatus
+    const matchesFavorite = !showFavoritesOnly.value || favoriteActivityIds.value.has(activity.id)
+    return matchesKeyword && matchesCategory && matchesStatus && matchesFavorite
   })
 })
 
@@ -56,6 +64,30 @@ const resetFilters = () => {
   keyword.value = ''
   selectedCategory.value = '全部'
   selectedStatus.value = '全部'
+  showFavoritesOnly.value = false
+}
+const toggleFavorite = async (activity) => {
+  if (!toFindCookie('accessToken')) {
+    ElMessage({ type: 'info', message: '請先登入後再收藏活動' })
+    await router.push({ name: 'User', query: { redirect: router.currentRoute.value.fullPath } })
+    return
+  }
+
+  const next = new Set(favoriteActivityIds.value)
+  if (next.has(activity.id)) {
+    await activityApi.delete('/deleteFavoriteActivity', {
+      data: { activity_id: activity.id }
+    })
+    next.delete(activity.id)
+    ElMessage({ type: 'success', message: '已取消收藏' })
+  } else {
+    await activityApi.post('/saveFavoriteActivity', {
+      activity_id: activity.id
+    })
+    next.add(activity.id)
+    ElMessage({ type: 'success', message: '已加入收藏' })
+  }
+  favoriteActivityIds.value = next
 }
 const openDetail = (activity) => {
   currentActivity.value = activity
@@ -134,6 +166,9 @@ const statusType = (status) => (
             </el-select>
           </el-form-item>
           <el-form-item label=" ">
+            <el-checkbox v-model="showFavoritesOnly" border>只看收藏</el-checkbox>
+          </el-form-item>
+          <el-form-item label=" ">
             <el-button plain type="warning" @click="resetFilters">重設篩選</el-button>
           </el-form-item>
         </el-form>
@@ -163,8 +198,13 @@ const statusType = (status) => (
               <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column label="操作" width="210" fixed="right">
             <template #default="scope">
+              <el-button
+                plain
+                :type="favoriteActivityIds.has(scope.row.id) ? 'warning' : 'default'"
+                @click="toggleFavorite(scope.row)"
+              >{{ favoriteActivityIds.has(scope.row.id) ? '已收藏' : '收藏' }}</el-button>
               <el-button plain type="primary" @click="openDetail(scope.row)">查看詳情</el-button>
             </template>
           </el-table-column>

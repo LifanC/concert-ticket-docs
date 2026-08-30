@@ -138,7 +138,7 @@ function setupAuthInterceptor(client) {
   return client
 }
 
-export const activityApi = createApi('activity')
+export const activityApi = setupAuthInterceptor(createApi('activity'))
 export const adminApi = setupAuthInterceptor(createApi('admin'))
 export const bookingApi = setupAuthInterceptor(createApi('booking'))
 export const loginApi = setupAuthInterceptor(createApi('login'))
