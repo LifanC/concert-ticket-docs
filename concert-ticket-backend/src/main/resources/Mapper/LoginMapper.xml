@@ -4,13 +4,15 @@
 
     <insert id="create">
         insert
-        into "interviewworks_ticket"."user_data" (name,
+        into "interviewworks_ticket"."user_data" (account,
+                                                  name,
                                                   email,
                                                   phone,
                                                   password,
                                                   birthday,
                                                   permissions)
         values (
+                #{account},
                 #{name},
                 #{email},
                 #{phone},
@@ -22,15 +24,16 @@
 
     <select id="select" resultType="java.util.Map">
         select
-            SPLIT_PART(ud.email, '@', 1) as account,
-            ud."name",
-            ud.email,
-            ud.phone,
-            ud."password",
-            ud.birthday,
-            ud.permissions
-        from "interviewworks_ticket"."user_data" ud
-        where SPLIT_PART(ud.email, '@', 1) = #{account}
+            user_data.account,
+            user_data."name",
+            user_data.email,
+            user_data.phone,
+            user_data."password",
+            user_data.birthday,
+            user_data.permissions
+        from "interviewworks_ticket"."user_data" user_data
+        where account = #{account}
+           or email = #{account}
     </select>
 
     <select id="selectPermissions" resultType="java.lang.String">

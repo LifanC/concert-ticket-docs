@@ -20,6 +20,7 @@ const loginFormNotOk = ref(
 )
 const registerForm = reactive(
   {
+    account: '',
     name: '',
     email: '',
     phone: '',
@@ -43,6 +44,7 @@ const profileFormNotOk = ref(
 )
 const registerFormNotOk = ref(
   {
+    account: '',
     name: '',
     email: '',
     phone: '',
@@ -142,12 +144,14 @@ const submitLogin = async () => {
 
 const submitRegister = async () => {
   registerFormNotOk.value = {
+    account: '',
     name: '',
     email: '',
     phone: '',
     password: '',
   }
   if (
+    !registerForm.account ||
     !registerForm.name ||
     !registerForm.email ||
     !registerForm.password ||
@@ -163,6 +167,7 @@ const submitRegister = async () => {
     Object.assign(
       profileForm,
       {
+        account: data.account,
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -175,12 +180,21 @@ const submitRegister = async () => {
       message: `${'註冊成功'}`,
     })
   } catch (error) {
-    let data = error.response.data.data[1]?.error ?? {}
-    registerFormNotOk.value = {
-      name: data.name ?? '',
-      email: data.email ?? '',
-      phone: data.phone ?? '',
-      password: data.password ?? '',
+    const status = error.response?.status
+    if (status === 409) {
+      ElMessage({
+        type: 'error',
+        message: `${'註冊失敗'}`,
+      })
+    } else {
+      let data = error.response.data.data[1]?.error ?? {}
+      registerFormNotOk.value = {
+        account: data.account ?? '',
+        name: data.name ?? '',
+        email: data.email ?? '',
+        phone: data.phone ?? '',
+        password: data.password ?? '',
+      }
     }
     activeTab.value = 'register'
   }
@@ -339,6 +353,10 @@ const logout = async () => {
               <h2>建立新帳戶</h2><el-text type="info">請填寫基本資料，完成後即可開始訂票。</el-text>
             </div>
             <el-form :model="registerForm" label-position="top" class="account-form" @submit.prevent="submitRegister">
+              <el-form-item label="帳號" required
+                :error="registerFormNotOk.account !== '' ? registerFormNotOk.account : ''">
+                <el-input v-model="registerForm.account" placeholder="請輸入帳號" />
+              </el-form-item>
               <el-form-item label="姓名" required :error="registerFormNotOk.name !== '' ? registerFormNotOk.name : ''">
                 <el-input v-model="registerForm.name" placeholder="請輸入姓名" />
               </el-form-item>

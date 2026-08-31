@@ -3,7 +3,6 @@ package com.demo.ticket.Mapper;
 import com.demo.ticket.Dto.Login.Login;
 import com.demo.ticket.Dto.Login.LoginSaveProfile;
 import com.demo.ticket.Dto.Login.Register;
-import org.apache.ibatis.annotations.MapKey;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -14,8 +13,7 @@ public interface LoginMapper {
 
     void create(Register register);
 
-    @MapKey("account")
-    Map<String, Map<String, Object>> select(Login login);
+    Map<String, Object> select(Login login);
 
     void save(LoginSaveProfile loginSaveProfile);
 

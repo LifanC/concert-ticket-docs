@@ -2,6 +2,7 @@ package com.demo.ticket.Dto.Login;
 
 public class Register {
 
+    private String account;
     private String name;
     private String email;
     private String phone;
@@ -10,11 +11,20 @@ public class Register {
     public Register() {
     }
 
-    public Register(String name, String email, String phone, String password) {
+    public Register(String account, String name, String email, String phone, String password) {
+        this.account = account;
         this.name = name;
         this.email = email;
         this.phone = phone;
         this.password = password;
+    }
+
+    public String getAccount() {
+        return account;
+    }
+
+    public void setAccount(String account) {
+        this.account = account;
     }
 
     public String getName() {

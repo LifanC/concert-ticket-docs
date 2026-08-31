@@ -23,18 +23,19 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.user_data (
+                                               account varchar PRIMARY KEY,
                                                "name" varchar NOT NULL,
-                                               email varchar NOT NULL,
+                                               email varchar NOT NULL UNIQUE,
                                                phone varchar NULL,
                                                "password" varchar NOT NULL,
                                                created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                                birthday varchar NULL,
-                                               permissions varchar NULL,
-                                               CONSTRAINT user_data_pk PRIMARY KEY (email)
+                                               permissions varchar NULL
 );
-INSERT INTO interviewworks_ticket.user_data (name, email, phone, password, birthday, "permissions")
+INSERT INTO interviewworks_ticket.user_data (account, name, email, phone, password, birthday, "permissions")
 VALUES (
+        'luke',
         'luke',
         'luke@admin.com',
         '0912345678',
@@ -43,13 +44,23 @@ VALUES (
         'ADMIN'
        ),
 	   (
-        'wang',
+        'wangchen',
+        '王曉明',
         'wang@user.com',
         '0912345678',
         '$2a$10$L5E9otCIMi3PY847s7K2LO4JO4clzb5kRn2adOZhtQxbQQEpfhWb6',
         '',
         'USER'
-       ) ON CONFLICT (email) DO NOTHING;
+       ),
+	   (
+        'wangfan',
+        '王曉明',
+        'wang@test.com',
+        '0912345678',
+        '$2a$10$.ZaeO6pQB1oGsxHE7YUDrexVLp98CI0joV8klHJbGollTz7x9oLxG',
+        '',
+        'USER'
+       ) ON CONFLICT DO NOTHING;
 
 
 CREATE TRIGGER trigger_user_data_updated_date

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 
 @JsonPropertyOrder(
         {
+                "account",
                 "name",
                 "email",
                 "phone",
@@ -18,6 +19,21 @@ import jakarta.validation.constraints.Size;
 )
 @Schema(description = "註冊")
 public class RegisterRequest {
+
+    @Schema(
+            description = "使用者帳號",
+            example = "JohnSmith123",
+            minLength = 2,
+            maxLength = 50,
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "帳號不可為空")
+    @Size(min = 2, max = 50, message = "帳號長度需介於 2~50 字")
+    @Pattern(
+            regexp = "^[A-Za-z][A-Za-z0-9]*$",
+            message = "帳號格式錯誤"
+    )
+    private String account;
 
     @Schema(
             description = "使用者姓名",
@@ -74,6 +90,10 @@ public class RegisterRequest {
     )
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
+
+    public String getAccount() {
+        return account;
+    }
 
     public String getName() {
         return name;

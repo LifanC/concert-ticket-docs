@@ -8,7 +8,6 @@ import com.demo.ticket.Exception.*;
 import com.demo.ticket.Mapper.LoginMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -84,12 +83,13 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public ResponseEntity<?> register(RegisterRequest request) {
+        final String account = request.getAccount().trim();
         final String name = request.getName().trim();
         final String email = request.getEmail().trim();
         final String phone = request.getPhone().trim();
         final String password = request.getPassword().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        Register register = new Register(name, email, phone, passwordEncoder.encode(password));
+        Register register = new Register(account, name, email, phone, passwordEncoder.encode(password));
         Map<String, Object> dataMap = new TreeMap<>();
         try {
             loginMapper.create(register);
@@ -98,6 +98,7 @@ public class LoginServiceImpl implements LoginService {
             throw e;
         }
         dataMap.put("remark", "註冊成功");
+        dataMap.put("account", account);
         dataMap.put("name", name);
         dataMap.put("email", email);
         dataMap.put("phone", phone);
@@ -118,30 +119,22 @@ public class LoginServiceImpl implements LoginService {
         final String account = request.getAccount().trim();
         final String password = request.getPassword().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        int idx = account.indexOf('@');
-        Map<String, Object> userDataSelect;
-        String accountCutOff = idx >= 0 ? account.substring(0, idx) : account;
-        final String userDataOnly = String.format(
-                RedisKey.redisUserDataKey.get("userDataOnly"),
-                accountCutOff
-        );
-        Login login = new Login(accountCutOff);
-        String json = stringRedisTemplate.opsForValue().get(userDataOnly);
-        if (json != null) {
-            userDataSelect = objectMapper.readValue(json, new TypeReference<>() {
-            });
-        } else {
-            userDataSelect = loginMapper.select(login).get(login.getAccount());
-            String jsonMap = objectMapper.writeValueAsString(userDataSelect);
-            stringRedisTemplate.opsForValue().set(
-                    userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
-        }
-        Map<String, Object> dataMap = new TreeMap<>();
         String remark = "登入失敗";
         boolean judge = false;
         String refreshToken = null;
         int refreshTokenMaxAge = 0;
-        if (userDataSelect != null) {
+        Login login = new Login(account);
+        Map<String, Object> dataMap = new TreeMap<>();
+        Map<String, Object> userDataSelect = loginMapper.select(login);
+        if (!userDataSelect.isEmpty()) {
+            final String email = userDataSelect.get("email").toString();
+            final String userDataOnly = String.format(
+                    RedisKey.redisUserDataKey.get("userDataOnly"),
+                    email
+            );
+            String jsonMap = objectMapper.writeValueAsString(userDataSelect);
+            stringRedisTemplate.opsForValue().set(
+                    userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
             final String userDataPassword = userDataSelect.get("password").toString();
             if (passwordEncoder.matches(password, userDataPassword)) {
                 String jti = UUID.randomUUID().toString();
@@ -150,13 +143,13 @@ public class LoginServiceImpl implements LoginService {
                 final String refreshRedisKey = String.format(
                         RedisKey.redisKey.get("refresh"),
                         jti,
-                        accountCutOff
+                        email
                 );
                 refreshToken = jwtTokenService.createRefreshToken(
                         refreshRedisKey,
                         jti,
                         refreshExpirationSecondsAddRndomNumber,
-                        accountCutOff
+                        email
                 );
                 stringRedisTemplate.opsForValue().set(
                         refreshRedisKey,
@@ -170,7 +163,7 @@ public class LoginServiceImpl implements LoginService {
 
                 final String refreshJtiRedisKey = String.format(
                         RedisKey.redisKey.get("refreshJti"),
-                        accountCutOff
+                        email
                 );
                 String currentJti = stringRedisTemplate.opsForValue().get(refreshJtiRedisKey);
                 Boolean accessExists = stringRedisTemplate.hasKey(refreshJtiRedisKey);
@@ -178,11 +171,11 @@ public class LoginServiceImpl implements LoginService {
                     final String refreshRedisKeyOld = String.format(
                             RedisKey.redisKey.get("refresh"),
                             currentJti,
-                            accountCutOff
+                            email
                     );
                     final String refreshJtiRedisKeyOld = String.format(
                             RedisKey.redisKey.get("refreshJti"),
-                            accountCutOff
+                            email
                     );
                     Boolean accessDelRefreshJti = stringRedisTemplate.delete(refreshJtiRedisKeyOld);
                     logger.info("刪除舊refreshTokenJti: {}", accessDelRefreshJti);
@@ -262,34 +255,23 @@ public class LoginServiceImpl implements LoginService {
                 Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
                 final String accessJtId = claims.getId();
                 final String accountJwt = claims.getSubject();
-                Login login = new Login(accountJwt);
-                Map<String, Object> userDataSelect;
                 final String userDataOnly = String.format(
                         RedisKey.redisUserDataKey.get("userDataOnly"),
                         accountJwt
                 );
                 String json = stringRedisTemplate.opsForValue().get(userDataOnly);
                 if (json != null) {
-                    userDataSelect = objectMapper.readValue(json, new TypeReference<>() {
-                    });
-                } else {
-                    userDataSelect = loginMapper.select(login).get(login.getAccount());
-                    String jsonMap = objectMapper.writeValueAsString(userDataSelect);
-                    stringRedisTemplate.opsForValue().set(
-                            userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
-                }
-                if (userDataSelect != null) {
-                    final String userDataEmail = userDataSelect.get("email").toString();
+                    Map<String, Object> userDataSelect = objectMapper.readValue(json, new TypeReference<>() {});
                     int accessExpirationSecondsAddRndomNumber = accessExpirationSecondsAddRndomNumber();
                     String accessToken = jwtTokenService.createAccessToken(
                             accessExpirationSecondsAddRndomNumber,
                             accessJtId,
-                            userDataEmail
+                            accountJwt
                     );
                     String accessRedisKey = String.format(
                             RedisKey.redisKey.get("access"),
                             "*",
-                            userDataEmail
+                            accountJwt
                     );
                     // 避免 Redis key 無限制增加導致記憶體耗盡
                     int cnt = 100;
@@ -320,7 +302,7 @@ public class LoginServiceImpl implements LoginService {
                     accessRedisKey = String.format(
                             RedisKey.redisKey.get("access"),
                             accessJtId,
-                            userDataEmail
+                            accountJwt
                     );
                     stringRedisTemplate.opsForValue().setIfAbsent(
                             accessRedisKey,
@@ -332,14 +314,14 @@ public class LoginServiceImpl implements LoginService {
                             accessJtId
                     );
                     if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
-                        logger.error("{} : (驗證)Token 已被撤銷", userDataEmail);
+                        logger.error("{} : (驗證)Token 已被撤銷", accountJwt);
                     } else {
                         dataMap.put("remark", "驗證成功");
                         dataMap.put("accessToken", accessToken);
-                        dataMap.put("name", ObjectUtils.toString(userDataSelect.get("name")));
-                        dataMap.put("email", ObjectUtils.toString(userDataSelect.get("email")));
-                        dataMap.put("phone", ObjectUtils.toString(userDataSelect.get("phone")));
-                        dataMap.put("birthday", ObjectUtils.toString(userDataSelect.get("birthday")));
+                        dataMap.put("name", userDataSelect.get("name").toString());
+                        dataMap.put("email", userDataSelect.get("email").toString());
+                        dataMap.put("phone", userDataSelect.get("phone").toString());
+                        dataMap.put("birthday", userDataSelect.get("birthday").toString());
                         dataMap.put("judge", true);
                     }
                 }
@@ -368,7 +350,6 @@ public class LoginServiceImpl implements LoginService {
         final String refreshToken = request.getRefreshToken();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
-        String emailCutOff = email.substring(0, email.indexOf('@'));
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("remark", "修改會員資料失敗");
         dataMap.put("name", name);
@@ -386,7 +367,7 @@ public class LoginServiceImpl implements LoginService {
                 List<String> accessAuthorities = accessClaims.get("authorities", List.class);
                 String accessJtId = accessClaims.getId();
                 logger.error("{}(權限{}) : (修改會員資料)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
-                if (!jwt.equals(emailCutOff)) {
+                if (!jwt.equals(accessJwt)) {
                     throw new JwtException("Refresh token 與帳號不符");
                 }
                 final String refreshRedisKey = String.format(
@@ -422,14 +403,12 @@ public class LoginServiceImpl implements LoginService {
                         dataMap.put("birthday", birthday);
                         dataMap.put("judge", true);
 
-                        int idx = accessJwt.indexOf('@');
-                        String accountCutOff = idx >= 0 ? accessJwt.substring(0, idx) : accessJwt;
                         final String userDataOnly = String.format(
                                 RedisKey.redisUserDataKey.get("userDataOnly"),
-                                accountCutOff
+                                jwt
                         );
-                        Login login = new Login(accountCutOff);
-                        Map<String, Object> userDataSelect = loginMapper.select(login).get(accountCutOff);
+                        Login login = new Login(jwt);
+                        Map<String, Object> userDataSelect = loginMapper.select(login);
                         String jsonMap = objectMapper.writeValueAsString(userDataSelect);
                         stringRedisTemplate.opsForValue().set(
                                 userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
@@ -437,7 +416,7 @@ public class LoginServiceImpl implements LoginService {
                 }
             } catch (JwtException e) {
                 // JWT 不合法
-                logger.error("{} : (修改會員資料)無效的 JWT token", emailCutOff);
+                logger.error("{} : (修改會員資料)無效的 JWT token", email);
                 throw new JwtException("無效的 JWT token", e);
             }
         }
@@ -469,8 +448,7 @@ public class LoginServiceImpl implements LoginService {
                 List<String> accessAuthorities = accessClaims.get("authorities", List.class);
                 String accessJtId = accessClaims.getId();
                 logger.error("{}(權限{}) : (登出)有效的 JWT UUID {}", accessJwt, accessAuthorities, accessJtId);
-                String emailCutOff = accessJwt.substring(0, accessJwt.indexOf('@'));
-                if (!jwt.equals(emailCutOff)) {
+                if (!jwt.equals(accessJwt)) {
                     throw new JwtException("信箱與帳號不符");
                 }
                 final String refreshRedisKey = String.format(
@@ -503,7 +481,7 @@ public class LoginServiceImpl implements LoginService {
                     stringRedisTemplate.delete(refreshRedisKey);
                     final String userDataOnly = String.format(
                             RedisKey.redisUserDataKey.get("userDataOnly"),
-                            accessJwt.substring(0, accessJwt.indexOf('@'))
+                            jwt
                     );
                     stringRedisTemplate.delete(userDataOnly);
                     dataMap.put("remark", "登出成功");
