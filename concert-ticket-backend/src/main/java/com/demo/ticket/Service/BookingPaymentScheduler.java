@@ -157,20 +157,11 @@ public class BookingPaymentScheduler {
 
         notifier.sendNotification(message);
 
-        bookingSaveTicket.setStatus("EXPIRED");
-
-        bookingSaveTicket.setCancelled_at(
-                bookingSaveTicket.getExpires_at()
-        );
-
-        bookingMapper.updateTicketExpiredAt(
-                bookingSaveTicket
-        );
+        bookingSaveTicket.setCancelled_at(bookingSaveTicket.getExpires_at());
+        bookingMapper.updateTicketExpiredAt(bookingSaveTicket);
         BookingSession bookingSession = new BookingSession();
         bookingSession.setSession_id(bookingSaveTicket.getSession_id());
-        bookingMapper.cancelSession(
-                bookingSession
-        );
+        bookingMapper.cancelSession( bookingSession);
     }
 
     private String dateFormat(Date date) {

@@ -294,7 +294,6 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request) {
         final String orderno = request.getOrderno().trim();
         final String session_id = request.getSession_id().trim();
-        final String ticket_status = request.getStatus().trim();
         final String accessToken = request.getToken().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();
@@ -328,9 +327,6 @@ public class BookingServiceImpl implements BookingService {
                         BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
                         bookingSaveTicket.setOrderno(orderno);
                         bookingSaveTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-                        bookingSaveTicket.setStatus("CANCELLED");
-                        Date dateNow = new Date();
-                        bookingSaveTicket.setCancelled_at(dateNow);
                         int cntCancelTicket = bookingMapper.cancelTicket(bookingSaveTicket);
                         if (cntCancelTicket > 0) {
                             dataMap.put("judge", true);
@@ -456,9 +452,6 @@ public class BookingServiceImpl implements BookingService {
                     bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
                     bookingDopaypriceTicket.setDate(date);
                     bookingDopaypriceTicket.setTime(time);
-                    bookingDopaypriceTicket.setStatus("PAID");
-                    Date dateNow = new Date();
-                    bookingDopaypriceTicket.setPaid_at(dateNow);
                     int cntDopaypriceTicket = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
                     if (cntDopaypriceTicket > 0) {
                         dataMap.put("judge", true);

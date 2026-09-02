@@ -35,7 +35,7 @@
 			    WHEN "session"."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
 			    ELSE '星空場'
             END AS "label",
-                "session".capacity as available
+            "session".capacity - "session".reserved - "session".sold as available
         FROM "interviewworks_ticket"."session" "session"
         where "session"."date" = #{date}
         and "session".activity_id = #{activity_id}
@@ -75,10 +75,9 @@
     <update id="updateSession">
         update "interviewworks_ticket"."session" "session"
         set
-            capacity = capacity - 1,
             reserved = reserved + 1
         where "session".id = #{session_id}
-          and "session".capacity - "session".reserved - "session".sold >= 1
+          and "session".reserved >= 1
     </update>
 
     <select id="selectOnlySessionId" resultType="java.util.Map">
@@ -152,21 +151,21 @@
     <update id="cancelSession">
         update "interviewworks_ticket"."session" "session"
         set
-            capacity = capacity + 1,
             reserved = reserved - 1
         where "session".id = #{session_id}
-          and "session".capacity - "session".reserved - "session".sold >= 1
+          and "session".reserved >= 1
     </update>
 
     <update id="cancelTicket">
         update "interviewworks_ticket".ticket ticket
         set
-            status = #{status},
+            status = 'CANCELLED',
             quantity = 0,
-            cancelled_at = #{cancelled_at}
+            cancelled_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
           and customer = #{customer}
           and status in ('PENDING_PAYMENT')
+          and expires_at > CURRENT_TIMESTAMP
     </update>
 
     <select id="sessionSalesDate" resultType="java.util.Map">
@@ -191,21 +190,22 @@
             reserved = reserved - 1,
             sold = sold + 1
         where "session".id = #{session_id}
-          and "session".capacity - "session".reserved - "session".sold >= 1
+          and "session".reserved >= 1
     </update>
 
     <update id="dopaypriceTicket">
         update "interviewworks_ticket".ticket ticket
         set
-            status = #{status},
+            status = 'PAID',
             payprice = price,
-            paid_at = #{paid_at}
+            paid_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
           and session_id = #{session_id}
           and customer = #{customer}
           and "date" = #{date}
           and "time" = #{time}
           and status in ('PENDING_PAYMENT')
+          and expires_at > CURRENT_TIMESTAMP
     </update>
 
     <select id="selectTicketStatus" resultType="java.lang.String">
@@ -217,7 +217,7 @@
     <update id="updateTicketExpiredAt">
         update "interviewworks_ticket".ticket ticket
         set
-            status = #{status},
+            status = 'EXPIRED',
             cancelled_at = #{cancelled_at}
         where orderno = #{orderno}
           and session_id = #{session_id}
@@ -225,6 +225,7 @@
           and "date" = #{date}
           and "time" = #{time}
           and status in ('PENDING_PAYMENT')
+          and expires_at > CURRENT_TIMESTAMP
     </update>
 
     <select id="selectOnlySeats" resultType="java.util.Map">

@@ -1,293 +1,255 @@
-# 第三階段：強化管理後台設計文件
+# Phase 3：管理後台設計規格
 
-## 文件目的
+## 1. 文件目的
 
-本文件依據 `FEATURES_ROADMAP.md` 第三階段整理管理後台的功能範圍、資料需求、API 規劃、頁面設計與驗收條件。
+本文件定義管理後台 Phase 3 的可實作範圍，包括銷售儀表板、活動與場次管理、角色權限、資料範圍及稽核。此文件是設計規格，不代表功能已完成。
 
-本階段包含：
+前置條件：訂單狀態機與庫存交易已穩定、防超賣測試已通過、JWT 已由 `Authorization` Header 傳入，且 Schema 已納入 migration 管理。
 
-1. 銷售儀表板
-2. 完整活動管理
-3. 角色與權限管理
+## 2. 範圍
 
-本文件目前僅作為實作規格，不代表相關功能已完成。
+### 本階段包含
 
-## 9. 銷售儀表板
+- 銷售摘要、趨勢與場次報表
+- 活動、場次、票種、售票期間與限購管理
+- 活動草稿、上架、下架及封存
+- 系統管理員、活動主辦方及驗票人員權限
+- 主辦方與工作人員的資料範圍限制
+- 重要操作的稽核紀錄
+- CSV 匯出
 
-### 9.1 功能目標
+### 本階段不包含
 
-讓管理員與活動主辦方快速掌握活動銷售狀況、營收、訂單狀態及剩餘庫存，並可依日期、活動與場次篩選統計資料。
+- 真實金流與退款串接
+- QR Code 產生及現場驗票流程
+- 虛擬排隊室與機器人偵測
+- 大型檔案或影音素材管理
 
-### 9.2 統計項目
+## 3. 角色與授權模型
 
-- 活動及場次售票率。
-- 即時營收統計。
-- 付款、取消與退款數量。
-- 剩餘票券或座位數量。
-- 每日、每週及每月銷售趨勢。
-- CSV 或 Excel 報表匯出。
+### 3.1 角色
 
-### 9.3 指標定義
-
-| 指標 | 計算方式 |
+| 角色 | 說明 |
 | --- | --- |
-| 可售票數 | 場次原始容量 |
-| 已保留票數 | 狀態為 `PENDING_PAYMENT` 且未逾期的票數 |
-| 已售票數 | 狀態為 `PAID` 的票數 |
-| 剩餘票數 | 可售票數減去已保留票數與已售票數 |
-| 售票率 | 已售票數除以可售票數乘以 100% |
-| 營收 | 狀態為 `PAID` 的訂單實付金額合計 |
-| 取消數 | 狀態為 `CANCELLED` 的訂單數量 |
-| 退款數 | 狀態為 `REFUNDED` 的訂單數量 |
+| `SYSTEM_ADMIN` | 管理所有活動、使用者、角色、報表及系統設定 |
+| `ORGANIZER` | 管理被授權的活動、場次、票種及其報表 |
+| `CHECKIN_STAFF` | 存取被指派場次的驗票資料；本階段只建立權限與指派關係 |
+| `MEMBER` | 使用前台瀏覽、收藏、訂票及管理自己的訂單 |
 
-統計時應明確排除逾期與取消訂單，退款金額應從實際營收中扣除。
+既有 `ADMIN_ITEM_IMPLEMENT` 與 `USER_ITEM_IMPLEMENT` 可在 migration 過渡期間保留，新功能改用細粒度權限。
 
-### 9.4 篩選條件
+### 3.2 權限代碼
 
-- 開始日期與結束日期。
-- 活動編號。
-- 場次編號。
-- 活動分類。
-- 訂單狀態。
-- 統計週期：日、週、月。
+| 權限 | 用途 |
+| --- | --- |
+| `ADMIN_DASHBOARD_READ` | 查看授權範圍內的統計 |
+| `ADMIN_REPORT_EXPORT` | 匯出報表 |
+| `ACTIVITY_READ` | 查看後台活動資料 |
+| `ACTIVITY_CREATE` | 建立活動草稿 |
+| `ACTIVITY_UPDATE` | 編輯活動與場次 |
+| `ACTIVITY_PUBLISH` | 上架、下架或封存活動 |
+| `TICKET_TYPE_MANAGE` | 管理票種、售價與限購 |
+| `ROLE_MANAGE` | 管理角色與權限；限系統管理員 |
+| `AUDIT_LOG_READ` | 查看稽核紀錄 |
+| `CHECKIN_READ`／`CHECKIN_WRITE` | Phase 4 驗票功能使用 |
 
-一般管理員可以查看全部活動；活動主辦方只能查看自己建立或管理的活動。
+### 3.3 雙層授權
 
-### 9.5 建議頁面
+每個後台請求都必須同時通過：
 
-管理後台新增「銷售儀表板」頁面，內容包含：
+1. 功能權限：是否具備對應 permission。
+2. 資料範圍：是否能操作該 `activity_id` 或 `session_id`。
 
-- 總營收、已售票數、剩餘票數及售票率摘要卡片。
-- 銷售趨勢折線圖。
-- 各活動營收長條圖。
-- 訂單狀態比例圖。
-- 活動及場次統計表格。
-- 報表匯出按鈕。
+| 角色 | 資料範圍 |
+| --- | --- |
+| `SYSTEM_ADMIN` | 全部活動與場次 |
+| `ORGANIZER` | `organizer_activity` 中已授權的活動 |
+| `CHECKIN_STAFF` | `staff_session_assignment` 中已指派的場次 |
+| `MEMBER` | 不可使用後台 API |
 
-### 9.6 建議 API
+前端隱藏按鈕不構成安全控制。後端必須從已驗證身分取得操作者，不接受 request body 傳入操作者帳號。
 
-| Method | Path | 說明 |
-| --- | --- | --- |
-| `GET` | `/v1/admin/dashboard/summary` | 查詢銷售摘要 |
-| `GET` | `/v1/admin/dashboard/trend` | 查詢日、週或月銷售趨勢 |
-| `GET` | `/v1/admin/dashboard/activities` | 查詢活動與場次銷售統計 |
-| `GET` | `/v1/admin/dashboard/order-status` | 查詢訂單狀態統計 |
-| `GET` | `/v1/admin/dashboard/export` | 匯出 CSV 或 Excel 報表 |
+## 4. 活動與場次管理
 
-所有查詢 API 應使用明確的 Request DTO 與 Response DTO，不直接以未定義的 `Map<String, Object>` 作為正式介面規格。
+### 4.1 管理狀態
 
-### 9.7 驗收條件
+| 狀態 | 規則 |
+| --- | --- |
+| `DRAFT` | 僅後台可見，可自由編輯 |
+| `PUBLISHED` | 前台可見，關鍵欄位異動受限制 |
+| `UNPUBLISHED` | 前台隱藏，不接受新訂單，既有訂單仍可處理 |
+| `ARCHIVED` | 僅供歷史查詢，不可再次上架 |
 
-- 可依日期區間查詢統計資料。
-- 統計結果與資料庫內有效訂單一致。
-- 取消、逾期及退款不會被計入有效售票數。
-- 活動主辦方無法查看其他主辦方的營收。
-- 匯出資料與畫面上的篩選條件一致。
+售票狀態 `COMING_SOON`、`TICKETS_ARE_ON_SALE`、`SOLD_OUT`、`ENDED` 應依售票時間、活動時間與庫存推導，不由管理員任意指定。
 
-## 10. 完整活動管理
+```text
+DRAFT ──上架──> PUBLISHED ──下架──> UNPUBLISHED
+  │                 │                    │
+  └──封存───────────┴──────封存──────────> ARCHIVED
+                    └──重新上架（符合條件）──> PUBLISHED
+```
 
-### 10.1 功能目標
+### 4.2 上架檢查
 
-擴充目前的活動與場次管理，使管理員或活動主辦方能完成活動建立、編輯、上下架、票種設定、銷售限制及異動追蹤。
+- 名稱、分類、說明、場館及封面完整。
+- 至少一個尚未開始且時間合法的場次。
+- 每個場次至少一個有效票種及正整數庫存。
+- 售票開始早於結束，售票結束不晚於演出時間。
+- 票價、幣別、每人限購及座位設定合法。
 
-### 10.2 活動資料
+### 4.3 上架後修改
 
-建議活動至少包含以下欄位：
+- 名稱、說明與圖片可修改，但必須留下稽核紀錄。
+- 已產生訂單的場次不得直接刪除。
+- 場次時間或場館異動必須記錄原因並建立通知事件。
+- 票種總量不得降低至 `reserved + sold` 以下。
+- 票價異動不得回寫既有訂單；訂單保留成交價格快照。
+
+### 4.4 票種
 
 | 欄位 | 說明 |
 | --- | --- |
-| `id` | 活動編號 |
-| `organizer_id` | 主辦方編號 |
-| `name` | 活動名稱 |
-| `category` | 活動分類 |
-| `venue` | 活動場館 |
-| `description` | 活動說明 |
-| `cover_image_url` | 活動封面圖片 |
-| `status` | 草稿、上架、下架或售完 |
-| `purchase_limit` | 每位會員限購張數 |
-| `published_at` | 上架時間 |
-| `created_date` | 建立時間 |
-| `updated_date` | 更新時間 |
+| `id` | 票種識別碼 |
+| `session_id` | 所屬場次 |
+| `name` | VIP、一般、早鳥等名稱 |
+| `price`／`currency` | 精確金額與幣別 |
+| `quota` | 可售總量 |
+| `sale_starts_at`／`sale_ends_at` | 售票期間 |
+| `purchase_limit` | 每位會員限購數 |
+| `status` | `ACTIVE` 或 `INACTIVE` |
 
-### 10.3 活動狀態
+價格、優惠與限購都由後端查詢及計算，不信任前端提交的結果。
 
-建議管理狀態與售票狀態分開保存：
+## 5. 銷售儀表板
 
-| 管理狀態 | 說明 |
+### 5.1 指標
+
+| 指標 | 定義 |
 | --- | --- |
-| `DRAFT` | 草稿，不顯示於前台 |
-| `PUBLISHED` | 已上架，可顯示於前台 |
-| `UNPUBLISHED` | 已下架，不接受新訂單 |
-| `ARCHIVED` | 已封存，僅供歷史查詢 |
+| 容量 | 場次或票種設定的總可售數 |
+| 有效保留 | 未逾期 `PENDING_PAYMENT` 數量 |
+| 已售 | `PAID` 且尚未退款的票數 |
+| 剩餘 | `capacity - reserved - sold` |
+| 售票率 | `sold / capacity * 100%`；容量為零時為 0 |
+| 銷售總額 | 指定期間內成功付款金額合計 |
+| 退款總額 | 指定期間內成功退款金額合計 |
+| 淨營收 | 銷售總額減退款總額 |
 
-前台顯示的 `COMING_SOON`、`TICKETS_ARE_ON_SALE`、`SOLD_OUT` 與 `ENDED` 仍用於表示實際售票狀態。
+統計時區預設為 `Asia/Taipei`，時間區間採 `[from, to)`，營收歸屬預設採付款日。
 
-### 10.4 多票種與分區定價
+### 5.2 篩選與畫面
 
-每個活動或場次可以設定多個票種，例如：
+篩選條件：日期區間、活動、場次、分類與統計粒度（日／週／月）。
 
-- VIP 票。
-- 一般票。
-- 身心障礙優惠票。
-- 早鳥票。
-- 會員預購票。
+頁面包含摘要卡、銷售與退款趨勢、活動營收排行、訂單狀態分布、可分頁排序的場次表格及 CSV 匯出。
 
-票種資料應包含名稱、價格、數量、銷售起訖時間、適用區域與購買資格。
+統計初期由 PostgreSQL 聚合；確認效能不足後再考慮物化檢視或彙總表，不以 Redis 作為財務報表的唯一資料來源。
 
-### 10.5 優惠碼
+## 6. API 規格
 
-優惠碼建議包含：
+Base path：`/v1/admin`
 
-- 優惠碼文字。
-- 固定金額或百分比折扣。
-- 最低消費金額。
-- 使用起訖時間。
-- 總使用次數與每位會員使用次數。
-- 適用活動、場次或票種。
-- 啟用狀態。
+### 6.1 儀表板與報表
 
-後端必須重新計算優惠結果，不直接信任前端傳入的折扣金額。
+| Method | Path | 權限 | 說明 |
+| --- | --- | --- | --- |
+| `GET` | `/dashboard/summary` | `ADMIN_DASHBOARD_READ` | 銷售摘要 |
+| `GET` | `/dashboard/trends` | `ADMIN_DASHBOARD_READ` | 日／週／月趨勢 |
+| `GET` | `/dashboard/sessions` | `ADMIN_DASHBOARD_READ` | 活動與場次統計 |
+| `GET` | `/reports/sales.csv` | `ADMIN_REPORT_EXPORT` | 匯出銷售 CSV |
 
-### 10.6 圖片管理
+共同 query：`from`、`to`、`activityId`、`sessionId`、`granularity`、`page`、`size`。
 
-- 支援活動封面與介紹圖片上傳。
-- 限制圖片格式、檔案大小與數量。
-- 圖片檔名使用不可重複的識別碼。
-- 刪除活動前確認圖片是否仍被其他資料引用。
-- 正式環境建議使用物件儲存服務保存圖片。
+### 6.2 活動與場次
 
-### 10.7 異動紀錄
+| Method | Path | 權限 | 說明 |
+| --- | --- | --- | --- |
+| `GET`／`POST` | `/activities` | `ACTIVITY_READ`／`ACTIVITY_CREATE` | 查詢活動／建立草稿 |
+| `GET`／`PATCH` | `/activities/{activityId}` | `ACTIVITY_READ`／`ACTIVITY_UPDATE` | 查詢／編輯活動 |
+| `POST` | `/activities/{activityId}/publish` | `ACTIVITY_PUBLISH` | 上架 |
+| `POST` | `/activities/{activityId}/unpublish` | `ACTIVITY_PUBLISH` | 下架 |
+| `POST` | `/activities/{activityId}/archive` | `ACTIVITY_PUBLISH` | 封存 |
+| `POST` | `/activities/{activityId}/sessions` | `ACTIVITY_UPDATE` | 建立場次 |
+| `PATCH` | `/sessions/{sessionId}` | `ACTIVITY_UPDATE` | 編輯場次 |
+| `POST` | `/sessions/{sessionId}/ticket-types` | `TICKET_TYPE_MANAGE` | 建立票種 |
+| `PATCH` | `/ticket-types/{ticketTypeId}` | `TICKET_TYPE_MANAGE` | 編輯票種 |
 
-活動與場次的重要異動應保存：
+### 6.3 權限與稽核
 
-- 操作者帳號。
-- 操作類型。
-- 異動前內容。
-- 異動後內容。
-- 操作時間。
-- 請求追蹤 ID。
+| Method | Path | 權限 | 說明 |
+| --- | --- | --- | --- |
+| `GET` | `/roles` | `ROLE_MANAGE` | 查詢角色與權限 |
+| `PUT` | `/users/{userId}/roles` | `ROLE_MANAGE` | 更新使用者角色 |
+| `PUT` | `/activities/{activityId}/organizers` | `ROLE_MANAGE` | 指派主辦方 |
+| `PUT` | `/sessions/{sessionId}/checkin-staff` | `ROLE_MANAGE` | 指派驗票人員 |
+| `GET` | `/audit-logs` | `AUDIT_LOG_READ` | 查詢稽核紀錄 |
 
-開賣後若異動日期、時間、場館或取消場次，應通知已購票會員。
+### 6.4 API 共通規則
 
-### 10.8 建議 API
+- 列表一律分頁並限制 `size` 上限。
+- 使用明確 DTO 與 Bean Validation。
+- 更新資源使用 `version` 或 ETag；衝突回傳 `409 Conflict`。
+- 找不到資源回傳 `404`；無權限回傳 `403`；無資料範圍時回傳 `404`，避免洩漏資源存在性。
+- 錯誤至少包含 `code`、`message`、`traceId`、`timestamp` 及欄位錯誤。
+- CSV 須設定正確檔名與 Content-Type，並防止 CSV Formula Injection。
 
-| Method | Path | 說明 |
-| --- | --- | --- |
-| `GET` | `/v1/admin/activities` | 查詢可管理的活動 |
-| `GET` | `/v1/admin/activities/{activityId}` | 查詢活動詳細資料 |
-| `POST` | `/v1/admin/activities` | 建立活動草稿 |
-| `PUT` | `/v1/admin/activities/{activityId}` | 編輯活動 |
-| `PUT` | `/v1/admin/activities/{activityId}/status` | 變更活動管理狀態 |
-| `POST` | `/v1/admin/activities/{activityId}/sessions` | 建立場次 |
-| `POST` | `/v1/admin/activities/{activityId}/ticket-types` | 建立票種 |
-| `POST` | `/v1/admin/activities/{activityId}/images` | 上傳活動圖片 |
-| `GET` | `/v1/admin/activities/{activityId}/history` | 查詢活動異動紀錄 |
-
-實作時可依目前專案既有 API 命名方式調整路徑與方法名稱。
-
-### 10.9 驗收條件
-
-- 草稿活動不會出現在前台活動列表。
-- 未設定必要資料或有效場次時不能上架。
-- 下架活動不能建立新訂單，但既有訂單仍可查詢。
-- 每位會員的購票數量不能超過活動或票種限制。
-- 票價與優惠金額均由後端驗證及計算。
-- 活動與場次異動均可追查操作者及異動內容。
-
-## 11. 角色與權限管理
-
-### 11.1 功能目標
-
-將目前管理員與一般會員權限拆分為更細緻的角色，限制不同使用者能存取的後台功能及資料範圍。
-
-### 11.2 角色定義
-
-| 角色 | 可使用功能 |
-| --- | --- |
-| 系統管理員 | 管理全部活動、會員、角色、權限、報表及系統設定 |
-| 活動主辦方 | 管理自己的活動、場次、票種及銷售報表 |
-| 驗票人員 | 查詢指定活動票券並執行驗票 |
-| 一般會員 | 瀏覽活動、收藏、訂票、付款及管理個人訂單 |
-
-### 11.3 建議權限代碼
-
-| 權限代碼 | 說明 |
-| --- | --- |
-| `ADMIN_ITEM_IMPLEMENT` | 系統管理功能 |
-| `ORGANIZER_ACTIVITY_READ` | 查詢主辦方活動 |
-| `ORGANIZER_ACTIVITY_WRITE` | 建立及編輯主辦方活動 |
-| `ORGANIZER_REPORT_READ` | 查詢主辦方銷售報表 |
-| `CHECKIN_TICKET_READ` | 查詢驗票資料 |
-| `CHECKIN_TICKET_WRITE` | 執行驗票 |
-| `USER_ITEM_IMPLEMENT` | 一般會員功能 |
-
-角色與權限建議採多對多關聯，避免將所有權限直接寫死於單一角色欄位。
-
-### 11.4 資料範圍限制
-
-只有檢查角色仍不足以保護主辦方資料。每次查詢或異動活動時，後端還必須確認：
-
-- 系統管理員可以操作全部活動。
-- 活動主辦方只能操作 `organizer_id` 屬於自己的活動。
-- 驗票人員只能操作被指派的活動或場次。
-- 一般會員只能操作自己的收藏、訂單與個人資料。
-
-資料範圍檢查必須由後端執行，不能只依靠前端隱藏按鈕。
-
-### 11.5 稽核紀錄
-
-以下操作應寫入稽核紀錄：
-
-- 建立、編輯、上下架及刪除活動。
-- 建立、編輯及取消場次。
-- 調整票價、庫存及限購數量。
-- 變更使用者角色與權限。
-- 執行驗票或撤銷驗票。
-- 匯出會員、訂單或營收報表。
-
-稽核紀錄原則上不可由一般後台使用者修改或刪除。
-
-### 11.6 建議資料表
+## 7. 資料模型
 
 | 資料表 | 用途 |
 | --- | --- |
-| `role` | 保存角色資料 |
-| `permissions` | 保存權限代碼 |
-| `role_permission` | 保存角色與權限關聯 |
-| `user_role` | 保存會員與角色關聯 |
-| `organizer_activity` | 保存主辦方與活動關聯 |
-| `staff_session_assignment` | 保存驗票人員與場次指派 |
-| `audit_log` | 保存後台重要操作紀錄 |
+| `role`、`permission` | 角色與權限定義 |
+| `role_permission`、`user_role` | RBAC 關聯 |
+| `organizer_activity` | 主辦方活動範圍 |
+| `staff_session_assignment` | 驗票人員場次範圍 |
+| `ticket_type` | 場次票種、價格、額度、期間與限購 |
+| `activity_image` | 圖片 URL、排序與用途 |
+| `audit_log` | 操作者、動作、資源、前後值、trace ID 與時間 |
 
-### 11.7 驗收條件
+`activity` 增加 `management_status`、`version`、`published_at`；`session` 與 `ticket_type` 也增加 `version`。時間使用 `timestamptz`，金額使用 `numeric(12,2)` 並保存幣別。
 
-- 未登入使用者不能存取管理後台 API。
-- 一般會員不能存取管理員、主辦方或驗票功能。
-- 主辦方不能讀取或修改其他主辦方的活動。
-- 驗票人員不能修改活動與票價。
-- 權限異動後，新簽發的 JWT 應反映最新權限。
-- 重要後台操作可由稽核紀錄追查。
+建議索引：`ticket(session_id, status, paid_at)`、`ticket(created_date, status)`、`session(activity_id, date)`、`organizer_activity(user_id, activity_id)`、`audit_log(resource_type, resource_id, created_at)`。
 
-## 非功能需求
+## 8. 稽核與安全
 
-- 所有後台 API 必須驗證 JWT 與權限。
-- 統計查詢應建立適當索引，避免大量訂單造成全表掃描。
-- 報表匯出應限制日期範圍與資料筆數。
-- 金額運算應使用精確數值型別，不使用浮點數。
-- 關鍵資料異動應使用資料庫交易。
-- API 錯誤應使用統一的錯誤代碼與回傳格式。
-- 個人資料與營收報表不得記錄於一般應用程式日誌。
+活動生命週期、場次異動、票價／庫存／限購調整、角色指派與報表匯出都必須寫入稽核紀錄。
 
-## 建議實作順序
+紀錄至少包含操作者 ID、動作、資源、結果、異動前後摘要、IP、trace ID 與時間。密碼、Token、付款資料及完整個資不得寫入紀錄。業務異動與稽核紀錄應在同一交易內；通知可使用 transactional outbox 在提交後送出。
 
-1. 建立角色、權限及資料範圍規則。
-2. 建立活動管理狀態與主辦方關聯。
-3. 完成活動、場次、票種及限購管理。
-4. 建立活動與場次異動紀錄。
-5. 建立銷售統計查詢與儀表板。
-6. 完成 CSV 或 Excel 報表匯出。
-7. 補上權限、資料範圍及統計結果測試。
+## 9. 非功能需求
 
-## 完成條件
+- 儀表板一般查詢在代表性資料量下 P95 小於 500 ms。
+- CSV 限制日期範圍及最大筆數；大量匯出改為非同步工作。
+- 所有後台 API 具備輸入驗證、權限及資料範圍測試。
+- 金額不使用 `float` 或 `double`。
+- 圖片限制 MIME type 與大小；正式環境使用物件儲存。
+- 個資依最小揭露原則回傳，列表預設遮罩敏感資訊。
 
-第三階段完成時，系統應能讓不同角色在限定的資料範圍內管理活動，並能正確查看及匯出銷售統計；所有重要管理操作均有權限檢查與稽核紀錄。
+## 10. 驗收測試
+
+| 情境 | 預期結果 |
+| --- | --- |
+| 未登入呼叫後台 API | `401 Unauthorized` |
+| `MEMBER` 呼叫後台 API | `403 Forbidden` |
+| 主辦方讀取自己的活動 | 成功 |
+| 主辦方猜測他人活動 ID | `404 Not Found` |
+| 不完整草稿上架 | `422 Unprocessable Entity` |
+| 兩位管理員同時修改同一活動 | 一方成功，另一方 `409 Conflict` |
+| 票種額度降至已售數以下 | 拒絕且資料不變 |
+| 退款訂單進入報表 | 銷售與退款分列，淨營收正確 |
+| 匯出欄位含公式字首 | 內容已安全轉義 |
+| 權限或價格異動 | 可由稽核紀錄追查 |
+
+## 11. 實作里程碑
+
+1. Milestone A：建立 RBAC、主辦方／工作人員指派及資料隔離測試。
+2. Milestone B：建立活動生命週期、上架檢查、樂觀鎖、票種及稽核事件。
+3. Milestone C：完成統計 SQL、儀表板、CSV 匯出及效能測試。
+
+## 12. Phase 3 完成定義
+
+- 不同角色只能使用被授權功能，且只能操作授權資料。
+- 活動依合法狀態流程建立、上架、下架及封存。
+- 後台修改不會破壞既有訂單或庫存一致性。
+- 儀表板及匯出結果與相同條件下的資料庫結果一致。
+- 重要異動皆有不可由一般後台使用者修改的稽核紀錄。
+- 權限、資料隔離、樂觀鎖、統計及匯出皆有自動化測試。
