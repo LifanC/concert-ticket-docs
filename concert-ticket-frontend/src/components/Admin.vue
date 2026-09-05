@@ -272,7 +272,7 @@ const statusType = (status) => (
     'ENDED': 'info',
     'PENDING_PAYMENT': 'success',
     'PAID': 'success',
-    'CANCELLED': 'info',
+    'CANCELLED': 'error',
     'EXPIRED': 'warning',
     'REFUNDED': 'info',
   }[status] || 'info'
@@ -439,7 +439,6 @@ const statusType = (status) => (
             </template>
             <el-table :data="orders" stripe style="width: 100%" empty-text="找不到訂單">
               <el-table-column prop="orderno" label="訂單編號" min-width="150" />
-              <el-table-column prop="customer" label="會員" width="110" />
               <el-table-column prop="name" label="活動" min-width="180" />
               <el-table-column label="金額" width="120">
                 <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>

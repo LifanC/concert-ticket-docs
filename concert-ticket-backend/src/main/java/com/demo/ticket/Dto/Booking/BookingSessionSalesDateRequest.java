@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Booking;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -12,7 +11,6 @@ import jakarta.validation.constraints.*;
                 "status",
                 "date",
                 "time",
-                "token",
         }
 )
 @Schema(description = "售賣日期")
@@ -82,8 +80,6 @@ public class BookingSessionSalesDateRequest {
     )
     private String time;
 
-    private String token;
-
     public String getSession_id() {
         return session_id;
     }
@@ -104,13 +100,6 @@ public class BookingSessionSalesDateRequest {
         return time;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }
 
 

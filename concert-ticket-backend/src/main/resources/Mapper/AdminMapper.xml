@@ -9,10 +9,15 @@
             activity.category,
             activity.venue,
             activity.price,
-            activity.description
+            activity.description,
+            seat.id as seat_id,
+            split_part(seat.id, '-', 1) AS "column",
+            split_part(seat.id, '-', 2) AS "row"
         from
             "interviewworks_ticket"."activity" activity
-        order by id
+                LEFT JOIN "interviewworks_ticket".seat seat
+                          ON activity.id = seat.activity_id
+        order by activity.id
     </select>
 
     <select id="selectAllSessions" resultType="java.util.Map">
@@ -38,7 +43,6 @@
     <select id="selectAllticket" resultType="java.util.Map">
         select
             ticket.orderno,
-            ticket.customer,
             ticket."name",
             ticket."time",
             ticket."date",

@@ -1,14 +1,10 @@
 package com.demo.ticket.Service;
 
-import com.demo.ticket.Common.RedisKey;
+import com.demo.ticket.Dto.Activity.ActivityFavorite;
 import com.demo.ticket.Dto.Activity.ActivityFavoriteRequest;
-import com.demo.ticket.Dto.Activity.ActivityRequest;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Mapper.ActivityMapper;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.demo.ticket.security.LoginUser;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,20 +20,15 @@ import java.util.Map;
 @Service
 public class ActivityServiceImpl implements ActivityService {
 
-    private final Logger logger = LoggerFactory.getLogger(ActivityServiceImpl.class);
-
     private final ActivityMapper activityMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final JwtTokenService jwtTokenService;
 
     public ActivityServiceImpl(
             ActivityMapper activityMapper,
-            StringRedisTemplate stringRedisTemplate,
-            JwtTokenService jwtTokenService
+            StringRedisTemplate stringRedisTemplate
     ) {
         this.activityMapper = activityMapper;
         this.stringRedisTemplate = stringRedisTemplate;
-        this.jwtTokenService = jwtTokenService;
     }
 
     @Override
@@ -46,28 +37,12 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
-    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
-    public List<Map<String, Object>> selectOnlyFavoriteActivities(ActivityRequest request) {
-        final String accessToken = request.getToken().trim();
+    public List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user) {
         List<Map<String, Object>> data = new ArrayList<>();
-        try {
-            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
-            String accessJwt = accessClaims.getSubject();
-            String accessJtId = accessClaims.getId();
-            final String accessRedisKey = String.format(
-                    RedisKey.redisKey.get("access"),
-                    accessJtId,
-                    accessJwt
-            );
-            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
-            if (Boolean.FALSE.equals(accessExists)) {
-                logger.error("{} : (收藏活動資料) Token 已過期", accessJwt);
-            } else {
-                data = activityMapper.selectOnlyFavoriteActivities(accessJwt);
-            }
-        } catch (JwtException e) {
-            logger.error("(收藏活動資料)無效的 JWT token");
-            throw new JwtException("無效的 JWT token", e);
+        if (user != null && Boolean.TRUE.equals(user.accessExists())) {
+            ActivityFavorite activityFavorite =  new ActivityFavorite();
+            activityFavorite.setEmail(user.email());
+            data = activityMapper.selectOnlyFavoriteActivities(activityFavorite);
         }
         return data;
     }
@@ -75,46 +50,31 @@ public class ActivityServiceImpl implements ActivityService {
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
-    public ResponseEntity<?> saveFavoriteActivity(ActivityFavoriteRequest request) {
-        return changeFavoriteActivity(request, true);
+    public ResponseEntity<?> saveFavoriteActivity(ActivityFavoriteRequest request, LoginUser user) {
+        return changeFavoriteActivity(request, user, true);
     }
 
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
-    public ResponseEntity<?> deleteFavoriteActivity(ActivityFavoriteRequest request) {
-        return changeFavoriteActivity(request, false);
+    public ResponseEntity<?> deleteFavoriteActivity(ActivityFavoriteRequest request, LoginUser user) {
+        return changeFavoriteActivity(request, user, false);
     }
 
-    private ResponseEntity<?> changeFavoriteActivity(ActivityFavoriteRequest request, boolean save) {
+    private ResponseEntity<?> changeFavoriteActivity(ActivityFavoriteRequest request, LoginUser user, boolean save) {
         final String activity_id = request.getActivity_id().trim();
-        final String accessToken = request.getToken().trim();
+        final String session_id = request.getSession_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new HashMap<>();
-        dataMap.put("judge", false);
-        try {
-            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
-            String accessJwt = accessClaims.getSubject();
-            String accessJtId = accessClaims.getId();
-            final String accessRedisKey = String.format(
-                    RedisKey.redisKey.get("access"),
-                    accessJtId,
-                    accessJwt
-            );
-            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
-            if (Boolean.FALSE.equals(accessExists)) {
-                logger.error("{} : (收藏活動) Token 已過期", accessJwt);
-            } else {
-                int cnt = save
-                        ? activityMapper.saveFavoriteActivity(accessJwt, activity_id)
-                        : activityMapper.deleteFavoriteActivity(accessJwt, activity_id);
-                dataMap.put("judge", cnt > 0);
-                data.add(dataMap);
-            }
-        } catch (JwtException e) {
-            logger.error("(收藏活動)無效的 JWT token");
-            throw new JwtException("無效的 JWT token", e);
-        }
+        ActivityFavorite activityFavorite =  new ActivityFavorite();
+        activityFavorite.setEmail(user.email());
+        activityFavorite.setActivity_id(activity_id);
+        activityFavorite.setSession_id(session_id);
+        int cnt = save
+                ? activityMapper.saveFavoriteActivity(activityFavorite)
+                : activityMapper.deleteFavoriteActivity(activityFavorite);
+        dataMap.put("judge", cnt > 0);
+        data.add(dataMap);
         HttpStatus status = save ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity
                 .status(status)

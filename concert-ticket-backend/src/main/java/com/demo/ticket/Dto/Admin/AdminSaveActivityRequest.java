@@ -2,7 +2,6 @@ package com.demo.ticket.Dto.Admin;
 
 import java.math.BigDecimal;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -17,7 +16,6 @@ import jakarta.validation.constraints.*;
                 "description",
                 "column",
                 "row",
-                "token",
         }
 )
 @Schema(description = "增加、修改活動")
@@ -117,8 +115,6 @@ public class AdminSaveActivityRequest {
     @Max(value = 10, message = "列必須介於 1～10")
     private BigDecimal row;
 
-    private String token;
-
     public String getId() {
         return id;
     }
@@ -151,11 +147,4 @@ public class AdminSaveActivityRequest {
         return row;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }

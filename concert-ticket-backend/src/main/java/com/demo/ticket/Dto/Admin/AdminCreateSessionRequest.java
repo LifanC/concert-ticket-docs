@@ -1,11 +1,8 @@
 package com.demo.ticket.Dto.Admin;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-
-import java.math.BigDecimal;
 
 @JsonPropertyOrder(
         {
@@ -16,7 +13,6 @@ import java.math.BigDecimal;
                 "salesdate",
                 "salestime",
                 "status",
-                "token",
         }
 )
 @Schema(description = "新增場次")
@@ -106,8 +102,6 @@ public class AdminCreateSessionRequest {
     )
     private String status;
 
-    private String token;
-
     public String getId() {
         return id;
     }
@@ -136,11 +130,4 @@ public class AdminCreateSessionRequest {
         return status;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }

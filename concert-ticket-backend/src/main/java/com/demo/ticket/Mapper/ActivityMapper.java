@@ -1,5 +1,6 @@
 package com.demo.ticket.Mapper;
 
+import com.demo.ticket.Dto.Activity.ActivityFavorite;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -10,10 +11,10 @@ public interface ActivityMapper {
 
     List<Map<String, Object>> selectAllActivities();
 
-    List<Map<String, Object>> selectOnlyFavoriteActivities(String user_email);
+    List<Map<String, Object>> selectOnlyFavoriteActivities(ActivityFavorite activityFavorite);
 
-    int saveFavoriteActivity(String user_email, String activity_id);
+    int saveFavoriteActivity(ActivityFavorite activityFavorite);
 
-    int deleteFavoriteActivity(String user_email, String activity_id);
+    int deleteFavoriteActivity(ActivityFavorite activityFavorite);
 
 }

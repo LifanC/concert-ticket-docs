@@ -11,7 +11,7 @@ import java.util.Map;
 @Mapper
 public interface LoginMapper {
 
-    void create(Register register);
+    int create(Register register);
 
     Map<String, Object> select(Login login);
 

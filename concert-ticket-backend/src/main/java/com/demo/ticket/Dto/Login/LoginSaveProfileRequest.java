@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Login;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -11,10 +10,8 @@ import jakarta.validation.constraints.Size;
 @JsonPropertyOrder(
         {
                 "name",
-                "email",
                 "phone",
                 "birthday",
-                "token",
         }
 )
 @Schema(description = "修改會員資料")
@@ -34,17 +31,6 @@ public class LoginSaveProfileRequest {
             message = "姓名格式錯誤"
     )
     private String name;
-
-    @Schema(
-            description = "電子信箱",
-            example = "wang@example.com",
-            maxLength = 100,
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "電子信箱不可為空")
-    @Email(message = "電子信箱格式錯誤")
-    @Size(max = 100, message = "電子信箱不可超過 100 字")
-    private String email;
 
     @Schema(
             description = "使用者手機號碼不可為空",
@@ -71,16 +57,8 @@ public class LoginSaveProfileRequest {
     )
     private String birthday;
 
-    private String token;
-
-    private String refreshToken;
-
     public String getName() {
         return name;
-    }
-
-    public String getEmail() {
-        return email;
     }
 
     public String getPhone() {
@@ -91,19 +69,4 @@ public class LoginSaveProfileRequest {
         return birthday;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
-
-    public String getRefreshToken() {
-        return refreshToken;
-    }
-
-    public void setRefreshToken(String refreshToken) {
-        this.refreshToken = refreshToken;
-    }
 }

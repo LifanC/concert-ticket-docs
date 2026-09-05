@@ -96,23 +96,34 @@ FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.session (
-                                              id varchar NOT NULL,
-                                              activity_id varchar NOT NULL,
-                                              "date" varchar NOT NULL,
-                                              "time" varchar NOT NULL,
-                                              salesdate varchar NOT NULL,
-                                              salestime varchar NOT NULL,
-                                              capacity int8 NOT NULL DEFAULT 0,
-                                              reserved int8 NOT NULL DEFAULT 0,
-                                              sold int8 NOT NULL DEFAULT 0,
-											  status varchar NOT NULL,
-                                              created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              CONSTRAINT sessions_pk PRIMARY KEY (id),
-											  CONSTRAINT sessions_fk FOREIGN KEY (activity_id) REFERENCES interviewworks_ticket.activity(id),
-                                              CONSTRAINT session_status_check CHECK (
-                                                status IN ('COMING_SOON', 'TICKETS_ARE_ON_SALE', 'SOLD_OUT', 'ENDED')
-                                              )
+    id varchar NOT NULL,
+    activity_id varchar NOT NULL,
+    "date" varchar NOT NULL,
+    "time" varchar NOT NULL,
+    salesdate varchar NOT NULL,
+    salestime varchar NOT NULL,
+    capacity int8 NOT NULL DEFAULT 0,
+    reserved int8 NOT NULL DEFAULT 0,
+    sold int8 NOT NULL DEFAULT 0,
+    status varchar NOT NULL,
+    created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sessions_pk
+        PRIMARY KEY (id),
+    CONSTRAINT sessions_activity_fk
+        FOREIGN KEY (activity_id)
+        REFERENCES interviewworks_ticket.activity(id),
+    CONSTRAINT sessions_activity_id_id_uk
+        UNIQUE (activity_id, id),
+    CONSTRAINT session_status_check
+        CHECK (
+            status IN (
+                'COMING_SOON',
+                'TICKETS_ARE_ON_SALE',
+                'SOLD_OUT',
+                'ENDED'
+            )
+        )
 );
 
 CREATE TRIGGER trigger_session_updated_date
@@ -124,22 +135,32 @@ EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_favorite (
     user_email varchar NOT NULL,
     activity_id varchar NOT NULL,
+    session_id varchar NOT NULL,
     created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT activity_favorite_pk PRIMARY KEY (user_email, activity_id),
-    CONSTRAINT activity_favorite_user_fk FOREIGN KEY (user_email)
-        REFERENCES interviewworks_ticket.user_data(email) ON DELETE CASCADE,
-    CONSTRAINT activity_favorite_activity_fk FOREIGN KEY (activity_id)
-        REFERENCES interviewworks_ticket.activity(id) ON DELETE CASCADE
-);
 
-CREATE INDEX IF NOT EXISTS activity_favorite_activity_id_idx
-ON interviewworks_ticket.activity_favorite(activity_id);
+    CONSTRAINT activity_favorite_pk
+        PRIMARY KEY (user_email, activity_id, session_id),
+
+    CONSTRAINT activity_favorite_user_fk
+        FOREIGN KEY (user_email)
+        REFERENCES interviewworks_ticket.user_data(email)
+        ON DELETE CASCADE,
+
+    CONSTRAINT activity_favorite_activity_fk
+        FOREIGN KEY (activity_id)
+        REFERENCES interviewworks_ticket.activity(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT activity_favorite_session_fk
+        FOREIGN KEY (activity_id, session_id)
+        REFERENCES interviewworks_ticket.session(activity_id, id)
+        ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                                               orderno varchar NOT NULL UNIQUE,
 											  session_id varchar NOT NULL,
-                                              customer varchar NOT NULL,
                                               email varchar NOT NULL,
                                               "name" varchar NOT NULL,
                                               "date" varchar NOT NULL,
@@ -181,6 +202,12 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_sequence
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_sequence
 (
     session_date DATE PRIMARY KEY,
+    current_no INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket_sequence
+(
+    order_date DATE PRIMARY KEY,
     current_no INTEGER NOT NULL
 );
 

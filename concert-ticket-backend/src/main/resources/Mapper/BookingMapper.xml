@@ -5,6 +5,7 @@
     <select id="selectOnlyActivities" resultType="java.util.Map">
         select distinct
             activity.id,
+            "session".id,
             '主舞台・' || activity."name" as note,
             TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "value",
             TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'FMMM"月"FMDD"日"')
@@ -22,6 +23,7 @@
                  INNER JOIN "interviewworks_ticket"."session" "session"
                             ON activity.id = "session".activity_id
         where activity.id = #{activity_id}
+          and "session".id = #{session_id}
         ORDER BY activity.id
     </select>
 
@@ -50,17 +52,17 @@
             ticket."name",
             ticket."date",
             ticket."time",
-            CASE
-                WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
-			    WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
-			    ELSE '星空場'
-            END AS timename,
+        CASE
+            WHEN ticket."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
+            WHEN ticket."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
+            ELSE '星空場'
+        END AS timename,
             ticket.status,
             ticket.seat
         FROM "interviewworks_ticket".ticket ticket
 		         INNER JOIN "interviewworks_ticket"."session" "session"
 		            ON ticket.session_id = "session".id
-        WHERE ticket.customer = #{customer}
+        WHERE ticket.email = #{email}
         ORDER BY ticket.orderno desc
     </select>
 
@@ -77,7 +79,7 @@
         set
             reserved = reserved + 1
         where "session".id = #{session_id}
-          and "session".reserved >= 1
+          and "session".reserved >= 0
     </update>
 
     <select id="selectOnlySessionId" resultType="java.util.Map">
@@ -116,7 +118,6 @@
        (
            orderno,
            session_id,
-           customer,
            email,
            "name",
            "date",
@@ -132,7 +133,6 @@
         SELECT
             next_order.orderno,
             #{session_id},
-            #{customer},
             #{email},
             #{name},
             #{date},
@@ -153,7 +153,7 @@
         set
             reserved = reserved - 1
         where "session".id = #{session_id}
-          and "session".reserved >= 1
+          and "session".reserved >= 0
     </update>
 
     <update id="cancelTicket">
@@ -163,7 +163,6 @@
             quantity = 0,
             cancelled_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
-          and customer = #{customer}
           and status in ('PENDING_PAYMENT')
           and expires_at > CURRENT_TIMESTAMP
     </update>
@@ -190,7 +189,7 @@
             reserved = reserved - 1,
             sold = sold + 1
         where "session".id = #{session_id}
-          and "session".reserved >= 1
+          and "session".reserved >= 0
     </update>
 
     <update id="dopaypriceTicket">
@@ -201,7 +200,6 @@
             paid_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
           and session_id = #{session_id}
-          and customer = #{customer}
           and "date" = #{date}
           and "time" = #{time}
           and status in ('PENDING_PAYMENT')
@@ -221,7 +219,6 @@
             cancelled_at = #{cancelled_at}
         where orderno = #{orderno}
           and session_id = #{session_id}
-          and customer = #{customer}
           and "date" = #{date}
           and "time" = #{time}
           and status in ('PENDING_PAYMENT')

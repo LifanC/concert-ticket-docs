@@ -138,9 +138,9 @@ public class BookingPaymentScheduler {
             BookingSaveTicket bookingSaveTicket
     ) {
 
-        String status =
-                bookingMapper.selectTicketStatus(bookingSaveTicket);
+        String status = bookingMapper.selectTicketStatus(bookingSaveTicket);
 
+        // 已經付款、取消、過期，就不要通知
         if (!"PENDING_PAYMENT".equals(status)) {
             return;
         }
@@ -174,16 +174,13 @@ public class BookingPaymentScheduler {
      * 付款成功 / 訂單取消時
      * 同時取消提醒 + 到期任務
      */
-    public boolean cancelExpiration(String orderno) {
-
-        boolean cancelled = false;
+    public void cancelExpiration(String orderno) {
 
         // 取消即將到期提醒
         ScheduledFuture<?> reminderFuture =reminderTasks.remove(orderno);
 
         if (reminderFuture != null) {
             reminderFuture.cancel(false);
-            cancelled = true;
         }
 
         // 取消正式到期
@@ -191,9 +188,7 @@ public class BookingPaymentScheduler {
 
         if (expirationFuture != null) {
             expirationFuture.cancel(false);
-            cancelled = true;
         }
 
-        return cancelled;
     }
 }

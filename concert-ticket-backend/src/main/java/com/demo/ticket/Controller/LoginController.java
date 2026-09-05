@@ -2,11 +2,12 @@ package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Login.*;
 import com.demo.ticket.Service.LoginService;
+import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +20,8 @@ public class LoginController {
     private final LoginService loginService;
 
     public LoginController(
-            LoginService loginService){
+            LoginService loginService
+    ){
         this.loginService = loginService;
     }
 
@@ -44,12 +46,9 @@ public class LoginController {
     @Operation(summary = "3.驗證", description = "驗證Token")
     @PostMapping("/validate")
     public ResponseEntity<?> validate(
-            @Valid
-            @RequestBody
-            LoginTokenValidateRequest request,
-            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        request.setRefreshToken(refreshToken);
-        return loginService.validate(request);
+            @CookieValue(name = "refreshToken", required = false)
+            String refreshToken) {
+        return loginService.validate(refreshToken);
     }
 
     @Operation(summary = "4.修改會員資料", description = "修改會員資料")
@@ -58,26 +57,17 @@ public class LoginController {
             @Valid
             @RequestBody
             LoginSaveProfileRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader,
-            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        request.setAuthHeader(authHeader);
-        request.setRefreshToken(refreshToken);
-        return loginService.saveProfile(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return loginService.saveProfile(request, user);
     }
 
     @Operation(summary = "5.登出", description = "登出")
     @PostMapping("/logout")
     public ResponseEntity<?> logout(
-            @Valid
-            @RequestBody
-            LoginLogoutRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader,
-            @CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        request.setAuthHeader(authHeader);
-        request.setRefreshToken(refreshToken);
-        return loginService.logout(request);
+            @AuthenticationPrincipal LoginUser user,
+            @CookieValue(name = "refreshToken", required = false)
+            String refreshToken) {
+        return loginService.logout(user, refreshToken);
     }
 
 }

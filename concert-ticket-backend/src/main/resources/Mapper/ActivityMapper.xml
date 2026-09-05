@@ -39,26 +39,29 @@
             "interviewworks_ticket"."activity" activity
                 INNER JOIN "interviewworks_ticket"."session" "session"
                            ON activity.id = "session".activity_id
+                LEFT JOIN "interviewworks_ticket".seat seat
+                          ON activity.id = seat.activity_id
         ORDER BY activity.id
     </select>
 
     <select id="selectOnlyFavoriteActivities" resultType="java.util.Map">
-        SELECT activity_id
+        SELECT activity_id, session_id
         FROM interviewworks_ticket.activity_favorite
-        WHERE user_email = #{user_email}
+        WHERE user_email = #{email}
         ORDER BY created_date DESC
     </select>
 
     <insert id="saveFavoriteActivity">
-        INSERT INTO interviewworks_ticket.activity_favorite (user_email, activity_id)
-        VALUES (#{user_email}, #{activity_id})
-        ON CONFLICT (user_email, activity_id) DO NOTHING
+        INSERT INTO interviewworks_ticket.activity_favorite (user_email, activity_id, session_id)
+        VALUES (#{email}, #{activity_id}, #{session_id})
+        ON CONFLICT (user_email, activity_id, session_id) DO NOTHING
     </insert>
 
     <delete id="deleteFavoriteActivity">
         DELETE FROM interviewworks_ticket.activity_favorite
-        WHERE user_email = #{user_email}
+        WHERE user_email = #{email}
           AND activity_id = #{activity_id}
+          AND session_id = #{session_id}
     </delete>
 
 </mapper>

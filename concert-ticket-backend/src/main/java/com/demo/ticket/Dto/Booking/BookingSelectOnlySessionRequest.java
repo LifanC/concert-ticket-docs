@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Booking;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
@@ -11,7 +10,6 @@ import jakarta.validation.constraints.Size;
         {
                 "date",
                 "activity_id",
-                "token",
         }
 )
 @Schema(description = "單一場次資料")
@@ -43,8 +41,6 @@ public class BookingSelectOnlySessionRequest {
     )
     private String activity_id;
 
-    private String token;
-
     public String getDate() {
         return date;
     }
@@ -61,13 +57,6 @@ public class BookingSelectOnlySessionRequest {
         this.activity_id = activity_id;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }
 
 

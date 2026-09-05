@@ -15,15 +15,18 @@ const showFavoritesOnly = ref(false)
 
 executeFirst()
 async function executeFirst() {
-  // selectAllActivities活動管理
-  const response = await activityApi({
-    method: 'get',
-    url: '/selectAllActivities',
-  });
+  const response = await activityApi.get('/selectAllActivities')
   activities.value = response.data
   if (toFindCookie('accessToken')) {
-    const favoriteResponse = await activityApi.get('/selectOnlyFavoriteActivities')
-    favoriteActivityIds.value = new Set(favoriteResponse.data.map(item => item.activity_id))
+    const favoriteResponse = await activityApi.get(
+      '/selectOnlyFavoriteActivities'
+    )
+
+    favoriteActivityIds.value = new Set(
+      favoriteResponse.data.map(item =>
+        `${item.activity_id}_${item.session_id}`
+      )
+    )
   }
 }
 
@@ -68,26 +71,45 @@ const resetFilters = () => {
 }
 const toggleFavorite = async (activity) => {
   if (!toFindCookie('accessToken')) {
-    ElMessage({ type: 'info', message: '請先登入後再收藏活動' })
-    await router.push({ name: 'User', query: { redirect: router.currentRoute.value.fullPath } })
+    ElMessage({
+      type: 'info',
+      message: '請先登入後再收藏活動'
+    })
+    await router.push({
+      name: 'User',
+      query: {
+        redirect: router.currentRoute.value.fullPath
+      }
+    })
     return
   }
 
+  const favoriteKey = getFavoriteKey(activity)
   const next = new Set(favoriteActivityIds.value)
-  if (next.has(activity.id)) {
+  if (next.has(favoriteKey)) {
     await activityApi.delete('/deleteFavoriteActivity', {
-      data: { activity_id: activity.id }
+      data: {
+        activity_id: activity.id,
+        session_id: activity.sessionid
+      }
     })
-    next.delete(activity.id)
+    next.delete(favoriteKey)
     ElMessage({ type: 'success', message: '已取消收藏' })
   } else {
     await activityApi.post('/saveFavoriteActivity', {
-      activity_id: activity.id
+      activity_id: activity.id,
+      session_id: activity.sessionid
     })
-    next.add(activity.id)
+    next.add(favoriteKey)
     ElMessage({ type: 'success', message: '已加入收藏' })
   }
   favoriteActivityIds.value = next
+}
+const getFavoriteKey = (activity) => {
+  return `${activity.id}_${activity.sessionid}`
+}
+const isFavorite = (activity) => {
+  return favoriteActivityIds.value.has(getFavoriteKey(activity))
 }
 const openDetail = (activity) => {
   currentActivity.value = activity
@@ -200,12 +222,12 @@ const statusType = (status) => (
           </el-table-column>
           <el-table-column label="操作" width="210" fixed="right">
             <template #default="scope">
-              <el-button
-                plain
-                :type="favoriteActivityIds.has(scope.row.id) ? 'warning' : 'default'"
-                @click="toggleFavorite(scope.row)"
-              >{{ favoriteActivityIds.has(scope.row.id) ? '已收藏' : '收藏' }}</el-button>
-              <el-button plain type="primary" @click="openDetail(scope.row)">查看詳情</el-button>
+              <el-button plain :type="isFavorite(scope.row) ? 'warning' : 'default'" @click="toggleFavorite(scope.row)">
+                {{ isFavorite(scope.row) ? '已收藏' : '收藏' }}
+              </el-button>
+              <el-button plain type="primary" @click="openDetail(scope.row)">
+                查看詳情
+              </el-button>
             </template>
           </el-table-column>
         </el-table>

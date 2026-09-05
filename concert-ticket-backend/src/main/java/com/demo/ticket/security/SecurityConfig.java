@@ -51,10 +51,10 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(
                                 "/v1/login/**",
-                                "/v1/activity/selectAllActivities"
+                                "/v1/activity/selectAllActivities",
+                                "/v1/activity/selectOnlyFavoriteActivities"
                         ).permitAll()
                         .requestMatchers(
-                                "/v1/activity/selectOnlyFavoriteActivities",
                                 "/v1/activity/saveFavoriteActivity",
                                 "/v1/activity/deleteFavoriteActivity"
                         )

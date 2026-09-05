@@ -62,16 +62,13 @@ public class RegisterRequest {
     private String email;
 
     @Schema(
-            description = "使用者手機號碼不可為空",
+            description = "使用者手機號碼，可不填；填寫時需為 10 個數字",
             example = "0912345678",
-            minLength = 6,
-            maxLength = 20,
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
-    @Size(min = 6, max = 20, message = "手機號碼長度需介於 6~20 字")
     @Pattern(
-            regexp = "^[0-9+\\-() ]+$",
-            message = "手機號碼包含不允許的字元"
+            regexp = "^$|^\\d{10}$",
+            message = "手機號碼需為 10 個數字"
     )
     private String phone;
 

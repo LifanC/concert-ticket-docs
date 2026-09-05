@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Booking;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -10,7 +9,6 @@ import jakarta.validation.constraints.Size;
 @JsonPropertyOrder(
         {
                 "activity_id",
-                "token",
         }
 )
 @Schema(description = "單一場次金額")
@@ -31,8 +29,6 @@ public class BookingSelectOnlyActivitiesPriceRequest {
     )
     private String activity_id;
 
-    private String token;
-
     public String getActivity_id() {
         return activity_id;
     }
@@ -41,13 +37,6 @@ public class BookingSelectOnlyActivitiesPriceRequest {
         this.activity_id = activity_id;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }
 
 

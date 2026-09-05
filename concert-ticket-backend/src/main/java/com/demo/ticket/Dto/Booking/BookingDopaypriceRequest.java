@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Booking;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +16,6 @@ import jakarta.validation.constraints.Size;
                 "time",
                 "salesdate",
                 "salestime",
-                "token",
         }
 )
 @Schema(description = "付款")
@@ -102,8 +100,6 @@ public class BookingDopaypriceRequest {
     )
     private String time;
 
-    private String token;
-
     public String getOrderno() {
         return orderno;
     }
@@ -128,11 +124,4 @@ public class BookingDopaypriceRequest {
         return time;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }

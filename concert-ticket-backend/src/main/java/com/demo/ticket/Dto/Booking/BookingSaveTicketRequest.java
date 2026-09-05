@@ -1,6 +1,5 @@
 package com.demo.ticket.Dto.Booking;
 
-import com.demo.ticket.Common.ConvertFormat;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
@@ -17,7 +16,6 @@ import java.math.BigDecimal;
                 "status",
                 "seat",
                 "total",
-                "token",
         }
 )
 @Schema(description = "新增訂單")
@@ -127,8 +125,6 @@ public class BookingSaveTicketRequest {
     @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
     private BigDecimal price;
 
-    private String token;
-
     public String getSession_id() {
         return session_id;
     }
@@ -161,13 +157,6 @@ public class BookingSaveTicketRequest {
         return price;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setAuthHeader(String authHeader) {
-        this.token = ConvertFormat.resolveToken(authHeader);
-    }
 }
 
 

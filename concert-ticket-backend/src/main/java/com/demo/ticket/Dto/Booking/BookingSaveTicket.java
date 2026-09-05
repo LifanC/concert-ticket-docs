@@ -7,7 +7,6 @@ public class BookingSaveTicket {
 
     private String orderno;
     private String session_id;
-    private String customer;
     private String email;
     private String name;
     private String date;
@@ -33,14 +32,6 @@ public class BookingSaveTicket {
 
     public void setSession_id(String session_id) {
         this.session_id = session_id;
-    }
-
-    public String getCustomer() {
-        return customer;
-    }
-
-    public void setCustomer(String customer) {
-        this.customer = customer;
     }
 
     public String getEmail() {

@@ -2,11 +2,12 @@ package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Booking.*;
 import com.demo.ticket.Service.BookingService;
+import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,10 +34,8 @@ public class BookingController {
             @ModelAttribute
             @Valid
             BookingSelectOnlyActivitiesRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlyActivities(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlyActivities(request, user);
     }
 
     @Operation(summary = "1.場次資料", description = "場次資料")
@@ -45,22 +44,15 @@ public class BookingController {
             @ModelAttribute
             @Valid
             BookingSelectOnlySessionRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlySession(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlySession(request, user);
     }
 
     @Operation(summary = "1.訂單資料", description = "訂單資料")
     @GetMapping("/selectOnlyTicket")
     public List<Map<String, Object>> selectOnlyTicket(
-            @ModelAttribute
-            @Valid
-            BookingSelectOnlyTicketRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlyTicket(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlyTicket(user);
     }
 
     @Operation(summary = "2.場次金額", description = "場次金額")
@@ -69,10 +61,8 @@ public class BookingController {
             @ModelAttribute
             @Valid
             BookingSelectOnlyActivitiesPriceRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlyActivitiesPrice(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlyActivitiesPrice(request, user);
     }
 
     @Operation(summary = "3.新增訂單", description = "新增訂單")
@@ -81,10 +71,8 @@ public class BookingController {
             @Valid
             @RequestBody
             BookingSaveTicketRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.saveTicket(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.saveTicket(request, user);
     }
 
     @Operation(summary = "4.取消訂單", description = "取消訂單")
@@ -93,10 +81,8 @@ public class BookingController {
             @Valid
             @RequestBody
             BookingCanceTicketRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.cancelOrder(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.cancelOrder(request, user);
     }
 
     @Operation(summary = "5.售賣日期", description = "售賣日期")
@@ -105,10 +91,8 @@ public class BookingController {
             @Valid
             @RequestBody
             BookingSessionSalesDateRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.sessionSalesDate(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.sessionSalesDate(request, user);
     }
 
     @Operation(summary = "6.付款", description = "付款")
@@ -117,10 +101,8 @@ public class BookingController {
             @Valid
             @RequestBody
             BookingDopaypriceRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.dopayprice(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.dopayprice(request, user);
     }
 
     @Operation(summary = "7.座位資料", description = "座位資料")
@@ -129,10 +111,8 @@ public class BookingController {
             @ModelAttribute
             @Valid
             BookingSelectOnlySeatsRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlySeats(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlySeats(request, user);
     }
 
     @Operation(summary = "8.已預訂座位資料", description = "已預訂座位資料")
@@ -141,10 +121,8 @@ public class BookingController {
             @ModelAttribute
             @Valid
             BookingSelectOnlyUnavailableSeatsRequest request,
-            @Schema(description = "token", example = "token_abc123", requiredMode = Schema.RequiredMode.REQUIRED)
-            @RequestHeader("Authorization") String authHeader) {
-        request.setAuthHeader(authHeader);
-        return bookingService.selectOnlyUnavailableSeats(request);
+            @AuthenticationPrincipal LoginUser user) {
+        return bookingService.selectOnlyUnavailableSeats(request, user);
     }
 
 }

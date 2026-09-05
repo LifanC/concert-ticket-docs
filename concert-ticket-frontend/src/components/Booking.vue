@@ -25,12 +25,12 @@ const selectOnlyActivities = async () => {
     method: 'get',
     url: '/selectOnlyActivities',
     params: {
-      activity_id: route.query.activity_id
+      activity_id: route.query.activity_id,
+      session_id: route.query.session_id
     },
   });
   selectedDate.value = route.query.activity_date
   dates.value = response_selectOnlyActivities.data
-  handleDateChange()
 }
 const handleDateChange = async () => {
   const response_selectOnlySession = await bookingApi({
@@ -84,7 +84,6 @@ const sessions = ref([])
 
 const ticketForm = reactive(
   {
-    customer: '',
     name: '',
     date: '',
     status: 'PENDING_PAYMENT',
@@ -108,11 +107,13 @@ const paypricedataForm = reactive(
 const tickets = ref([])
 
 const nextStep = () => {
-  if (step.value >= 1) {
-    selectOnlyUnavailableSeats()
-  }
   if (step.value < bookingSteps.length - 1) {
     step.value += 1
+  }
+  if (step.value === 1) {
+    handleDateChange()
+  } else if (step.value === 2) {
+    selectOnlyUnavailableSeats()
   }
 }
 
