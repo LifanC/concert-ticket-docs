@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Size;
         }
 )
 @Schema(description = "收藏活動")
-public class ActivityFavoriteRequest {
+public record ActivityFavoriteRequest(
 
     @Schema(
             description = "活動編號",
@@ -28,7 +28,7 @@ public class ActivityFavoriteRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity_id;
+    String activity_id,
 
     @Schema(
             description = "場次編號",
@@ -43,21 +43,6 @@ public class ActivityFavoriteRequest {
             regexp = "^S-\\d{8}-\\d{3}$",
             message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
-    private String session_id;
+    String session_id
 
-    public String getActivity_id() {
-        return activity_id;
-    }
-
-    public void setActivity_id(String activity_id) {
-        this.activity_id = activity_id;
-    }
-
-    public String getSession_id() {
-        return session_id;
-    }
-
-    public void setSession_id(String session_id) {
-        this.session_id = session_id;
-    }
-}
+) {}

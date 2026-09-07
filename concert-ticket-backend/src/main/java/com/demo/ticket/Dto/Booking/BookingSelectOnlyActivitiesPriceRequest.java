@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Size;
         }
 )
 @Schema(description = "單一場次金額")
-public class BookingSelectOnlyActivitiesPriceRequest {
+public record BookingSelectOnlyActivitiesPriceRequest(
 
     @Schema(
             description = "活動編號",
@@ -27,17 +27,9 @@ public class BookingSelectOnlyActivitiesPriceRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity_id;
+    String activity_id
 
-    public String getActivity_id() {
-        return activity_id;
-    }
-
-    public void setActivity_id(String activity_id) {
-        this.activity_id = activity_id;
-    }
-
-}
+) {}
 
 
 

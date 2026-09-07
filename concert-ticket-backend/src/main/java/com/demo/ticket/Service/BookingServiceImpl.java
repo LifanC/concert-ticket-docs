@@ -45,8 +45,8 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyActivities(
             BookingSelectOnlyActivitiesRequest request, LoginUser user) {
-        final String activity_id = request.getActivity_id().trim();
-        final String session_id = request.getSession_id().trim();
+        final String activity_id = request.activity_id().trim();
+        final String session_id = request.session_id().trim();
         return Boolean.TRUE.equals(user.accessExists())
                 ? bookingMapper.selectOnlyActivities(activity_id, session_id)
                 : new ArrayList<>();
@@ -55,8 +55,8 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request, LoginUser user) {
-        final String date = request.getDate().trim();
-        final String activity_id = request.getActivity_id().trim();
+        final String date = request.date().trim();
+        final String activity_id = request.activity_id().trim();
         return Boolean.TRUE.equals(user.accessExists())
                 ? bookingMapper.selectOnlySession(date, activity_id)
                 : new ArrayList<>();
@@ -74,7 +74,7 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> selectOnlyActivitiesPrice(
             BookingSelectOnlyActivitiesPriceRequest request, LoginUser user) {
-        final String activity_id = request.getActivity_id().trim();
+        final String activity_id = request.activity_id().trim();
         return Boolean.TRUE.equals(user.accessExists())
                 ? bookingMapper.selectOnlyActivitiesPrice(activity_id).get(activity_id)
                 : new HashMap<>();
@@ -84,13 +84,13 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request, LoginUser user) {
-        final String session_id = request.getSession_id().trim();
-        final String activity_id = request.getActivity_id().trim();
-        final String name = request.getName().trim();
-        final String date = request.getDate().trim();
-        final String time = request.getTime().trim();
-        final String ticket_status = request.getStatus().trim();
-        final String seat = request.getSeat().trim();
+        final String session_id = request.session_id().trim();
+        final String activity_id = request.activity_id().trim();
+        final String name = request.name().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
+        final String ticket_status = request.status().trim();
+        final String seat = request.seat().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         final String accessJtId = user.tokenId();
         final String accessJwt = user.email();
@@ -177,8 +177,8 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request, LoginUser user) {
-        final String orderno = request.getOrderno().trim();
-        final String session_id = request.getSession_id().trim();
+        final String orderno = request.orderno().trim();
+        final String session_id = request.session_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         final String accessJtId = user.tokenId();
         final String accessJwt = user.email();
@@ -233,11 +233,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> sessionSalesDate(BookingSessionSalesDateRequest request, LoginUser user) {
-        final String session_id = request.getSession_id().trim();
-        final String activity_id = request.getActivity_id().trim();
-        final String ticket_status = request.getStatus().trim();
-        final String date = request.getDate().trim();
-        final String time = request.getTime().trim();
+        final String session_id = request.session_id().trim();
+        final String activity_id = request.activity_id().trim();
+        final String ticket_status = request.status().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
         Map<String, Object> dataMap = new HashMap<>();
         final String accessJtId = user.tokenId();
         if (Boolean.TRUE.equals(user.accessExists())) {
@@ -264,10 +264,10 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
-        final String orderno = request.getOrderno().trim();
-        final String session_id = request.getSession_id().trim();
-        final String date = request.getDate().trim();
-        final String time = request.getTime().trim();
+        final String orderno = request.orderno().trim();
+        final String session_id = request.session_id().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         final String accessJwt = user.email();
         Map<String, Object> dataMap = new TreeMap<>();
@@ -319,7 +319,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySeats(BookingSelectOnlySeatsRequest request, LoginUser user) {
-        final String activity_id = request.getActivity_id().trim();
+        final String activity_id = request.activity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         if (Boolean.TRUE.equals(user.accessExists())) {
             Map<String, Object> dataMapOnlySeats = bookingMapper.selectOnlySeats(activity_id).get(activity_id);
@@ -346,8 +346,8 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<String> selectOnlyUnavailableSeats(BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user) {
-        final String date = request.getDate().trim();
-        final String time = request.getTime().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
         List<String> data = new ArrayList<>();
         if (Boolean.TRUE.equals(user.accessExists())) {
             BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();

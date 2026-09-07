@@ -12,7 +12,7 @@ import jakarta.validation.constraints.*;
         }
 )
 @Schema(description = "取消訂單")
-public class BookingCanceTicketRequest {
+public record BookingCanceTicketRequest(
 
     @Schema(
             description = "訂單編號",
@@ -27,7 +27,7 @@ public class BookingCanceTicketRequest {
             regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
             message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
     )
-    private String orderno;
+    String orderno,
 
     @Schema(
             description = "場次編號",
@@ -42,7 +42,7 @@ public class BookingCanceTicketRequest {
             regexp = "^S-\\d{8}-\\d{3}$",
             message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
-    private String session_id;
+    String session_id,
 
     @Schema(
             description = "狀態",
@@ -54,21 +54,9 @@ public class BookingCanceTicketRequest {
             regexp = "^(PENDING_PAYMENT)$",
             message = "狀態只能為 等待付款"
     )
-    private String status;
+    String status
 
-    public String getOrderno() {
-        return orderno;
-    }
-
-    public String getSession_id() {
-        return session_id;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-}
+) {}
 
 
 

@@ -16,7 +16,7 @@ import jakarta.validation.constraints.*;
         }
 )
 @Schema(description = "新增場次")
-public class AdminCreateSessionRequest {
+public record AdminCreateSessionRequest(
 
     @Schema(
             description = "場次編號",
@@ -29,7 +29,7 @@ public class AdminCreateSessionRequest {
             regexp = "^$|^S-\\d{8}-\\d{3}$",
             message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
-    private String id;
+    String id,
 
     @Schema(
             description = "活動編號",
@@ -44,7 +44,7 @@ public class AdminCreateSessionRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity_id;
+    String activity_id,
 
     @Schema(
             description = "場次日期",
@@ -55,7 +55,7 @@ public class AdminCreateSessionRequest {
             regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
             message = "場次日期格式需為 yyyy-MM-dd"
     )
-    private String date;
+    String date,
 
     @Schema(
             description = "場次時間",
@@ -66,7 +66,7 @@ public class AdminCreateSessionRequest {
             regexp = "^([01]\\d|2[0-3]):[0-5]\\d$",
             message = "場次時間格式需為 HH:mm"
     )
-    private String time;
+    String time,
 
     @Schema(
             description = "開賣日期",
@@ -77,7 +77,7 @@ public class AdminCreateSessionRequest {
             regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
             message = "場次日期格式需為 yyyy-MM-dd"
     )
-    private String salesdate;
+    String salesdate,
 
     @Schema(
             description = "開賣時間",
@@ -88,7 +88,7 @@ public class AdminCreateSessionRequest {
             regexp = "^([01]\\d|2[0-3]):[0-5]\\d$",
             message = "場次時間格式需為 HH:mm"
     )
-    private String salestime;
+    String salestime,
 
     @Schema(
             description = "狀態",
@@ -100,34 +100,6 @@ public class AdminCreateSessionRequest {
             regexp = "^(COMING_SOON|TICKETS_ARE_ON_SALE|SOLD_OUT|ENDED)$",
             message = "狀態只能為 即將開賣、售票中、已售完、已結束"
     )
-    private String status;
+    String status
 
-    public String getId() {
-        return id;
-    }
-
-    public String getActivity_id() {
-        return activity_id;
-    }
-
-    public String getDate() {
-        return date;
-    }
-
-    public String getTime() {
-        return time;
-    }
-
-    public String getSalesdate() {
-        return salesdate;
-    }
-
-    public String getSalestime() {
-        return salestime;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-}
+) {}

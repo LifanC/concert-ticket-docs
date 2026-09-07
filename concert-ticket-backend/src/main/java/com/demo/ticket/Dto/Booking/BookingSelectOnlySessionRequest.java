@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Size;
         }
 )
 @Schema(description = "單一場次資料")
-public class BookingSelectOnlySessionRequest {
+public record BookingSelectOnlySessionRequest(
 
     @Schema(
             description = "場次日期",
@@ -24,7 +24,7 @@ public class BookingSelectOnlySessionRequest {
             regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
             message = "場次日期格式需為 yyyy-MM-dd"
     )
-    private String date;
+    String date,
 
     @Schema(
             description = "活動編號",
@@ -39,26 +39,9 @@ public class BookingSelectOnlySessionRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity_id;
+    String activity_id
 
-    public String getDate() {
-        return date;
-    }
-
-    public void setDate(String date) {
-        this.date = date;
-    }
-
-    public String getActivity_id() {
-        return activity_id;
-    }
-
-    public void setActivity_id(String activity_id) {
-        this.activity_id = activity_id;
-    }
-
-}
-
+) {}
 
 
 

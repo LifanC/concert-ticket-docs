@@ -5,7 +5,6 @@ import com.demo.ticket.Dto.Activity.ActivityFavoriteRequest;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Mapper.ActivityMapper;
 import com.demo.ticket.security.LoginUser;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,14 +20,11 @@ import java.util.Map;
 public class ActivityServiceImpl implements ActivityService {
 
     private final ActivityMapper activityMapper;
-    private final StringRedisTemplate stringRedisTemplate;
 
     public ActivityServiceImpl(
-            ActivityMapper activityMapper,
-            StringRedisTemplate stringRedisTemplate
+            ActivityMapper activityMapper
     ) {
         this.activityMapper = activityMapper;
-        this.stringRedisTemplate = stringRedisTemplate;
     }
 
     @Override
@@ -62,8 +58,8 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     private ResponseEntity<?> changeFavoriteActivity(ActivityFavoriteRequest request, LoginUser user, boolean save) {
-        final String activity_id = request.getActivity_id().trim();
-        final String session_id = request.getSession_id().trim();
+        final String activity_id = request.activity_id().trim();
+        final String session_id = request.session_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new HashMap<>();
         ActivityFavorite activityFavorite =  new ActivityFavorite();

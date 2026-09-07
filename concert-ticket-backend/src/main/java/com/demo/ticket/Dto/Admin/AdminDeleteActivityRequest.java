@@ -10,7 +10,7 @@ import jakarta.validation.constraints.*;
         }
 )
 @Schema(description = "刪除活動")
-public class AdminDeleteActivityRequest {
+public record AdminDeleteActivityRequest(
 
     @Schema(
             description = "活動編號",
@@ -25,10 +25,6 @@ public class AdminDeleteActivityRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String id;
+    String id
 
-    public String getId() {
-        return id;
-    }
-
-}
+) {}

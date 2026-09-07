@@ -19,7 +19,7 @@ import jakarta.validation.constraints.*;
         }
 )
 @Schema(description = "增加、修改活動")
-public class AdminSaveActivityRequest {
+public record AdminSaveActivityRequest(
 
     @Schema(
             description = "活動編號",
@@ -32,7 +32,7 @@ public class AdminSaveActivityRequest {
             regexp = "^$|^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String id;
+    String id,
 
     @Schema(
             description = "活動名稱",
@@ -47,7 +47,7 @@ public class AdminSaveActivityRequest {
             regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
             message = "活動名稱格式錯誤"
     )
-    private String name;
+    String name,
 
     @Schema(
             description = "活動類型",
@@ -59,7 +59,7 @@ public class AdminSaveActivityRequest {
             regexp = "^(MUSIC_CONCERT|STAGE_PLAY|SPECIAL_EXHIBITION)$",
             message = "活動類型只能為 音樂演唱會、舞台劇、展覽特展"
     )
-    private String category;
+    String category,
 
     @Schema(
             description = "場地名稱",
@@ -74,7 +74,7 @@ public class AdminSaveActivityRequest {
             regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
             message = "活動場地名稱格式錯誤"
     )
-    private String venue;
+    String venue,
 
     @Schema(
             description = "票價",
@@ -84,13 +84,13 @@ public class AdminSaveActivityRequest {
     @NotNull(message = "票價不可為空")
     @DecimalMin(value = "0", message = "票價不可小於 0")
     @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
-    private BigDecimal price;
+    BigDecimal price,
 
     @Schema(
             description = "活動說明",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
-    private String description;
+    String description,
 
     @Schema(
             description = "欄",
@@ -103,7 +103,7 @@ public class AdminSaveActivityRequest {
             regexp = "^[A-Z]{2}$",
             message = "欄格式錯誤"
     )
-    private String column;
+    String column,
 
     @Schema(
             description = "列",
@@ -113,38 +113,6 @@ public class AdminSaveActivityRequest {
     @NotNull(message = "列不能為空")
     @Min(value = 1, message = "列必須介於 1～10")
     @Max(value = 10, message = "列必須介於 1～10")
-    private BigDecimal row;
+    BigDecimal row
 
-    public String getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public String getVenue() {
-        return venue;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public String getColumn() {
-        return column;
-    }
-
-    public BigDecimal getRow() {
-        return row;
-    }
-
-}
+) {}

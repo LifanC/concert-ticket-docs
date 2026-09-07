@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Pattern;
         }
 )
 @Schema(description = "已預訂座位資料")
-public class BookingSelectOnlyUnavailableSeatsRequest {
+public record BookingSelectOnlyUnavailableSeatsRequest(
 
     @Schema(
             description = "活動日期",
@@ -22,7 +22,7 @@ public class BookingSelectOnlyUnavailableSeatsRequest {
             regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
             message = "活動日期格式需為 yyyy-MM-dd"
     )
-    private String date;
+    String date,
 
     @Schema(
             description = "場次時間",
@@ -33,25 +33,9 @@ public class BookingSelectOnlyUnavailableSeatsRequest {
             regexp = "^([01]\\d|2[0-3]):[0-5]\\d$",
             message = "場次時間格式需為 HH:mm"
     )
-    private String time;
+    String time
 
-    public String getTime() {
-        return time;
-    }
-
-    public void setTime(String time) {
-        this.time = time;
-    }
-
-    public String getDate() {
-        return date;
-    }
-
-    public void setDate(String date) {
-        this.date = date;
-    }
-
-}
+) {}
 
 
 

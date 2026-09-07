@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
         }
 )
 @Schema(description = "登入")
-public class LoginRequest {
+public record LoginRequest(
 
     @Schema(
             description = "電子信箱或帳號",
@@ -28,7 +28,7 @@ public class LoginRequest {
             regexp = "^(?:[\\u4e00-\\u9fa5A-Za-z]{2,100}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})$",
             message = "請輸入電子信箱或帳號"
     )
-    private String account;
+    String account,
 
     @Schema(
             description = "使用者密碼",
@@ -44,13 +44,6 @@ public class LoginRequest {
             message = "密碼需包含英文與數字"
     )
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String password;
+    String password
 
-    public String getAccount() {
-        return account;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-}
+) {}

@@ -10,7 +10,6 @@ import com.demo.ticket.security.LoginUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.ScanOptions;
@@ -80,11 +79,11 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public ResponseEntity<?> register(RegisterRequest request) {
-        final String account = request.getAccount().trim();
-        final String name = request.getName().trim();
-        final String email = request.getEmail().trim();
-        final String phone = request.getPhone().trim();
-        final String password = request.getPassword().trim();
+        final String account = request.account().trim();
+        final String name = request.name().trim();
+        final String email = request.email().trim();
+        final String phone = request.phone().trim();
+        final String password = request.password().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Register register = new Register(account, name, email, phone, passwordEncoder.encode(password));
         Map<String, Object> dataMap = new TreeMap<>();
@@ -108,8 +107,8 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public ResponseEntity<?> login(LoginRequest request) {
-        final String account = request.getAccount().trim();
-        final String password = request.getPassword().trim();
+        final String account = request.account().trim();
+        final String password = request.password().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         String remark = "登入失敗";
         boolean judge = false;
@@ -322,9 +321,9 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public ResponseEntity<?> saveProfile(LoginSaveProfileRequest request, LoginUser user) {
-        final String name = request.getName().trim();
-        final String phone = request.getPhone().trim();
-        final String birthday = request.getBirthday().trim();
+        final String name = request.name().trim();
+        final String phone = request.phone().trim();
+        final String birthday = request.birthday().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("remark", "修改會員資料失敗");

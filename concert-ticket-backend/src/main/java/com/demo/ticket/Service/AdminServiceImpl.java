@@ -45,14 +45,14 @@ public class AdminServiceImpl implements AdminService{
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveActivity(AdminSaveActivityRequest request) {
-        final String id = request.getId().trim();
-        final String name = request.getName().trim();
-        final String category = request.getCategory().trim();
-        final String venue = request.getVenue().trim();
-        final BigDecimal price = request.getPrice();
-        final String description = request.getDescription().trim();
-        final String column = request.getColumn().trim();
-        final BigDecimal row = request.getRow();
+        final String id = request.id().trim();
+        final String name = request.name().trim();
+        final String category = request.category().trim();
+        final String venue = request.venue().trim();
+        final BigDecimal price = request.price();
+        final String description = request.description().trim();
+        final String column = request.column().trim();
+        final BigDecimal row = request.row();
         final String seat_id = column + "-" + row.toString();
         Activity activity = new Activity();
         activity.setId(id);
@@ -81,7 +81,7 @@ public class AdminServiceImpl implements AdminService{
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> deleteActivity(AdminDeleteActivityRequest request) {
-        final String id = request.getId().trim();
+        final String id = request.id().trim();
         adminMapper.delete_activity(id);
         List<Map<String, Object>> data = adminMapper.selectAllActivities();
         HttpStatus status = HttpStatus.OK;
@@ -97,13 +97,13 @@ public class AdminServiceImpl implements AdminService{
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> createSession(AdminCreateSessionRequest request) {
-        final String id = request.getId().trim();
-        final String activity_id = request.getActivity_id().trim();
-        final String date = request.getDate().trim();
-        final String time = request.getTime().trim();
-        final String salesdate = request.getSalesdate().trim();
-        final String salestime = request.getSalestime().trim();
-        final String statusSession = request.getStatus().trim();
+        final String id = request.id().trim();
+        final String activity_id = request.activity_id().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
+        final String salesdate = request.salesdate().trim();
+        final String salestime = request.salestime().trim();
+        final String statusSession = request.status().trim();
         Session session = new Session();
         session.setId(id);
         session.setActivity_id(activity_id);

@@ -19,7 +19,7 @@ import java.math.BigDecimal;
         }
 )
 @Schema(description = "新增訂單")
-public class BookingSaveTicketRequest {
+public record BookingSaveTicketRequest(
 
     @Schema(
             description = "場次編號",
@@ -34,7 +34,7 @@ public class BookingSaveTicketRequest {
             regexp = "^S-\\d{8}-\\d{3}$",
             message = "場次編號格式需為 S-YYYYMMDD-NNN，例如 S-20260801-001"
     )
-    private String session_id;
+    String session_id,
 
     @Schema(
             description = "活動編號",
@@ -49,7 +49,7 @@ public class BookingSaveTicketRequest {
             regexp = "^ACT-\\d{8}-\\d{3}$",
             message = "活動編號格式需為 ACT-YYYYMMDD-NNN，例如 ACT-20260801-001"
     )
-    private String activity_id;
+    String activity_id,
 
     @Schema(
             description = "活動名稱",
@@ -64,7 +64,7 @@ public class BookingSaveTicketRequest {
             regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
             message = "活動名稱格式錯誤"
     )
-    private String name;
+    String name,
 
     @Schema(
             description = "活動日期",
@@ -75,7 +75,7 @@ public class BookingSaveTicketRequest {
             regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$",
             message = "活動日期格式需為 yyyy-MM-dd"
     )
-    private String date;
+    String date,
 
     @Schema(
             description = "場次時間",
@@ -86,7 +86,7 @@ public class BookingSaveTicketRequest {
             regexp = "^([01]\\d|2[0-3]):[0-5]\\d$",
             message = "場次時間格式需為 HH:mm"
     )
-    private String time;
+    String time,
 
     @Schema(
             description = "狀態",
@@ -98,7 +98,7 @@ public class BookingSaveTicketRequest {
             regexp = "^(PENDING_PAYMENT)$",
             message = "狀態只能為 等待付款"
     )
-    private String status;
+    String status,
 
     @Schema(
             description = "座位號碼",
@@ -113,7 +113,7 @@ public class BookingSaveTicketRequest {
             regexp = "^[A-Z]{1}-\\d{2}$",
             message = "座位號碼格式需為 X-00，例如 A-01"
     )
-    private String seat;
+    String seat,
 
     @Schema(
             description = "票價",
@@ -123,41 +123,9 @@ public class BookingSaveTicketRequest {
     @NotNull(message = "票價不可為空")
     @DecimalMin(value = "0", message = "票價不可小於 0")
     @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
-    private BigDecimal price;
+    BigDecimal price
 
-    public String getSession_id() {
-        return session_id;
-    }
-
-    public String getActivity_id() {
-        return activity_id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDate() {
-        return date;
-    }
-
-    public String getTime() {
-        return time;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public String getSeat() {
-        return seat;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-}
+) {}
 
 
 
