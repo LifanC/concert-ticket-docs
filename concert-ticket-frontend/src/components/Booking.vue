@@ -125,7 +125,6 @@ const previousStep = () => {
 const pendingBooking = ref(null)
 const submittingBooking = ref(false)
 const createOrder = async () => {
-  alert(submittingBooking.value)
   if (submittingBooking.value) return
   if (selectedSeats.value.length != 1) {
     ElMessage({
