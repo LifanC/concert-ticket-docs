@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.demo.ticket.Mapper.BookingCoreMapper">
+
+    <resultMap id="bookingSaveTicket" type="com.demo.ticket.Dto.Booking.BookingSaveTicket">
+        <result column="session_id" property="session_id"/>
+        <result column="expires_at" property="expires_at"/>
+    </resultMap>
+
+    <select id="findOrder" resultMap="bookingSaveTicket" flushCache="true">
+        SELECT orderno, session_id, email, seat, status, expires_at
+        FROM interviewworks_ticket.ticket
+        WHERE orderno = #{orderno}
+    </select>
+
+    <select id="lockSession" resultType="java.lang.String">
+        SELECT id
+        FROM interviewworks_ticket.session
+        WHERE id = #{sessionId}
+            FOR UPDATE
+    </select>
+
+    <select id="sessionSnapshot" resultType="java.util.Map">
+        SELECT s.id, s.activity_id, s.date, s.time, a.name, a.price
+        FROM interviewworks_ticket.session s
+                 JOIN interviewworks_ticket.activity a ON a.id = s.activity_id
+        WHERE s.id = #{sessionId}
+    </select>
+
+    <insert id="ensureSeat">
+        INSERT INTO interviewworks_ticket.session_seat(session_id, seat_id)
+        SELECT DISTINCT s.id, #{seat}
+        FROM interviewworks_ticket.session s
+                 JOIN interviewworks_ticket.seat layout ON layout.activity_id = s.activity_id
+                 CROSS JOIN LATERAL unnest(string_to_array(layout.seat_rows, ',')) r(label)
+        CROSS JOIN LATERAL generate_series(1, least(layout.seats_per_row, 99)::int) n(num)
+        WHERE s.id = #{sessionId}
+          AND trim (r.label) || '-' || lpad(n.num::text
+            , 2
+            , '0') = #{seat}
+        ON CONFLICT DO NOTHING
+    </insert>
+
+    <update id="reserveSeat">
+        UPDATE interviewworks_ticket.session_seat
+        SET status            = 'RESERVED',
+            reserved_by_order = #{orderno},
+            reserved_until    = #{expires_at},
+            version           = version + 1
+        WHERE session_id = #{session_id}
+          AND seat_id = #{seat}
+          AND status = 'AVAILABLE'
+    </update>
+
+    <update id="transitionSeat">
+        UPDATE interviewworks_ticket.session_seat
+        SET status            = #{status},
+            reserved_by_order = CASE WHEN #{status} = 'SOLD' THEN #{orderno} ELSE NULL END,
+            reserved_until    = NULL,
+            version           = version + 1
+        WHERE session_id = #{sessionId}
+          AND seat_id = #{seat}
+          AND reserved_by_order = #{orderno}
+          AND status = 'RESERVED'
+    </update>
+
+    <select id="expiredOrders" resultType="java.lang.String">
+        SELECT orderno
+        FROM interviewworks_ticket.ticket
+        WHERE status = 'PENDING_PAYMENT'
+          AND expires_at &lt;= CURRENT_TIMESTAMP
+        ORDER BY expires_at, orderno LIMIT 100
+    </select>
+
+    <select id="unavailableSeats" resultType="java.lang.String">
+        SELECT seat_id
+        FROM interviewworks_ticket.session_seat
+        WHERE session_id = #{sessionId}
+          AND status &lt;&gt; 'AVAILABLE'
+        ORDER BY seat_id
+    </select>
+
+    <insert id="claimKey">
+        INSERT INTO interviewworks_ticket.booking_idempotency(email, idempotency_key, request_hash)
+        VALUES (#{email}, #{key}, #{hash}) ON CONFLICT DO NOTHING
+    </insert>
+
+    <select id="findKey" resultType="java.util.Map">
+        SELECT request_hash, orderno, response_body
+        FROM interviewworks_ticket.booking_idempotency
+        WHERE email = #{email}
+          AND idempotency_key = #{key}
+            FOR UPDATE
+    </select>
+
+    <update id="completeKey">
+        UPDATE interviewworks_ticket.booking_idempotency
+        SET orderno       = #{orderno},
+            response_body = #{body}
+        WHERE email = #{email}
+          AND idempotency_key = #{key}
+          AND orderno IS NULL
+    </update>
+
+</mapper>

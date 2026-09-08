@@ -1,3 +1,6 @@
+BEGIN;
+SET LOCAL TIME ZONE 'Asia/Taipei';
+
 CREATE SCHEMA IF NOT EXISTS interviewworks_ticket;
 
 -- 建立 Trigger Function
@@ -63,7 +66,7 @@ VALUES (
        ) ON CONFLICT DO NOTHING;
 
 
-CREATE TRIGGER trigger_user_data_updated_date
+CREATE OR REPLACE TRIGGER trigger_user_data_updated_date
 BEFORE UPDATE
 ON interviewworks_ticket.user_data
 FOR EACH ROW
@@ -79,7 +82,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity (
                                               "name" varchar NOT NULL,
 											  category varchar NOT NULL,
                                               venue varchar NOT NULL,
-                                              price int8 NULL DEFAULT 0,
+                                              price numeric(12,2) NULL DEFAULT 0,
                                               description varchar NULL,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -89,7 +92,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity (
                                               )
 );
 
-CREATE TRIGGER trigger_activity_updated_date
+CREATE OR REPLACE TRIGGER trigger_activity_updated_date
 BEFORE UPDATE
 ON interviewworks_ticket.activity
 FOR EACH ROW
@@ -108,6 +111,8 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.session (
     status varchar NOT NULL,
     created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT session_inventory_check
+        CHECK (capacity >= 0 AND reserved >= 0 AND sold >= 0 AND reserved + sold <= capacity),
     CONSTRAINT sessions_pk
         PRIMARY KEY (id),
     CONSTRAINT sessions_activity_fk
@@ -126,7 +131,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.session (
         )
 );
 
-CREATE TRIGGER trigger_session_updated_date
+CREATE OR REPLACE TRIGGER trigger_session_updated_date
 BEFORE UPDATE
 ON interviewworks_ticket.session
 FOR EACH ROW
@@ -168,30 +173,30 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               status varchar NOT NULL,
 											  seat varchar NOT NULL,
 											  quantity int8 NULL DEFAULT 0,
-                                              price int8 NULL DEFAULT 0,
-                                              payprice int8 NULL DEFAULT 0,
-											  expires_at timestamp NULL,
-											  paid_at timestamp NULL,
-											  cancelled_at timestamp NULL,
+                                              price numeric(12,2) NULL DEFAULT 0,
+                                              payprice numeric(12,2) NULL DEFAULT 0,
+											  expires_at timestamptz NULL,
+											  paid_at timestamptz NULL,
+											  cancelled_at timestamptz NULL,
                                               created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                               updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 											  CONSTRAINT ticket_fk FOREIGN KEY (session_id) REFERENCES interviewworks_ticket.session(id),
+                                              CONSTRAINT active_ticket_quantity_check CHECK (
+                                                status NOT IN ('PENDING_PAYMENT', 'PAID') OR (quantity IS NOT NULL AND quantity = 1)
+                                              ),
+                                              CONSTRAINT pending_deadline_check CHECK (
+                                                status <> 'PENDING_PAYMENT' OR expires_at IS NOT NULL
+                                              ),
                                               CONSTRAINT ticket_status_check CHECK (
                                                 status IN ('PENDING_PAYMENT', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED')
                                               )
 );
 
-CREATE TRIGGER trigger_ticket_updated_date
+CREATE OR REPLACE TRIGGER trigger_ticket_updated_date
 BEFORE UPDATE
 ON interviewworks_ticket.ticket
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
-
-CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_sequence
-(
-    activity_date DATE PRIMARY KEY,
-    current_no INTEGER NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_sequence
 (
@@ -221,3 +226,31 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.seat
     PRIMARY KEY (id, activity_id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS ticket_active_seat_uk ON interviewworks_ticket.ticket(session_id, seat)
+    WHERE status IN ('PENDING_PAYMENT', 'PAID');
+CREATE INDEX IF NOT EXISTS ticket_expiration_idx ON interviewworks_ticket.ticket(expires_at, orderno)
+    WHERE status = 'PENDING_PAYMENT';
+
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_seat (
+    session_id varchar NOT NULL REFERENCES interviewworks_ticket.session(id),
+    seat_id varchar NOT NULL,
+    status varchar NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'RESERVED', 'SOLD', 'BLOCKED')),
+    reserved_by_order varchar REFERENCES interviewworks_ticket.ticket(orderno),
+    reserved_until timestamptz,
+    version bigint NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, seat_id),
+    CHECK ((status = 'RESERVED' AND reserved_by_order IS NOT NULL AND reserved_until IS NOT NULL)
+        OR (status = 'SOLD' AND reserved_by_order IS NOT NULL AND reserved_until IS NULL)
+        OR (status IN ('AVAILABLE', 'BLOCKED') AND reserved_by_order IS NULL AND reserved_until IS NULL))
+);
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.booking_idempotency (
+    email varchar NOT NULL,
+    idempotency_key varchar(128) NOT NULL,
+    request_hash varchar(64) NOT NULL,
+    orderno varchar REFERENCES interviewworks_ticket.ticket(orderno),
+    response_body text,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (email, idempotency_key)
+);
+
+COMMIT;

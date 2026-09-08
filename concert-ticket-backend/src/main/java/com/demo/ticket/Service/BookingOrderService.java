@@ -10,25 +10,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingOrderService {
-    private final BookingMapper mapper;
-    private final BookingCoreMapper core;
+    private final BookingMapper bookingMapper;
+    private final BookingCoreMapper bookingCoreMapper;
 
-    public BookingOrderService(BookingMapper mapper, BookingCoreMapper core) {
-        this.mapper = mapper;
-        this.core = core;
+    public BookingOrderService(
+            BookingMapper bookingMapper,
+            BookingCoreMapper bookingCoreMapper
+    ) {
+        this.bookingMapper = bookingMapper;
+        this.bookingCoreMapper = bookingCoreMapper;
     }
 
     @Transactional
     public boolean transition(String orderno, String sessionId, String email, OrderStatus target) {
-        BookingSaveTicket ticket = core.findOrder(orderno);
+        BookingSaveTicket ticket = bookingCoreMapper.findOrder(orderno);
         if (ticket == null || (email != null && !email.equals(ticket.getEmail()))
                 || (sessionId != null && !sessionId.equals(ticket.getSession_id()))) {
             if (target == OrderStatus.EXPIRED) return false;
             throw new BookingException("ORDER_NOT_FOUND", "找不到訂單", HttpStatus.NOT_FOUND);
         }
         // All writers lock session before order/seat, avoiding payment/reservation deadlocks.
-        core.lockSession(ticket.getSession_id());
-        ticket = core.findOrder(orderno);
+        bookingCoreMapper.lockSession(ticket.getSession_id());
+        ticket = bookingCoreMapper.findOrder(orderno);
         OrderStatus current = OrderStatus.valueOf(ticket.getStatus());
         if (!current.canTransitionTo(target)) {
             if (target == OrderStatus.EXPIRED) return false;
@@ -40,11 +43,11 @@ public class BookingOrderService {
             pay.setOrderno(orderno);
             pay.setSession_id(ticket.getSession_id());
             pay.setCustomer(ticket.getEmail());
-            rows = mapper.dopaypriceTicket(pay);
+            rows = bookingMapper.dopaypriceTicket(pay);
         } else if (target == OrderStatus.CANCELLED) {
-            rows = mapper.cancelTicket(ticket);
+            rows = bookingMapper.cancelTicket(ticket);
         } else if (target == OrderStatus.EXPIRED) {
-            rows = mapper.updateTicketExpiredAt(ticket);
+            rows = bookingMapper.updateTicketExpiredAt(ticket);
         } else {
             // Refund accounting is not implemented yet; never expose a partial refund.
             throw conflict();
@@ -57,8 +60,8 @@ public class BookingOrderService {
         BookingSession session = new BookingSession();
         session.setSession_id(ticket.getSession_id());
         BookingException.requireOne(target == OrderStatus.PAID
-                ? mapper.dopaypriceUpdateSession(session) : mapper.cancelSession(session));
-        BookingException.requireOne(core.transitionSeat(ticket.getSession_id(), ticket.getSeat(), orderno,
+                ? bookingMapper.dopaypriceUpdateSession(session) : bookingMapper.cancelSession(session));
+        BookingException.requireOne(bookingCoreMapper.transitionSeat(ticket.getSession_id(), ticket.getSeat(), orderno,
                 target == OrderStatus.PAID ? "SOLD" : "AVAILABLE"));
         return true;
     }

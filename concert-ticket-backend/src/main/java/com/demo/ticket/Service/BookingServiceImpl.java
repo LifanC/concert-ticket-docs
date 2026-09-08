@@ -6,8 +6,11 @@ import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Dto.Booking.*;
+import com.demo.ticket.Mapper.BookingCoreMapper;
 import com.demo.ticket.Mapper.BookingMapper;
 import com.demo.ticket.security.LoginUser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -26,26 +31,26 @@ import java.util.*;
 public class BookingServiceImpl implements BookingService {
 
     private final BookingMapper bookingMapper;
-    private final com.demo.ticket.Mapper.BookingCoreMapper core;
-    private final BookingOrderService orders;
     private final StringRedisTemplate stringRedisTemplate;
-    private final NotifierConsumer notifier;
+    private final NotifierConsumer notifierConsumer;
     private final BookingPaymentScheduler bookingPaymentScheduler;
+    private final BookingCoreMapper bookingCoreMapper;
+    private final BookingOrderService bookingOrderService;
 
     public BookingServiceImpl(
             BookingMapper bookingMapper,
             StringRedisTemplate stringRedisTemplate,
-            NotifierConsumer notifier,
+            NotifierConsumer notifierConsumer,
             BookingPaymentScheduler bookingPaymentScheduler,
-            com.demo.ticket.Mapper.BookingCoreMapper core,
-            BookingOrderService orders
+            BookingCoreMapper bookingCoreMapper,
+            BookingOrderService bookingOrderService
     ) {
         this.bookingMapper = bookingMapper;
-        this.core = core;
-        this.orders = orders;
         this.stringRedisTemplate = stringRedisTemplate;
-        this.notifier = notifier;
+        this.notifierConsumer = notifierConsumer;
         this.bookingPaymentScheduler = bookingPaymentScheduler;
+        this.bookingCoreMapper = bookingCoreMapper;
+        this.bookingOrderService = bookingOrderService;
     }
 
     @Override
@@ -99,16 +104,16 @@ public class BookingServiceImpl implements BookingService {
         }
         final String seat = request.seat().trim();
         final String hash = requestHash(session_id, activity_id, seat);
-        if (core.claimKey(user.email(), idempotencyKey, hash) == 0) {
-            Map<String, Object> previous = core.findKey(user.email(), idempotencyKey);
+        if (bookingCoreMapper.claimKey(user.email(), idempotencyKey, hash) == 0) {
+            Map<String, Object> previous = bookingCoreMapper.findKey(user.email(), idempotencyKey);
             if (!hash.equals(previous.get("request_hash"))) {
                 throw new BookingException("IDEMPOTENCY_CONFLICT", "相同請求識別碼不能用於不同訂位內容", HttpStatus.CONFLICT);
             }
             return ResponseEntity.status(HttpStatus.CREATED).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                     .body(previous.get("response_body"));
         }
-        core.lockSession(session_id);
-        Map<String, Object> snapshot = core.sessionSnapshot(session_id);
+        bookingCoreMapper.lockSession(session_id);
+        Map<String, Object> snapshot = bookingCoreMapper.sessionSnapshot(session_id);
         if (snapshot == null || !activity_id.equals(snapshot.get("activity_id"))) {
             throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次", HttpStatus.NOT_FOUND);
         }
@@ -118,7 +123,7 @@ public class BookingServiceImpl implements BookingService {
         if (snapshot.get("price") == null || new BigDecimal(snapshot.get("price").toString()).signum() < 0) {
             throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_ENTITY);
         }
-        core.ensureSeat(session_id, seat);
+        bookingCoreMapper.ensureSeat(session_id, seat);
         List<Map<String, Object>> data = new ArrayList<>();
         final String accessJwt = user.email();
         BookingSession bookingSession = new BookingSession();
@@ -149,7 +154,7 @@ public class BookingServiceImpl implements BookingService {
             createdOrderNo = orderno;
             if (orderno == null || orderno.isBlank()) BookingException.requireOne(0);
             bookingSaveTicket.setOrderno(orderno);
-            if (core.reserveSeat(bookingSaveTicket) != 1) {
+            if (bookingCoreMapper.reserveSeat(bookingSaveTicket) != 1) {
                 throw new BookingException("SEAT_ALREADY_RESERVED", "座位不存在或已被保留", HttpStatus.CONFLICT);
             }
             data = bookingMapper.selectOnlyTicket(accessJwt);
@@ -171,7 +176,7 @@ public class BookingServiceImpl implements BookingService {
                         @Override
                         public void afterCommit() {
                             bookingPaymentScheduler.scheduleExpiration(accessJwt, bookingSaveTicket);
-                            notifier.sendNotification(message);
+                            notifierConsumer.sendNotification(message);
                         }
                     }
             );
@@ -181,9 +186,9 @@ public class BookingServiceImpl implements BookingService {
         HttpStatus status = HttpStatus.CREATED;
         Object response = ApiResponse.api(status, data);
         try {
-            String body = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(response);
-            BookingException.requireOne(core.completeKey(user.email(), idempotencyKey, createdOrderNo, body));
-        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            String body = new ObjectMapper().writeValueAsString(response);
+            BookingException.requireOne(bookingCoreMapper.completeKey(user.email(), idempotencyKey, createdOrderNo, body));
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Cannot store booking result", ex);
         }
         return ResponseEntity.status(status).body(response);
@@ -191,9 +196,9 @@ public class BookingServiceImpl implements BookingService {
 
     private String requestHash(String session, String activity, String seat) {
         try {
-            byte[] content = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(List.of(session, activity, seat));
-            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(content));
-        } catch (java.security.NoSuchAlgorithmException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+            byte[] content = new ObjectMapper().writeValueAsBytes(List.of(session, activity, seat));
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException | JsonProcessingException ex) {
             throw new IllegalStateException(ex);
         }
     }
@@ -224,10 +229,10 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        orders.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.CANCELLED);
+        bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.CANCELLED);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
-            notifier.sendNotification(new NotificationMessage(user.email(), "取消成功", "請至訂單頁面查看票券資訊"));
+            notifierConsumer.sendNotification(new NotificationMessage(user.email(), "取消成功", "請至訂單頁面查看票券資訊"));
         });
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
@@ -268,10 +273,10 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        orders.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.PAID);
+        bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.PAID);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
-            notifier.sendNotification(new NotificationMessage(user.email(), "付款成功", "請至訂單頁面查看票券資訊"));
+            notifierConsumer.sendNotification(new NotificationMessage(user.email(), "付款成功", "請至訂單頁面查看票券資訊"));
         });
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
@@ -307,7 +312,7 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<String> selectOnlyUnavailableSeats(BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user) {
         requireAuthenticated(user);
-        return core.unavailableSeats(request.session_id().trim());
+        return bookingCoreMapper.unavailableSeats(request.session_id().trim());
     }
 
 }
