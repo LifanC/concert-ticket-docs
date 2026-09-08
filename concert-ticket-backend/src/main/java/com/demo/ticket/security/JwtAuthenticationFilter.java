@@ -72,9 +72,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
+            @Nonnull HttpServletRequest request,
             @Nonnull HttpServletResponse response,
-            FilterChain filterChain
+            @Nonnull FilterChain filterChain
     ) throws ServletException, IOException {
         String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
         try {
@@ -148,6 +148,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             "message", e.getMessage()
                     )
             );
+        } catch (Exception e) {
+            SecurityContextHolder.clearContext();
+            // 如果是 WebSocket handshake，直接拒絕
+            if (request.getRequestURI().startsWith("/ws")) {
+                response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "WebSocket JWT 無效或已過期"
+                );
+            }
         }
     }
 

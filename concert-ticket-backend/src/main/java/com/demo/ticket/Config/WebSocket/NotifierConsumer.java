@@ -7,6 +7,8 @@ import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class NotifierConsumer {
 
@@ -24,12 +26,26 @@ public class NotifierConsumer {
     }
 
     public void sendNotification(NotificationMessage message) {
+
+        List<String> users = simpUserRegistry.getUsers()
+                .stream()
+                .map(SimpUser::getName)
+                .toList();
+
         logger.info(
-                "推播通知 Email={}, Title={}, Content={}",
+                "準備推播 Email={}, WebSocket users={}",
                 message.getEmail(),
-                message.getTitle(),
-                message.getContent()
+                users
         );
+
+        boolean online = users.contains(message.getEmail());
+
+        logger.info(
+                "目標使用者是否在線 Email={}, online={}",
+                message.getEmail(),
+                online
+        );
+
         messagingTemplate.convertAndSendToUser(
                 message.getEmail(),
                 "/queue/notifications",
@@ -37,18 +53,9 @@ public class NotifierConsumer {
         );
 
         logger.info(
-                "推播完成給 Email={}",
+                "已呼叫 WebSocket 推播 Email={}",
                 message.getEmail()
         );
-
-        logger.info(
-                "WebSocket users={}",
-                simpUserRegistry.getUsers()
-                        .stream()
-                        .map(SimpUser::getName)
-                        .toList()
-        );
-
     }
 
 }

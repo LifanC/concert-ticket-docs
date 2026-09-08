@@ -1,44 +1,44 @@
 package com.demo.ticket.Config.WebSocket;
 
-import java.security.Principal;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.context.event.EventListener;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
-
-import org.springframework.messaging.simp.user.SimpUser;
-import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 @Component
 public class WebSocketEventListener {
 
-    private final Logger logger = LoggerFactory.getLogger(WebSocketEventListener.class);
+    private static final Logger logger =
+            LoggerFactory.getLogger(WebSocketEventListener.class);
 
-    private final SimpUserRegistry simpUserRegistry;
+    @EventListener
+    public void handleConnect(SessionConnectedEvent event) {
 
-    public WebSocketEventListener(
-            SimpUserRegistry simpUserRegistry
-    ) {
-        this.simpUserRegistry = simpUserRegistry;
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+
+        logger.info(
+                "WebSocket CONNECT sessionId={}, user={}",
+                accessor.getSessionId(),
+                accessor.getUser() != null
+                        ? accessor.getUser().getName()
+                        : null
+        );
     }
 
     @EventListener
-    public void handleWebSocketConnect(SessionConnectedEvent event) {
-        Principal user = event.getUser();
+    public void handleDisconnect(SessionDisconnectEvent event) {
+
         logger.info(
-                "WebSocket connected user = {}",
-                user != null ? user.getName() : "null"
-        );
-        logger.info(
-                "WebSocket users = {}",
-                simpUserRegistry.getUsers()
-                        .stream()
-                        .map(SimpUser::getName)
-                        .toList()
+                "WebSocket DISCONNECT sessionId={}, user={}",
+                event.getSessionId(),
+                event.getUser() != null
+                        ? event.getUser().getName()
+                        : null
         );
     }
 }
