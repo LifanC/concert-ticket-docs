@@ -59,8 +59,7 @@ const selectOnlyUnavailableSeats = async () => {
     method: 'get',
     url: '/selectOnlyUnavailableSeats',
     params: {
-      date: selectedDate.value,
-      time: selectedSession.value,
+      session_id: sessionId.value,
     },
   });
   unavailableSeats.value = new Set(response.data)
@@ -123,7 +122,10 @@ const previousStep = () => {
   }
 }
 
+const pendingBooking = ref(null)
+const submittingBooking = ref(false)
 const createOrder = async () => {
+  if (submittingBooking.value) return
   if (selectedSeats.value.length != 1) {
     ElMessage({
       type: 'error',
@@ -134,7 +136,7 @@ const createOrder = async () => {
   Object.assign(
     ticketForm,
     {
-      session_id: route.query.session_id,
+      session_id: sessionId.value,
       activity_id: route.query.activity_id,
       name: selectedActivityName.value,
       date: selectedDate.value,
@@ -144,19 +146,29 @@ const createOrder = async () => {
       seat: selectedSeats.value[0]
     }
   )
+  const fingerprint = JSON.stringify([ticketForm.session_id, ticketForm.activity_id, ticketForm.seat])
+  if (pendingBooking.value?.fingerprint !== fingerprint) {
+    pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
+  }
+  submittingBooking.value = true
   try {
     const response = await bookingApi({
       method: 'post',
       url: '/saveTicket',
+      headers: { 'Idempotency-Key': pendingBooking.value.key },
       data: ticketForm,
     });
     myTicketsVisible.value = true
     ticketDialogVisible.value = false
     step.value = 0
     tickets.value = response.data.data
+    pendingBooking.value = null
   } catch (error) {
     myTicketsVisible.value = false
     ticketDialogVisible.value = true
+    if (error.response?.status === 409) await selectOnlyUnavailableSeats()
+  } finally {
+    submittingBooking.value = false
   }
 }
 

@@ -1,6 +1,7 @@
 package com.demo.ticket.Service;
 
 import com.demo.ticket.Common.RedisKey;
+import com.demo.ticket.Exception.BookingException;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.ApiResponse;
@@ -25,6 +26,8 @@ import java.util.*;
 public class BookingServiceImpl implements BookingService {
 
     private final BookingMapper bookingMapper;
+    private final com.demo.ticket.Mapper.BookingCoreMapper core;
+    private final BookingOrderService orders;
     private final StringRedisTemplate stringRedisTemplate;
     private final NotifierConsumer notifier;
     private final BookingPaymentScheduler bookingPaymentScheduler;
@@ -33,9 +36,13 @@ public class BookingServiceImpl implements BookingService {
             BookingMapper bookingMapper,
             StringRedisTemplate stringRedisTemplate,
             NotifierConsumer notifier,
-            BookingPaymentScheduler bookingPaymentScheduler
+            BookingPaymentScheduler bookingPaymentScheduler,
+            com.demo.ticket.Mapper.BookingCoreMapper core,
+            BookingOrderService orders
     ) {
         this.bookingMapper = bookingMapper;
+        this.core = core;
+        this.orders = orders;
         this.stringRedisTemplate = stringRedisTemplate;
         this.notifier = notifier;
         this.bookingPaymentScheduler = bookingPaymentScheduler;
@@ -83,89 +90,127 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
-    public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request, LoginUser user) {
+    public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request, LoginUser user, String idempotencyKey) {
+        requireAuthenticated(user);
         final String session_id = request.session_id().trim();
         final String activity_id = request.activity_id().trim();
-        final String name = request.name().trim();
-        final String date = request.date().trim();
-        final String time = request.time().trim();
-        final String ticket_status = request.status().trim();
+        if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9_-]{1,128}")) {
+            throw new BookingException("INVALID_IDEMPOTENCY_KEY", "請提供有效的 Idempotency-Key", HttpStatus.BAD_REQUEST);
+        }
         final String seat = request.seat().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        final String accessJtId = user.tokenId();
-        final String accessJwt = user.email();
-        if (Boolean.TRUE.equals(user.accessExists())) {
-            final String blacklistRedisKey = String.format(
-                    RedisKey.redisKey.get("blacklist"),
-                    accessJtId
-            );
-            Boolean blacklistExists = stringRedisTemplate.hasKey(blacklistRedisKey);
-            if (Boolean.FALSE.equals(blacklistExists)) {
-                BookingSession bookingSession = new BookingSession();
-                bookingSession.setSession_id(session_id);
-                int cnt = bookingMapper.updateSession(bookingSession);
-                if (cnt > 0) {
-                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-                    // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001" SQL處理
-                    bookingSaveTicket.setSession_id(session_id);
-                    bookingSaveTicket.setEmail(accessJwt);
-                    bookingSaveTicket.setName(name);
-                    bookingSaveTicket.setDate(date);
-                    bookingSaveTicket.setTime(time);
-                    BigDecimal price = bookingMapper.selectActivityPrice(activity_id);
-                    bookingSaveTicket.setStatus(ticket_status);
-                    bookingSaveTicket.setSeat(seat);
-                    bookingSaveTicket.setPrice(price == null ? BigDecimal.ZERO : price);
-                    // 可付款時間10分鐘
-                    int minutes = 10;
-                    Date dateNow = new Date();
-                    Date dateExpiresAt = Date.from(dateNow
-                            .toInstant()
-                            .plus(minutes, ChronoUnit.MINUTES)
-                    );
-                    bookingSaveTicket.setExpires_at(dateExpiresAt);
-                    String orderno = bookingMapper.saveTicket(bookingSaveTicket);
-                    bookingSaveTicket.setOrderno(orderno);
-                    data = bookingMapper.selectOnlyTicket(accessJwt);
-
-                    Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
-                    BigDecimal capacity = new BigDecimal(sessionData.get("capacity").toString());
-                    NotificationMessage message =
-                            new NotificationMessage(
-                                    accessJwt,
-                                    "新通知：請在 " + minutes + " 分鐘內完成付款，剩餘庫存：" + capacity,
-                                    "尚未付款，付款期限：" +
-                                            dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
-                            );
-                    notifier.sendNotification(message);
-
-                    // Transaction commit 成功後，安排 expires_at 時執行
-                    TransactionSynchronizationManager.registerSynchronization(
-                            new TransactionSynchronization() {
-                                @Override
-                                public void afterCommit() {
-                                    bookingPaymentScheduler.scheduleExpiration(accessJwt, bookingSaveTicket);
-                                }
-                            }
-                    );
-                } else {
-                    NotificationMessage message =
-                            new NotificationMessage(
-                                    accessJwt,
-                                    "新通知",
-                                    name + "的庫存低於安全庫存量"
-                            );
-                    notifier.sendNotification(message);
-                }
+        final String hash = requestHash(session_id, activity_id, seat);
+        if (core.claimKey(user.email(), idempotencyKey, hash) == 0) {
+            Map<String, Object> previous = core.findKey(user.email(), idempotencyKey);
+            if (!hash.equals(previous.get("request_hash"))) {
+                throw new BookingException("IDEMPOTENCY_CONFLICT", "相同請求識別碼不能用於不同訂位內容", HttpStatus.CONFLICT);
             }
+            return ResponseEntity.status(HttpStatus.CREATED).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(previous.get("response_body"));
+        }
+        core.lockSession(session_id);
+        Map<String, Object> snapshot = core.sessionSnapshot(session_id);
+        if (snapshot == null || !activity_id.equals(snapshot.get("activity_id"))) {
+            throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次", HttpStatus.NOT_FOUND);
+        }
+        final String name = snapshot.get("name").toString();
+        final String date = snapshot.get("date").toString();
+        final String time = snapshot.get("time").toString();
+        if (snapshot.get("price") == null || new BigDecimal(snapshot.get("price").toString()).signum() < 0) {
+            throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+        core.ensureSeat(session_id, seat);
+        List<Map<String, Object>> data = new ArrayList<>();
+        final String accessJwt = user.email();
+        BookingSession bookingSession = new BookingSession();
+        bookingSession.setSession_id(session_id);
+        int cnt = bookingMapper.updateSession(bookingSession);
+        String createdOrderNo;
+        if (cnt == 1) {
+            BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
+            // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001" SQL處理
+            bookingSaveTicket.setSession_id(session_id);
+            bookingSaveTicket.setEmail(accessJwt);
+            bookingSaveTicket.setName(name);
+            bookingSaveTicket.setDate(date);
+            bookingSaveTicket.setTime(time);
+            BigDecimal price = new BigDecimal(snapshot.get("price").toString());
+            bookingSaveTicket.setStatus(OrderStatus.PENDING_PAYMENT.name());
+            bookingSaveTicket.setSeat(seat);
+            bookingSaveTicket.setPrice(price);
+            // 可付款時間10分鐘
+            int minutes = 10;
+            Date dateNow = new Date();
+            Date dateExpiresAt = Date.from(dateNow
+                    .toInstant()
+                    .plus(minutes, ChronoUnit.MINUTES)
+            );
+            bookingSaveTicket.setExpires_at(dateExpiresAt);
+            String orderno = bookingMapper.saveTicket(bookingSaveTicket);
+            createdOrderNo = orderno;
+            if (orderno == null || orderno.isBlank()) BookingException.requireOne(0);
+            bookingSaveTicket.setOrderno(orderno);
+            if (core.reserveSeat(bookingSaveTicket) != 1) {
+                throw new BookingException("SEAT_ALREADY_RESERVED", "座位不存在或已被保留", HttpStatus.CONFLICT);
+            }
+            data = bookingMapper.selectOnlyTicket(accessJwt);
+
+            Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
+            BigDecimal capacity = new BigDecimal(sessionData.get("capacity").toString());
+            NotificationMessage message =
+                    new NotificationMessage(
+                            accessJwt,
+                            "新通知：請在 " + minutes + " 分鐘內完成付款，剩餘庫存：" + capacity,
+                            "尚未付款，付款期限：" +
+                                    dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
+                    );
+
+
+            // Transaction commit 成功後，安排 expires_at 時執行
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            bookingPaymentScheduler.scheduleExpiration(accessJwt, bookingSaveTicket);
+                            notifier.sendNotification(message);
+                        }
+                    }
+            );
+        } else {
+            throw new BookingException("INSUFFICIENT_CAPACITY", "場次不存在或已售完", HttpStatus.CONFLICT);
         }
         HttpStatus status = HttpStatus.CREATED;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+        Object response = ApiResponse.api(status, data);
+        try {
+            String body = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(response);
+            BookingException.requireOne(core.completeKey(user.email(), idempotencyKey, createdOrderNo, body));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Cannot store booking result", ex);
+        }
+        return ResponseEntity.status(status).body(response);
+    }
+
+    private String requestHash(String session, String activity, String seat) {
+        try {
+            byte[] content = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(List.of(session, activity, seat));
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (java.security.NoSuchAlgorithmException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private void requireAuthenticated(LoginUser user) {
+        if (user == null || !Boolean.TRUE.equals(user.accessExists()) ||
+                !Boolean.FALSE.equals(stringRedisTemplate.hasKey(
+                        String.format(RedisKey.redisKey.get("blacklist"), user.tokenId())))) {
+            throw new BookingException("UNAUTHORIZED", "請重新登入", HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    private void afterCommit(Runnable action) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() { action.run(); }
+        });
     }
 
     private String dateFormat(Date date) {
@@ -177,57 +222,14 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request, LoginUser user) {
-        final String orderno = request.orderno().trim();
-        final String session_id = request.session_id().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        final String accessJtId = user.tokenId();
-        final String accessJwt = user.email();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("judge", false);
-        if (Boolean.TRUE.equals(user.accessExists())) {
-            final String blacklistRedisKey = String.format(
-                    RedisKey.redisKey.get("blacklist"),
-                    accessJtId
-            );
-            if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
-                BookingSession bookingSession = new BookingSession();
-                bookingSession.setSession_id(session_id);
-                int cntUpdateSession = bookingMapper.cancelSession(bookingSession);
-                if (cntUpdateSession > 0) {
-                    BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-                    bookingSaveTicket.setOrderno(orderno);
-                    int cntCancelTicket = bookingMapper.cancelTicket(bookingSaveTicket);
-                    if (cntCancelTicket > 0) {
-                        dataMap.put("judge", true);
-                        NotificationMessage message =
-                                new NotificationMessage(
-                                        accessJwt,
-                                        "取消訂單",
-                                        "您的票券已取消成功，可至訂單頁面查看票券資訊"
-                                );
-                        notifier.sendNotification(message);
-                    }
-
-                    TransactionSynchronizationManager.registerSynchronization(
-                            new TransactionSynchronization() {
-                                @Override
-                                public void afterCommit() {
-                                    bookingPaymentScheduler.cancelExpiration(orderno);
-                                }
-                            }
-                    );
-
-                    data.add(dataMap);
-                }
-            }
-        }
-        HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+        requireAuthenticated(user);
+        String orderno = request.orderno().trim();
+        orders.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.CANCELLED);
+        afterCommit(() -> {
+            bookingPaymentScheduler.cancelExpiration(orderno);
+            notifier.sendNotification(new NotificationMessage(user.email(), "取消成功", "請至訂單頁面查看票券資訊"));
+        });
+        return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
 
     @Override
@@ -264,56 +266,14 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
-        final String orderno = request.orderno().trim();
-        final String session_id = request.session_id().trim();
-        final String date = request.date().trim();
-        final String time = request.time().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        final String accessJwt = user.email();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("judge", false);
-        if (Boolean.TRUE.equals(user.accessExists())) {
-            BookingSession bookingSession = new BookingSession();
-            bookingSession.setSession_id(session_id);
-            int cntUpdateSession = bookingMapper.dopaypriceUpdateSession(bookingSession);
-            if (cntUpdateSession > 0) {
-                BookingDopaypriceTicket bookingDopaypriceTicket = new BookingDopaypriceTicket();
-                bookingDopaypriceTicket.setOrderno(orderno);
-                bookingDopaypriceTicket.setSession_id(session_id);
-                bookingDopaypriceTicket.setCustomer(accessJwt.substring(0, accessJwt.indexOf('@')));
-                bookingDopaypriceTicket.setDate(date);
-                bookingDopaypriceTicket.setTime(time);
-                int cntDopaypriceTicket = bookingMapper.dopaypriceTicket(bookingDopaypriceTicket);
-                if (cntDopaypriceTicket > 0) {
-                    dataMap.put("judge", true);
-
-                    TransactionSynchronizationManager.registerSynchronization(
-                            new TransactionSynchronization() {
-                                @Override
-                                public void afterCommit() {
-                                    bookingPaymentScheduler.cancelExpiration(orderno);
-                                }
-                            }
-                    );
-
-                    NotificationMessage message =
-                            new NotificationMessage(
-                                    accessJwt,
-                                    "付款成功",
-                                    "您的票券已付款成功，可至訂單頁面查看票券資訊"
-                            );
-                    notifier.sendNotification(message);
-                }
-                data.add(dataMap);
-            }
-        }
-        HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+        requireAuthenticated(user);
+        String orderno = request.orderno().trim();
+        orders.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.PAID);
+        afterCommit(() -> {
+            bookingPaymentScheduler.cancelExpiration(orderno);
+            notifier.sendNotification(new NotificationMessage(user.email(), "付款成功", "請至訂單頁面查看票券資訊"));
+        });
+        return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
 
     @Override
@@ -346,20 +306,8 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<String> selectOnlyUnavailableSeats(BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user) {
-        final String date = request.date().trim();
-        final String time = request.time().trim();
-        List<String> data = new ArrayList<>();
-        if (Boolean.TRUE.equals(user.accessExists())) {
-            BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-            bookingSaveTicket.setDate(date);
-            bookingSaveTicket.setTime(time);
-            List<Map<String, Object>> unavailableSeats = bookingMapper.selectOnlyUnavailableSeats(bookingSaveTicket);
-            if (!unavailableSeats.isEmpty()) {
-                unavailableSeats.forEach(unavailableSeat -> {
-                    data.add(unavailableSeat.get("seat").toString());
-                });
-            }
-        }
-        return data;
+        requireAuthenticated(user);
+        return core.unavailableSeats(request.session_id().trim());
     }
+
 }

@@ -3,7 +3,6 @@ package com.demo.ticket.Service;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.Booking.BookingSaveTicket;
-import com.demo.ticket.Dto.Booking.BookingSession;
 import com.demo.ticket.Mapper.BookingMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
@@ -22,6 +21,7 @@ public class BookingPaymentScheduler {
     private final TaskScheduler taskScheduler;
     private final BookingMapper bookingMapper;
     private final NotifierConsumer notifier;
+    private final BookingExpirationService expirationService;
 
     // 正式到期任務
     private final Map<String, ScheduledFuture<?>> expirationTasks = new ConcurrentHashMap<>();
@@ -36,11 +36,13 @@ public class BookingPaymentScheduler {
             @Qualifier("bookingTaskScheduler")
             TaskScheduler taskScheduler,
             BookingMapper bookingMapper,
-            NotifierConsumer notifier
+            NotifierConsumer notifier,
+            BookingExpirationService expirationService
     ) {
         this.taskScheduler = taskScheduler;
         this.bookingMapper = bookingMapper;
         this.notifier = notifier;
+        this.expirationService = expirationService;
     }
 
     public void scheduleExpiration(
@@ -138,12 +140,7 @@ public class BookingPaymentScheduler {
             BookingSaveTicket bookingSaveTicket
     ) {
 
-        String status = bookingMapper.selectTicketStatus(bookingSaveTicket);
-
-        // 已經付款、取消、過期，就不要通知
-        if (!"PENDING_PAYMENT".equals(status)) {
-            return;
-        }
+        if (!expirationService.expire(bookingSaveTicket)) return;
 
         NotificationMessage message =
                 new NotificationMessage(
@@ -157,11 +154,7 @@ public class BookingPaymentScheduler {
 
         notifier.sendNotification(message);
 
-        bookingSaveTicket.setCancelled_at(bookingSaveTicket.getExpires_at());
-        bookingMapper.updateTicketExpiredAt(bookingSaveTicket);
-        BookingSession bookingSession = new BookingSession();
-        bookingSession.setSession_id(bookingSaveTicket.getSession_id());
-        bookingMapper.cancelSession( bookingSession);
+
     }
 
     private String dateFormat(Date date) {

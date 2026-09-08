@@ -18,7 +18,7 @@ public interface BookingService {
 
     Map<String, Object> selectOnlyActivitiesPrice(BookingSelectOnlyActivitiesPriceRequest request, LoginUser user);
 
-    ResponseEntity<?> saveTicket(@Valid BookingSaveTicketRequest request, LoginUser user);
+    ResponseEntity<?> saveTicket(@Valid BookingSaveTicketRequest request, LoginUser user, String idempotencyKey);
 
     ResponseEntity<?> cancelOrder(@Valid BookingCanceTicketRequest request, LoginUser user);
 

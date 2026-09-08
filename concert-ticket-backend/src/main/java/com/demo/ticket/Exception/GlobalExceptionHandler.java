@@ -21,6 +21,14 @@ import java.util.TreeMap;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(BookingException.class)
+    public ResponseEntity<?> handleBooking(BookingException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of(
+                "code", ex.getCode(), "message", ex.getMessage(),
+                "traceId", java.util.UUID.randomUUID().toString(),
+                "timestamp", java.time.Instant.now().toString()));
+    }
+
     private final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // DTO 驗證失敗

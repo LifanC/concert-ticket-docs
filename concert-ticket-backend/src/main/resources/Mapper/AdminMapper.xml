@@ -192,7 +192,6 @@
                        salesdate = EXCLUDED.salesdate,
                        salestime = EXCLUDED.salestime,
                        capacity = EXCLUDED.capacity,
-                       sold = EXCLUDED.sold,
                        status = EXCLUDED.status
                        RETURNING id
     </select>

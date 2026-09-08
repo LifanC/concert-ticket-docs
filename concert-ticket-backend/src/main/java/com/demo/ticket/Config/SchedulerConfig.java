@@ -6,6 +6,7 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
+@org.springframework.scheduling.annotation.EnableScheduling
 public class SchedulerConfig {
 
     @Bean("bookingTaskScheduler")

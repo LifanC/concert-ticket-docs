@@ -71,8 +71,9 @@ public class BookingController {
             @Valid
             @RequestBody
             BookingSaveTicketRequest request,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @AuthenticationPrincipal LoginUser user) {
-        return bookingService.saveTicket(request, user);
+        return bookingService.saveTicket(request, user, idempotencyKey);
     }
 
     @Operation(summary = "4.取消訂單", description = "取消訂單")

@@ -79,13 +79,13 @@
         set
             reserved = reserved + 1
         where "session".id = #{session_id}
-          and "session".reserved >= 0
+          and "session".capacity - "session".reserved - "session".sold >= 1
     </update>
 
     <select id="selectOnlySessionId" resultType="java.util.Map">
         select
             "session".id,
-            "session".capacity
+            "session".capacity - "session".reserved - "session".sold as capacity
         from "interviewworks_ticket"."session" "session"
         where "session".id = #{session_id}
     </select>
@@ -96,7 +96,7 @@
         where id = #{activity_id}
     </select>
 
-    <select id="saveTicket" resultType="java.lang.String">
+    <select id="saveTicket" resultType="java.lang.String" affectData="true" flushCache="true">
         WITH next_order AS (
         INSERT INTO "interviewworks_ticket".ticket_sequence
         (
@@ -153,16 +153,17 @@
         set
             reserved = reserved - 1
         where "session".id = #{session_id}
-          and "session".reserved >= 0
+          and "session".reserved >= 1
     </update>
 
     <update id="cancelTicket">
         update "interviewworks_ticket".ticket ticket
         set
             status = 'CANCELLED',
-            quantity = 0,
             cancelled_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
+          and session_id = #{session_id}
+          and email = #{email}
           and status in ('PENDING_PAYMENT')
           and expires_at > CURRENT_TIMESTAMP
     </update>
@@ -189,7 +190,7 @@
             reserved = reserved - 1,
             sold = sold + 1
         where "session".id = #{session_id}
-          and "session".reserved >= 0
+          and "session".reserved >= 1
     </update>
 
     <update id="dopaypriceTicket">
@@ -200,8 +201,7 @@
             paid_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
           and session_id = #{session_id}
-          and "date" = #{date}
-          and "time" = #{time}
+          and email = #{customer}
           and status in ('PENDING_PAYMENT')
           and expires_at > CURRENT_TIMESTAMP
     </update>
@@ -216,13 +216,11 @@
         update "interviewworks_ticket".ticket ticket
         set
             status = 'EXPIRED',
-            cancelled_at = #{cancelled_at}
+            cancelled_at = CURRENT_TIMESTAMP
         where orderno = #{orderno}
           and session_id = #{session_id}
-          and "date" = #{date}
-          and "time" = #{time}
           and status in ('PENDING_PAYMENT')
-          and expires_at > CURRENT_TIMESTAMP
+          and expires_at &lt;= CURRENT_TIMESTAMP
     </update>
 
     <select id="selectOnlySeats" resultType="java.util.Map">
