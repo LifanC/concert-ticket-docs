@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -109,7 +110,9 @@ public class BookingServiceImpl implements BookingService {
             if (!hash.equals(previous.get("request_hash"))) {
                 throw new BookingException("IDEMPOTENCY_CONFLICT", "相同請求識別碼不能用於不同訂位內容", HttpStatus.CONFLICT);
             }
-            return ResponseEntity.status(HttpStatus.CREATED).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(previous.get("response_body"));
         }
         bookingCoreMapper.lockSession(session_id);
@@ -121,10 +124,10 @@ public class BookingServiceImpl implements BookingService {
         final String date = snapshot.get("date").toString();
         final String time = snapshot.get("time").toString();
         if (snapshot.get("price") == null || new BigDecimal(snapshot.get("price").toString()).signum() < 0) {
-            throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_CONTENT);
         }
         bookingCoreMapper.ensureSeat(session_id, seat);
-        List<Map<String, Object>> data = new ArrayList<>();
+        List<Map<String, Object>> data;
         final String accessJwt = user.email();
         BookingSession bookingSession = new BookingSession();
         bookingSession.setSession_id(session_id);
@@ -152,13 +155,14 @@ public class BookingServiceImpl implements BookingService {
             bookingSaveTicket.setExpires_at(dateExpiresAt);
             String orderno = bookingMapper.saveTicket(bookingSaveTicket);
             createdOrderNo = orderno;
-            if (orderno == null || orderno.isBlank()) BookingException.requireOne(0);
+            if (orderno == null || orderno.isBlank()) {
+                BookingException.requireOne(0);
+            }
             bookingSaveTicket.setOrderno(orderno);
             if (bookingCoreMapper.reserveSeat(bookingSaveTicket) != 1) {
                 throw new BookingException("SEAT_ALREADY_RESERVED", "座位不存在或已被保留", HttpStatus.CONFLICT);
             }
             data = bookingMapper.selectOnlyTicket(accessJwt);
-
             Map<String, Object> sessionData = bookingMapper.selectOnlySessionId(session_id).get(session_id);
             BigDecimal capacity = new BigDecimal(sessionData.get("capacity").toString());
             NotificationMessage message =
@@ -168,7 +172,6 @@ public class BookingServiceImpl implements BookingService {
                             "尚未付款，付款期限：" +
                                     dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
                     );
-
 
             // Transaction commit 成功後，安排 expires_at 時執行
             TransactionSynchronizationManager.registerSynchronization(
@@ -187,26 +190,41 @@ public class BookingServiceImpl implements BookingService {
         Object response = ApiResponse.api(status, data);
         try {
             String body = new ObjectMapper().writeValueAsString(response);
-            BookingException.requireOne(bookingCoreMapper.completeKey(user.email(), idempotencyKey, createdOrderNo, body));
+            BookingException.requireOne(
+                    bookingCoreMapper.completeKey(user.email(), idempotencyKey, createdOrderNo, body)
+            );
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Cannot store booking result", ex);
         }
         return ResponseEntity.status(status).body(response);
     }
 
+    private String dateFormat(Date date) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return sdf.format(date);
+    }
+
     private String requestHash(String session, String activity, String seat) {
         try {
-            byte[] content = new ObjectMapper().writeValueAsBytes(List.of(session, activity, seat));
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
-        } catch (NoSuchAlgorithmException | JsonProcessingException ex) {
-            throw new IllegalStateException(ex);
+            byte[] content = new ObjectMapper().writeValueAsBytes(
+                    List.of(session, activity, seat)
+            );
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(content);
+            return HexFormat.of().formatHex(digest);
+        } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Failed to generate request hash", ex);
         }
     }
 
     private void requireAuthenticated(LoginUser user) {
-        if (user == null || !Boolean.TRUE.equals(user.accessExists()) ||
-                !Boolean.FALSE.equals(stringRedisTemplate.hasKey(
-                        String.format(RedisKey.redisKey.get("blacklist"), user.tokenId())))) {
+        boolean invalid = user == null
+                || !Boolean.TRUE.equals(user.accessExists())
+                || !Boolean.TRUE.equals(stringRedisTemplate.hasKey(
+                        String.format(RedisKey.redisKey.get("access"), user.tokenId(), user.email())))
+                || Boolean.TRUE.equals(stringRedisTemplate.hasKey(
+                        String.format(RedisKey.redisKey.get("blacklist"), user.tokenId())
+        ));
+        if (invalid) {
             throw new BookingException("UNAUTHORIZED", "請重新登入", HttpStatus.UNAUTHORIZED);
         }
     }
@@ -218,11 +236,6 @@ public class BookingServiceImpl implements BookingService {
         });
     }
 
-    private String dateFormat(Date date) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return sdf.format(date);
-    }
-
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -232,7 +245,13 @@ public class BookingServiceImpl implements BookingService {
         bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.CANCELLED);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
-            notifierConsumer.sendNotification(new NotificationMessage(user.email(), "取消成功", "請至訂單頁面查看票券資訊"));
+            notifierConsumer.sendNotification(
+                    new NotificationMessage(
+                            user.email(),
+                            "取消成功",
+                            "請至訂單頁面查看票券資訊"
+                    )
+            );
         });
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
@@ -276,7 +295,13 @@ public class BookingServiceImpl implements BookingService {
         bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.PAID);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
-            notifierConsumer.sendNotification(new NotificationMessage(user.email(), "付款成功", "請至訂單頁面查看票券資訊"));
+            notifierConsumer.sendNotification(
+                    new NotificationMessage(
+                            user.email(),
+                            "付款成功",
+                            "請至訂單頁面查看票券資訊"
+                    )
+            );
         });
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
@@ -284,23 +309,21 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySeats(BookingSelectOnlySeatsRequest request, LoginUser user) {
-        final String activity_id = request.activity_id().trim();
+        final String activityId = request.activity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         if (Boolean.TRUE.equals(user.accessExists())) {
-            Map<String, Object> dataMapOnlySeats = bookingMapper.selectOnlySeats(activity_id).get(activity_id);
-            if (dataMapOnlySeats != null) {
-                String seat_rows = dataMapOnlySeats.get("seat_rows").toString();
-                String[] strings = seat_rows.split(",");
-                int seats_per_row = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
-                for (String string : strings) {
-                    for (int i = 0; i < seats_per_row; i++) {
-                        final int number = i + 1;
-                        Map<String, Object> dataMap = new HashMap<>();
-                        dataMap.put("id", string + "-" + String.format("%02d", number));
-                        dataMap.put("row", string);
-                        dataMap.put("number", number);
-                        dataMap.put("seats_per_row", seats_per_row);
-                        data.add(dataMap);
+            Map<String, Object> seatConfig = bookingMapper.selectOnlySeats(activityId).get(activityId);
+            if (seatConfig != null) {
+                String[] rows = seatConfig.get("seat_rows").toString().split(",");
+                int seatsPerRow = Integer.parseInt(seatConfig.get("seats_per_row").toString());
+                for (String row : rows) {
+                    for (int number = 1; number <= seatsPerRow; number++) {
+                        data.add(Map.of(
+                                "id", "%s-%02d".formatted(row, number),
+                                "row", row,
+                                "number", number,
+                                "seats_per_row", seatsPerRow
+                        ));
                     }
                 }
             }

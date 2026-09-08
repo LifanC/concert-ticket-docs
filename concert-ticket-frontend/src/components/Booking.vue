@@ -125,6 +125,7 @@ const previousStep = () => {
 const pendingBooking = ref(null)
 const submittingBooking = ref(false)
 const createOrder = async () => {
+  alert(submittingBooking.value)
   if (submittingBooking.value) return
   if (selectedSeats.value.length != 1) {
     ElMessage({
@@ -155,7 +156,10 @@ const createOrder = async () => {
     const response = await bookingApi({
       method: 'post',
       url: '/saveTicket',
-      headers: { 'Idempotency-Key': pendingBooking.value.key },
+      headers: {
+        // 冪等鍵（Idempotency Key）
+        'Idempotency-Key': pendingBooking.value.key 
+      },
       data: ticketForm,
     });
     myTicketsVisible.value = true
@@ -166,7 +170,9 @@ const createOrder = async () => {
   } catch (error) {
     myTicketsVisible.value = false
     ticketDialogVisible.value = true
-    if (error.response?.status === 409) await selectOnlyUnavailableSeats()
+    if (error.response?.status === 409) {
+      await selectOnlyUnavailableSeats()
+    }
   } finally {
     submittingBooking.value = false
   }

@@ -17,7 +17,7 @@
         SELECT id
         FROM interviewworks_ticket.session
         WHERE id = #{sessionId}
-            FOR UPDATE
+        FOR UPDATE
     </select>
 
     <select id="sessionSnapshot" resultType="java.util.Map">
@@ -82,7 +82,8 @@
 
     <insert id="claimKey">
         INSERT INTO interviewworks_ticket.booking_idempotency(email, idempotency_key, request_hash)
-        VALUES (#{email}, #{key}, #{hash}) ON CONFLICT DO NOTHING
+        VALUES (#{email}, #{key}, #{hash})
+            ON CONFLICT DO NOTHING
     </insert>
 
     <select id="findKey" resultType="java.util.Map">
@@ -90,7 +91,7 @@
         FROM interviewworks_ticket.booking_idempotency
         WHERE email = #{email}
           AND idempotency_key = #{key}
-            FOR UPDATE
+        FOR UPDATE
     </select>
 
     <update id="completeKey">

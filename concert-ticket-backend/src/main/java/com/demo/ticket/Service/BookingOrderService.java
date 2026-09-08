@@ -24,45 +24,59 @@ public class BookingOrderService {
     @Transactional
     public boolean transition(String orderno, String sessionId, String email, OrderStatus target) {
         BookingSaveTicket ticket = bookingCoreMapper.findOrder(orderno);
-        if (ticket == null || (email != null && !email.equals(ticket.getEmail()))
-                || (sessionId != null && !sessionId.equals(ticket.getSession_id()))) {
-            if (target == OrderStatus.EXPIRED) return false;
+        boolean notFound = ticket == null
+                || (email != null && !email.equals(ticket.getEmail()))
+                || (sessionId != null && !sessionId.equals(ticket.getSession_id()));
+        if (notFound) {
+            if (target == OrderStatus.EXPIRED) {
+                return false;
+            }
             throw new BookingException("ORDER_NOT_FOUND", "找不到訂單", HttpStatus.NOT_FOUND);
         }
         // All writers lock session before order/seat, avoiding payment/reservation deadlocks.
+        // 所有作者在下單/預訂座位前都會鎖定會話，避免付款/預訂僵局。
         bookingCoreMapper.lockSession(ticket.getSession_id());
         ticket = bookingCoreMapper.findOrder(orderno);
         OrderStatus current = OrderStatus.valueOf(ticket.getStatus());
         if (!current.canTransitionTo(target)) {
-            if (target == OrderStatus.EXPIRED) return false;
+            if (target == OrderStatus.EXPIRED) {
+                return false;
+            }
             throw conflict();
         }
         int rows;
-        if (target == OrderStatus.PAID) {
-            BookingDopaypriceTicket pay = new BookingDopaypriceTicket();
-            pay.setOrderno(orderno);
-            pay.setSession_id(ticket.getSession_id());
-            pay.setCustomer(ticket.getEmail());
-            rows = bookingMapper.dopaypriceTicket(pay);
-        } else if (target == OrderStatus.CANCELLED) {
-            rows = bookingMapper.cancelTicket(ticket);
-        } else if (target == OrderStatus.EXPIRED) {
-            rows = bookingMapper.updateTicketExpiredAt(ticket);
-        } else {
+        switch (target) {
+            case PAID -> {
+                BookingDopaypriceTicket pay = new BookingDopaypriceTicket();
+                pay.setOrderno(orderno);
+                pay.setSession_id(ticket.getSession_id());
+                pay.setCustomer(ticket.getEmail());
+                rows = bookingMapper.dopaypriceTicket(pay);
+            }
+            case CANCELLED -> rows = bookingMapper.cancelTicket(ticket);
+            case EXPIRED -> rows = bookingMapper.updateTicketExpiredAt(ticket);
             // Refund accounting is not implemented yet; never expose a partial refund.
-            throw conflict();
+            // 退款會計系統尚未啟用；切勿公開部分退款資訊。
+            default -> throw conflict();
         }
         if (rows == 0) {
-            if (target == OrderStatus.EXPIRED) return false;
+            if (target == OrderStatus.EXPIRED) {
+                return false;
+            }
             throw conflict();
         }
         BookingException.requireOne(rows);
+        boolean paid = target == OrderStatus.PAID;
         BookingSession session = new BookingSession();
         session.setSession_id(ticket.getSession_id());
-        BookingException.requireOne(target == OrderStatus.PAID
-                ? bookingMapper.dopaypriceUpdateSession(session) : bookingMapper.cancelSession(session));
-        BookingException.requireOne(bookingCoreMapper.transitionSeat(ticket.getSession_id(), ticket.getSeat(), orderno,
-                target == OrderStatus.PAID ? "SOLD" : "AVAILABLE"));
+        BookingException.requireOne(paid
+                ? bookingMapper.dopaypriceUpdateSession(session)
+                : bookingMapper.cancelSession(session));
+        BookingException.requireOne(bookingCoreMapper.transitionSeat(
+                ticket.getSession_id(),
+                ticket.getSeat(),
+                orderno,
+                paid ? "SOLD" : "AVAILABLE"));
         return true;
     }
 

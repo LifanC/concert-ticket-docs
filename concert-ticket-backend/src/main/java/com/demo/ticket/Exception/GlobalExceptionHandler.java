@@ -13,23 +13,26 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
 import io.jsonwebtoken.JwtException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(BookingException.class)
     public ResponseEntity<?> handleBooking(BookingException ex) {
-        return ResponseEntity.status(ex.getStatus()).body(Map.of(
-                "code", ex.getCode(), "message", ex.getMessage(),
-                "traceId", java.util.UUID.randomUUID().toString(),
-                "timestamp", java.time.Instant.now().toString()));
+        return ResponseEntity
+                .status(ex.getStatus())
+                .body(
+                        Map.of(
+                                "code", ex.getCode(),
+                                "message", ex.getMessage(),
+                                "traceId", UUID.randomUUID().toString(),
+                                "timestamp", java.time.Instant.now().toString()
+                        )
+                );
     }
-
-    private final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // DTO 驗證失敗
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -86,15 +89,15 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<?> error(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(ApiResponse.api(status, msg(message)));
+        return ResponseEntity
+                .status(status)
+                .body(
+                        ApiResponse.api(status, msg(message))
+                );
     }
 
     private List<Map<String, Object>> msg(String ex) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("remark", ex);
-        data.add(dataMap);
-        return data;
+        return List.of(Map.of("remark", ex));
     }
 
 }
