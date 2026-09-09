@@ -253,7 +253,7 @@ class BookingTransactionTest {
 //        assertFalse(core.unavailableSeats("S1").contains("B-01"));
 //        service.saveTicket(request("B-01"), user, "rebook");
 //        String orderno = jdbc.queryForObject("SELECT orderno FROM interviewworks_ticket.ticket WHERE status = 'PENDING_PAYMENT'", String.class);
-//        orders.transition(orderno, "S1", user.email(), com.demo.ticket.Dto.Booking.OrderStatus.PAID);
+//        orders.transition(orderno, "S1", user.email(), com.demo.ticket.Dto.Booking.bookingOrderStatus.PAID);
 //        assertEquals("SOLD", jdbc.queryForObject("SELECT status FROM interviewworks_ticket.session_seat WHERE seat_id = 'B-01'", String.class));
 //    }
 //

@@ -105,8 +105,12 @@ public class BookingServiceImpl implements BookingService {
         }
         final String seat = request.seat().trim();
         final String hash = requestHash(session_id, activity_id, seat);
-        if (bookingCoreMapper.claimKey(user.email(), idempotencyKey, hash) == 0) {
-            Map<String, Object> previous = bookingCoreMapper.findKey(user.email(), idempotencyKey);
+        BookingCoreKey bookingCoreKey = new BookingCoreKey();
+        bookingCoreKey.setEmail(user.email());
+        bookingCoreKey.setIdempotencyKey(idempotencyKey);
+        bookingCoreKey.setHash(hash);
+        if (bookingCoreMapper.claimKey(bookingCoreKey) == 0) {
+            Map<String, Object> previous = bookingCoreMapper.findKey(bookingCoreKey);
             if (!hash.equals(previous.get("request_hash"))) {
                 throw new BookingException("IDEMPOTENCY_CONFLICT", "相同請求識別碼不能用於不同訂位內容", HttpStatus.CONFLICT);
             }
@@ -142,7 +146,7 @@ public class BookingServiceImpl implements BookingService {
             bookingSaveTicket.setDate(date);
             bookingSaveTicket.setTime(time);
             BigDecimal price = new BigDecimal(snapshot.get("price").toString());
-            bookingSaveTicket.setStatus(OrderStatus.PENDING_PAYMENT.name());
+            bookingSaveTicket.setStatus(bookingOrderStatus.PENDING_PAYMENT.name());
             bookingSaveTicket.setSeat(seat);
             bookingSaveTicket.setPrice(price);
             // 可付款時間10分鐘
@@ -190,8 +194,13 @@ public class BookingServiceImpl implements BookingService {
         Object response = ApiResponse.api(status, data);
         try {
             String body = new ObjectMapper().writeValueAsString(response);
+            BookingCompleteKey bookingCompleteKey = new BookingCompleteKey();
+            bookingCompleteKey.setEmail(user.email());
+            bookingCompleteKey.setIdempotencyKey(idempotencyKey);
+            bookingCompleteKey.setCreatedOrderNo(createdOrderNo);
+            bookingCompleteKey.setBody(body);
             BookingException.requireOne(
-                    bookingCoreMapper.completeKey(user.email(), idempotencyKey, createdOrderNo, body)
+                    bookingCoreMapper.completeKey(bookingCompleteKey)
             );
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Cannot store booking result", ex);
@@ -242,7 +251,12 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.CANCELLED);
+        BookingOrder bookingOrder = new BookingOrder();
+        bookingOrder.setOrderno(orderno);
+        bookingOrder.setSession_id(request.session_id());
+        bookingOrder.setEmail(user.email());
+        bookingOrder.setStatus(bookingOrderStatus.CANCELLED);
+        bookingOrderService.transition(bookingOrder);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
             notifierConsumer.sendNotification(
@@ -272,7 +286,7 @@ public class BookingServiceImpl implements BookingService {
                     accessJtId
             );
             if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
-                if ("PENDING_PAYMENT".equals(ticket_status)) {
+                if (bookingOrderStatus.PENDING_PAYMENT.name().equals(ticket_status)) {
                     BookingSalesDate bookingSalesDate = new BookingSalesDate();
                     bookingSalesDate.setSession_id(session_id);
                     bookingSalesDate.setActivity_id(activity_id);
@@ -292,7 +306,12 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        bookingOrderService.transition(orderno, request.session_id().trim(), user.email(), OrderStatus.PAID);
+        BookingOrder bookingOrder = new BookingOrder();
+        bookingOrder.setOrderno(orderno);
+        bookingOrder.setSession_id(request.session_id());
+        bookingOrder.setEmail(user.email());
+        bookingOrder.setStatus(bookingOrderStatus.PAID);
+        bookingOrderService.transition(bookingOrder);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
             notifierConsumer.sendNotification(

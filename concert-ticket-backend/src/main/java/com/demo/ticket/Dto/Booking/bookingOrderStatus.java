@@ -1,6 +1,6 @@
 package com.demo.ticket.Dto.Booking;
 
-public enum OrderStatus {
+public enum bookingOrderStatus {
     PENDING_PAYMENT,
     PAID,
     CANCELLED,
@@ -8,7 +8,7 @@ public enum OrderStatus {
     REFUNDED
     ;
 
-    public boolean canTransitionTo(OrderStatus target) {
+    public boolean canTransitionTo(bookingOrderStatus target) {
         return this == PENDING_PAYMENT &&
                 (target == PAID || target == CANCELLED || target == EXPIRED) ||
                 this == PAID && target == REFUNDED;

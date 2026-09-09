@@ -3,6 +3,7 @@ package com.demo.ticket.Service;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.Dto.Booking.BookingSaveTicket;
+import com.demo.ticket.Dto.Booking.bookingOrderStatus;
 import com.demo.ticket.Mapper.BookingMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
@@ -62,7 +63,6 @@ public class BookingPaymentScheduler {
 
         // 避免提醒時間已經過了還去排程
         if (reminderTime.isAfter(Instant.now())) {
-
             ScheduledFuture<?> reminderFuture =
                     taskScheduler.schedule(
                             () -> {
@@ -115,10 +115,9 @@ public class BookingPaymentScheduler {
         String status = bookingMapper.selectTicketStatus(bookingSaveTicket);
 
         // 已經付款、取消、過期，就不要通知
-        if (!"PENDING_PAYMENT".equals(status)) {
+        if (!bookingOrderStatus.PENDING_PAYMENT.name().equals(status)) {
             return;
         }
-
         NotificationMessage message =
                 new NotificationMessage(
                         accessJwt,
@@ -139,9 +138,9 @@ public class BookingPaymentScheduler {
             String accessJwt,
             BookingSaveTicket bookingSaveTicket
     ) {
-
-        if (!expirationService.expire(bookingSaveTicket)) return;
-
+        if (!expirationService.expire(bookingSaveTicket)) {
+            return;
+        }
         NotificationMessage message =
                 new NotificationMessage(
                         accessJwt,
@@ -153,8 +152,6 @@ public class BookingPaymentScheduler {
                 );
 
         notifier.sendNotification(message);
-
-
     }
 
     private String dateFormat(Date date) {
@@ -171,17 +168,14 @@ public class BookingPaymentScheduler {
 
         // 取消即將到期提醒
         ScheduledFuture<?> reminderFuture =reminderTasks.remove(orderno);
-
         if (reminderFuture != null) {
             reminderFuture.cancel(false);
         }
 
         // 取消正式到期
         ScheduledFuture<?> expirationFuture =expirationTasks.remove(orderno);
-
         if (expirationFuture != null) {
             expirationFuture.cancel(false);
         }
-
     }
 }

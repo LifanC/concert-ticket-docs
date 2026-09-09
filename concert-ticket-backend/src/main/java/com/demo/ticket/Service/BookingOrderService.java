@@ -22,13 +22,17 @@ public class BookingOrderService {
     }
 
     @Transactional
-    public boolean transition(String orderno, String sessionId, String email, OrderStatus target) {
+    public boolean transition(BookingOrder bookingOrder) {
+        final String orderno = bookingOrder.getOrderno();
+        final String email = bookingOrder.getEmail();
+        final String sessionId = bookingOrder.getSession_id();
+        final bookingOrderStatus target = bookingOrder.getStatus();
         BookingSaveTicket ticket = bookingCoreMapper.findOrder(orderno);
         boolean notFound = ticket == null
                 || (email != null && !email.equals(ticket.getEmail()))
                 || (sessionId != null && !sessionId.equals(ticket.getSession_id()));
         if (notFound) {
-            if (target == OrderStatus.EXPIRED) {
+            if (target == bookingOrderStatus.EXPIRED) {
                 return false;
             }
             throw new BookingException("ORDER_NOT_FOUND", "找不到訂單", HttpStatus.NOT_FOUND);
@@ -37,9 +41,9 @@ public class BookingOrderService {
         // 所有作者在下單/預訂座位前都會鎖定會話，避免付款/預訂僵局。
         bookingCoreMapper.lockSession(ticket.getSession_id());
         ticket = bookingCoreMapper.findOrder(orderno);
-        OrderStatus current = OrderStatus.valueOf(ticket.getStatus());
+        bookingOrderStatus current = bookingOrderStatus.valueOf(ticket.getStatus());
         if (!current.canTransitionTo(target)) {
-            if (target == OrderStatus.EXPIRED) {
+            if (target == bookingOrderStatus.EXPIRED) {
                 return false;
             }
             throw conflict();
@@ -60,23 +64,24 @@ public class BookingOrderService {
             default -> throw conflict();
         }
         if (rows == 0) {
-            if (target == OrderStatus.EXPIRED) {
+            if (target == bookingOrderStatus.EXPIRED) {
                 return false;
             }
             throw conflict();
         }
         BookingException.requireOne(rows);
-        boolean paid = target == OrderStatus.PAID;
+        boolean paid = target == bookingOrderStatus.PAID;
         BookingSession session = new BookingSession();
         session.setSession_id(ticket.getSession_id());
         BookingException.requireOne(paid
                 ? bookingMapper.dopaypriceUpdateSession(session)
                 : bookingMapper.cancelSession(session));
-        BookingException.requireOne(bookingCoreMapper.transitionSeat(
-                ticket.getSession_id(),
-                ticket.getSeat(),
-                orderno,
-                paid ? "SOLD" : "AVAILABLE"));
+        BookingTransitionSeat bookingTransitionSeat = new  BookingTransitionSeat();
+        bookingTransitionSeat.setSessionId(ticket.getSession_id());
+        bookingTransitionSeat.setSeat(ticket.getSeat());
+        bookingTransitionSeat.setOrderno(orderno);
+        bookingTransitionSeat.setStatus(paid ? "SOLD" : "AVAILABLE");
+        BookingException.requireOne(bookingCoreMapper.transitionSeat(bookingTransitionSeat));
         return true;
     }
 
