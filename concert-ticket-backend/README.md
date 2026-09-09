@@ -173,10 +173,11 @@ Frontend ── Logout ──> Backend
 - 活動：取得活動列表、查詢收藏、新增與刪除收藏。
 - 訂票：查詢活動、場次、票券與票價；建立訂單、付款、取消訂單。
 - 管理：查詢活動／場次／售票資料；儲存或刪除活動、建立場次。
+- 自動分析：定時啟動 Python，匯出各場次已付款訂單數與金額 CSV。
 
 ## 本機執行
 
-請先在專案根目錄建立 `.env`，並設定：
+共用範本位於根目錄 [`.env.example`](../.env.example)。從後端目錄啟動時，可將範本複製至 `concert-ticket-backend/.env`，填入實際設定；若已有 `.env`，請只合併缺少的參數：
 
 ```properties
 POSTGRES_PASSWORD=your_password_here
@@ -184,12 +185,13 @@ REDIS_PASSWORD=your_password_here
 REFRESH_COOKIE_SECURE=false
 ```
 
-需要 JDK 21、PostgreSQL 16 與 Redis 7。可先在根目錄執行 `docker compose up -d db redis`，再於後端目錄執行；Spring 的設定匯入相對於工作目錄，因此明確指定根目錄 `.env`：
+需要 JDK 21、PostgreSQL 16 與 Redis 7；啟用自動分析另需下方的 Python 環境。若使用 Docker 提供資料庫與 Redis，需在根目錄 `.env` 設定相同密碼，並從根目錄執行 `docker compose up -d db redis`。接著於後端目錄執行：
 
 ```powershell
-$env:SPRING_CONFIG_IMPORT = 'optional:file:../.env[.properties]'
 .\mvnw.cmd spring-boot:run
 ```
+
+Spring 預設讀取啟動工作目錄的 `.env`，因此上述方式讀取後端 `.env`。若希望改讀根目錄 `.env`，可在同一終端機啟動前設定 `$env:SPRING_CONFIG_IMPORT = 'optional:file:../.env[.properties]'`；此覆寫仍存在時，修改後端 `.env` 不會生效。IDE 的工作目錄也會影響讀取位置。
 
 預設本機連線設定：
 
@@ -207,6 +209,33 @@ docker compose up --build
 ```
 
 Docker profile 會將 PostgreSQL 與 Redis 主機分別連至 Compose 服務 `db`、`redis`，由 Compose 注入根目錄 `.env`。
+
+後端映像包含 Python 與分析依賴，Compose 將報表目錄掛載至本機 `concert-ticket-analytics/reports/`。單獨建置後端映像也須使用專案根目錄作為建置 context：`docker build -f concert-ticket-backend/Dockerfile .`。
+
+## Python 自動銷售分析
+
+`SalesAnalyticsScheduler` 在 Java 啟動完成後，透過 `ProcessBuilder` 呼叫 `analyze.py`。它將 datasource 的主機、連接埠、資料庫、帳號與密碼傳給 Python，自動執行時不必另設分析用 `.env`。每次分析結束後預設等待 30 分鐘，再執行下一次。
+
+本機第一次使用需安裝 Python 3，並在專案根目錄建立分析虛擬環境及安裝依賴：
+
+```powershell
+py -m venv concert-ticket-analytics/.venv
+.\concert-ticket-analytics\.venv\Scripts\python.exe -m pip install -r concert-ticket-analytics/requirements.txt
+```
+
+完成後正常啟動 Java 即可自動分析。Docker 建置會完成 Python 環境安裝，不需在主機另做這兩步。
+
+| 參數 | 預設值 | 用途 |
+| --- | --- | --- |
+| ANALYTICS_ENABLED | true | 啟用自動分析；false 關閉 |
+| ANALYTICS_DELAY_MS | 1800000 | 每次完成後等待 30 分鐘，單位為毫秒 |
+| ANALYTICS_TIMEOUT_SECONDS | 120 | 單次執行上限，單位為秒 |
+| ANALYTICS_DIRECTORY | 空字串 | 從根目錄或後端目錄自動尋找分析資料夾 |
+| ANALYTICS_PYTHON | 空字串 | 使用分析資料夾 `.venv` 中的 Python |
+
+上述參數可放在 Java 實際讀取的 `.env`，未填時使用 YAML 預設值，修改後重啟生效。從其他目錄啟動時，可指定分析資料夾與 Python 執行檔的絕對路徑；Windows 路徑使用 `/`。Docker Compose 會提供容器內的路徑，覆寫 `.env` 中這兩個路徑參數。
+
+排程使用獨立執行緒，不佔用訂單到期排程。執行失敗時寫入 Java 日誌，下一次排程重試；超過預設 120 秒會終止 Python，Java 關閉時也會停止排程與執行中的程序。Python 最新輸出在 `concert-ticket-analytics/reports/analytics-latest.log`，CSV 每次產生新檔，未設定自動清理。詳細統計規則見[Python 分析功能](../concert-ticket-analytics/README.md)。
 
 ## 跨來源設定
 

@@ -64,3 +64,9 @@ build/
 .vscode/
 
 .env
+
+# Python analytics
+**/.venv/
+**/__pycache__/
+*.py[cod]
+/concert-ticket-analytics/reports/

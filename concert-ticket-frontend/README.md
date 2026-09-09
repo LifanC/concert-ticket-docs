@@ -33,6 +33,8 @@ npm run dev
 
 REST API 由 `src/services/api.js` 統一管理，WebSocket 由 `src/services/websocket.js` 管理。在本目錄建立 `.env.local` 可覆寫預設值：
 
+範本已集中至根目錄 [`.env.example`](../.env.example)，前端只需將其中的 `VITE_*` 放入 `concert-ticket-frontend/.env` 或 `.env.local`。根目錄 `.env` 不會自動套用到 Vue；同名設定以 `.env.local` 優先於 `.env`。
+
 ```properties
 VITE_API_BASE_URL=http://localhost:8080/api
 VITE_WS_URL=http://localhost:8080/api/ws
@@ -55,6 +57,8 @@ WebSocket 透過 STOMP `CONNECT` 的 Authorization 標頭驗證，訂閱 `/user/
 - 加入／取消活動收藏及只看收藏。
 
 同次訂位重試保留 `Idempotency-Key`，成功後清除；重整頁面不保留 key。付款目前為訂單狀態操作，尚未串接外部金流。
+
+Python 銷售分析由 Java 後端自動排程，輸出 CSV。
 
 ## 建置與預覽
 

@@ -1,6 +1,6 @@
 # 演唱會訂票系統
 
-本專案提供演唱會活動瀏覽、會員管理、訂票與管理員後台功能。系統由 Vue 3 前端、Spring Boot 後端、PostgreSQL 與 Redis 組成，可透過 Docker Compose 一次啟動。
+本專案提供演唱會活動瀏覽、會員管理、訂票與管理員後台功能。系統由 Vue 3 前端、Spring Boot 後端、PostgreSQL 與 Redis 組成，並由 Java 定時呼叫 Python 產生銷售報表，可透過 Docker Compose 一次啟動。
 
 **線上演唱會售票系統｜全端個人專案**
 1. 使用 Vue 3、Spring Boot、PostgreSQL 與 Redis 建置前後端分離售票平台，完成活動瀏覽、會員註冊登入、場次選擇、訂票、付款、取消訂單及後台活動管理流程。
@@ -16,6 +16,7 @@
 - 活動：查看活動列表與活動詳情、搜尋篩選、加入／取消收藏及只看收藏。
 - 訂票：查詢活動與場次、建立訂單、付款、查看票券、取消訂單。
 - 管理後台：查看活動／場次／售票資料，並可新增、修改、刪除活動及建立場次。
+- 銷售分析：Java 啟動後自動執行 Python，預設每次完成後等待 30 分鐘，產生各場次已付款訂單數與金額的 CSV 報表。
 
 ## 功能解析
 
@@ -98,12 +99,24 @@ MyBatis       Redis
 PostgreSQL
 ```
 
+銷售分析由後端的獨立排程執行：
+
+```text
+Java SalesAnalyticsScheduler → Python analyze.py → 唯讀查詢 PostgreSQL
+                                      │
+                                      ▼
+                              reports/ 銷售 CSV
+```
+
+Python 與 Java 共用資料庫連線設定；Docker 中的 Python 位於後端容器，不另建服務。報表目前以 CSV 提供，尚未顯示於 Vue 後台。
+
 ## 技術棧
 
 | 類別 | 技術 |
 | --- | --- |
 | 前端 | Vue 3、Vite、Element Plus 2.14、Axios |
 | 後端 | Java 21、Spring Boot、Spring Security、MyBatis |
+| 銷售分析 | Python、pg8000、python-dotenv |
 | 資料儲存 | PostgreSQL 16、Redis 7 |
 | 驗證與文件 | JWT、Springdoc OpenAPI / Swagger UI |
 | 容器化 | Docker、Docker Compose |
@@ -114,12 +127,15 @@ PostgreSQL
 concert-ticket-docs/
 ├── concert-ticket-backend/    # Spring Boot API
 ├── concert-ticket-frontend/   # Vue 3 網站
+├── concert-ticket-analytics/  # Python 銷售分析與 CSV 報表
 ├── db-init/                   # PostgreSQL 初始化 SQL
-├── .env.example               # 環境變數範本
+├── .env.example               # 前端、後端與分析共用範本
 └── docker-compose.yml
 ```
 
 ## 快速啟動
+
+環境變數範本統一放在根目錄 `.env.example`，各程式仍依自己的位置讀取設定。Docker Compose 使用根目錄 `.env`；本機 Java 預設讀取啟動工作目錄的 `.env`；Vue 使用前端資料夾的 `.env` 或 `.env.local`，僅需其中的 `VITE_*`。本機 Python 環境準備與排程設定見[後端說明](concert-ticket-backend/README.md#python-自動銷售分析)。
 
 先安裝並啟動 Docker Engine／Docker Desktop 與 Docker Compose，以下指令在專案根目錄執行。前端容器使用 Vite 開發伺服器。
 
@@ -200,3 +216,4 @@ docker exec -it redis-container redis-cli -a <password>
 - [後端說明](concert-ticket-backend/README.md)
 - [前端說明](concert-ticket-frontend/README.md)
 - [資料庫初始化與訂票一致性](db-init/README.md)
+- [Python 銷售分析：Java 啟動後自動產生 CSV 報表](concert-ticket-analytics/README.md)

@@ -1,7 +1,8 @@
 services:
   app:
     build:
-      context: ./concert-ticket-backend
+      context: .
+      dockerfile: concert-ticket-backend/Dockerfile
     image: springboot-app:1.0
     container_name: springboot-container
     env_file:
@@ -11,6 +12,10 @@ services:
     environment:
       PORT: 8080
       SPRING_PROFILES_ACTIVE: docker
+      ANALYTICS_DIRECTORY: /app/concert-ticket-analytics
+      ANALYTICS_PYTHON: /opt/analytics-venv/bin/python
+    volumes:
+      - ./concert-ticket-analytics/reports:/app/concert-ticket-analytics/reports
     depends_on:
       db:
         condition: service_healthy

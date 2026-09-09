@@ -5,6 +5,13 @@ jwt:
   refreshExpirationSeconds: 3600
   accessExpirationSeconds: 1800
 
+analytics:
+  enabled: ${ANALYTICS_ENABLED:true}
+  directory: ${ANALYTICS_DIRECTORY:}
+  python: ${ANALYTICS_PYTHON:}
+  delay-ms: ${ANALYTICS_DELAY_MS:1800000}
+  timeout-seconds: ${ANALYTICS_TIMEOUT_SECONDS:120}
+
 auth:
   cookie:
     secure: ${REFRESH_COOKIE_SECURE:false}
