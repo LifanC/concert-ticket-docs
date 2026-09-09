@@ -13,7 +13,7 @@
 ## 功能概覽
 
 - 會員：註冊、登入、修改會員資料、登出。
-- 活動：查看活動列表與活動詳情。
+- 活動：查看活動列表與活動詳情、搜尋篩選、加入／取消收藏及只看收藏。
 - 訂票：查詢活動與場次、建立訂單、付款、查看票券、取消訂單。
 - 管理後台：查看活動／場次／售票資料，並可新增、修改、刪除活動及建立場次。
 
@@ -39,7 +39,7 @@
 - Spring Security 在 Controller 前透過自訂 JWT Filter 驗證請求。
 - 登入與活動查詢為公開 API；訂票 API 需要一般會員權限；管理 API 需要管理員權限。
 - 使用 Access Token 與 Refresh Token，並以 Redis 保存及檢查 Token 狀態，支援登出失效。
-- 前端 Axios 統一附帶 Token，遇到未授權狀態會導回會員頁。
+- 前端 Axios 統一附帶 Bearer Access Token；收到 401 時透過 `POST /api/v1/login/validate` 與 HttpOnly Refresh Token Cookie 更新 Token，失敗後導回會員頁。
 
 ### 訂單狀態與逾時處理
 
@@ -49,11 +49,18 @@
 - 付款或取消後撤銷記憶體中的到期任務。
 - 主要票券狀態包含 `PENDING_PAYMENT`、`PAID`、`CANCELLED`、`EXPIRED`。
 
+- 另以固定延遲掃描逾期訂單（預設 30 秒，每批最多 100 筆），補償重啟或排程遺漏；補償掃描不補送 WebSocket 通知。
+- 座位保留、訂單及庫存異動在同一資料庫交易完成，並以有效訂單座位唯一索引避免重複占用。
+- 建立訂單必須帶 `Idempotency-Key`；同會員以相同 key 重試相同訂位會取得首次成功結果，不同訂位內容則回傳 409。
+- 付款目前為系統內訂單狀態操作，尚未串接外部金流或實作退款流程。
+
 ### 即時通知
 
 - 後端採用 Spring WebSocket 與 STOMP。
 - 透過 `convertAndSendToUser` 發送至 `/user/queue/notifications` 類型的個人佇列。
 - 前端使用 `@stomp/stompjs` 與 SockJS 建立連線並訂閱個人通知。
+
+- STOMP `CONNECT` 標頭攜帶 `Authorization: Bearer <accessToken>`，後端驗證後設定使用者身分。
 
 ### 資料與部署
 
@@ -78,9 +85,9 @@
 Vue 3 / Element Plus
         │ Axios REST + STOMP WebSocket
         ▼
-Spring Boot Controller
-        │
 JWT Filter ── Spring Security 角色授權
+        │
+Spring Boot Controller
         │
 Service（交易、狀態判斷、排程、通知）
    ┌────┴────────┐
@@ -113,6 +120,8 @@ concert-ticket-docs/
 ```
 
 ## 快速啟動
+
+先安裝並啟動 Docker Engine／Docker Desktop 與 Docker Compose，以下指令在專案根目錄執行。前端容器使用 Vite 開發伺服器。
 
 1. 複製環境變數範本為 `.env`，並設定安全的密碼。
 
@@ -190,3 +199,4 @@ docker exec -it redis-container redis-cli -a <password>
 
 - [後端說明](concert-ticket-backend/README.md)
 - [前端說明](concert-ticket-frontend/README.md)
+- [資料庫初始化與訂票一致性](db-init/README.md)
