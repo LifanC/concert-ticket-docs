@@ -23,16 +23,15 @@ public record BookingDopaypriceRequest(
 
     @Schema(
             description = "訂單編號",
-            example = "CT20260815001",
+            example = "CT202608151",
             minLength = 13,
             maxLength = 13,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "訂單編號不可為空")
-    @Size(min = 13, max = 13, message = "訂單編號長度需為 13 個字元")
     @Pattern(
-            regexp = "^CT\\d{4}\\d{2}\\d{2}\\d{3}$",
-            message = "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001"
+            regexp = "^CT[0-9]{8}[0-9]+$",
+            message = "訂單編號格式需為 CT＋八位日期＋數字序號，例如 CT202608151"
     )
     String orderno,
 

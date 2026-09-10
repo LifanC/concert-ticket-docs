@@ -112,7 +112,7 @@
             DO UPDATE
                    SET current_no = "interviewworks_ticket".ticket_sequence.current_no + 1
                    RETURNING
-                   'CT' || TO_CHAR(order_date, 'YYYYMMDD') || LPAD(current_no::TEXT, 3, '0') AS orderno
+                   'CT' || TO_CHAR(order_date, 'YYYYMMDD') || current_no::TEXT AS orderno
                 )
        INSERT INTO "interviewworks_ticket".ticket
        (

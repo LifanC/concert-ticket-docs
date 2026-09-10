@@ -167,13 +167,13 @@ public class BookingPaymentScheduler {
     public void cancelExpiration(String orderno) {
 
         // 取消即將到期提醒
-        ScheduledFuture<?> reminderFuture =reminderTasks.remove(orderno);
+        ScheduledFuture<?> reminderFuture = reminderTasks.remove(orderno);
         if (reminderFuture != null) {
             reminderFuture.cancel(false);
         }
 
         // 取消正式到期
-        ScheduledFuture<?> expirationFuture =expirationTasks.remove(orderno);
+        ScheduledFuture<?> expirationFuture = expirationTasks.remove(orderno);
         if (expirationFuture != null) {
             expirationFuture.cancel(false);
         }

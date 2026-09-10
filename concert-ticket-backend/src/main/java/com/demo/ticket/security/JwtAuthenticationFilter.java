@@ -75,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @Nonnull HttpServletRequest request,
             @Nonnull HttpServletResponse response,
             @Nonnull FilterChain filterChain
-    ) throws ServletException, IOException {
+    ) throws IOException {
         String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
         try {
             Claims claims = jwtTokenService.accessTokenInRedis(token);
