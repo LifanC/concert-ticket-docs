@@ -53,12 +53,12 @@ const activities = ref([])
 const filteredActivities = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase()
   return activities.value.filter((activity) => {
-    const matchesKeyword = !normalizedKeyword || [activity.name].some((value) => {
-      return value.toLowerCase().includes(normalizedKeyword)
+    const matchesKeyword = !normalizedKeyword || [activity.name, activity.venue, activity.id].some((value) => {
+      return String(value ?? '').toLowerCase().includes(normalizedKeyword)
     })
     const matchesCategory = selectedCategory.value === '全部' || activity.category === selectedCategory.value
     const matchesStatus = selectedStatus.value === '全部' || activity.status === selectedStatus.value
-    const matchesFavorite = !showFavoritesOnly.value || favoriteActivityIds.value.has(activity.id)
+    const matchesFavorite = !showFavoritesOnly.value || favoriteActivityIds.value.has(getFavoriteKey(activity))
     return matchesKeyword && matchesCategory && matchesStatus && matchesFavorite
   })
 })
