@@ -82,7 +82,7 @@
 
     <insert id="claimKey">
         INSERT INTO interviewworks_ticket.booking_idempotency(email, idempotency_key, request_hash)
-        VALUES (#{email}, #{key}, #{hash})
+        VALUES (#{email}, #{idempotencyKey}, #{hash})
             ON CONFLICT DO NOTHING
     </insert>
 
@@ -90,16 +90,16 @@
         SELECT request_hash, orderno, response_body
         FROM interviewworks_ticket.booking_idempotency
         WHERE email = #{email}
-          AND idempotency_key = #{key}
+          AND idempotency_key = #{idempotencyKey}
         FOR UPDATE
     </select>
 
     <update id="completeKey">
         UPDATE interviewworks_ticket.booking_idempotency
-        SET orderno       = #{orderno},
+        SET orderno       = #{createdOrderNo},
             response_body = #{body}
         WHERE email = #{email}
-          AND idempotency_key = #{key}
+          AND idempotency_key = #{idempotencyKey}
           AND orderno IS NULL
     </update>
 

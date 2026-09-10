@@ -9,9 +9,6 @@ server:
 # Redis 使用 Docker 環境變數
 # -----------------------------
 spring:
-  config:
-    env_file:
-      - .env
   servlet:
     multipart:
       max-file-size: 10MB

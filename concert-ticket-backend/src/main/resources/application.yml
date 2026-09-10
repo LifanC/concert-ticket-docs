@@ -1,5 +1,5 @@
 # -----------------------------
-# JWT ??
+# JWT 設定
 # -----------------------------
 jwt:
   refreshExpirationSeconds: 3600
@@ -17,7 +17,7 @@ auth:
     secure: ${REFRESH_COOKIE_SECURE:false}
 
 # -----------------------------
-# Server ??
+# Server 設定
 # -----------------------------
 server:
   port: ${PORT:8080}
@@ -31,7 +31,7 @@ springdoc:
     path: /swagger-ui.html
 
 # -----------------------------
-# Spring Boot ????
+# Spring Boot 相關設定
 # -----------------------------
 spring:
   config:
@@ -43,7 +43,7 @@ spring:
   application:
     name: demo-app-test
 
-  # Redis ????
+  # Redis 連線設定
   data:
     redis:
       host: localhost
@@ -52,7 +52,7 @@ spring:
       timeout: 2000
       password: ${REDIS_PASSWORD}
 
-  # ???????
+  # 資料庫連線設定
   datasource:
     url: jdbc:postgresql://localhost:5432/interviewworks?currentSchema=interviewworks_ticket
     username: postgres
@@ -60,24 +60,24 @@ spring:
     driver-class-name: org.postgresql.Driver
 
 # -----------------------------
-# MyBatis ??
+# MyBatis 設定
 # -----------------------------
 mybatis:
-  mapper-locations: classpath:Mapper/**/*.xml  #????????mapper??xml???????
+  mapper-locations: classpath:Mapper/**/*.xml  # 指定 Mapper XML 對應檔的位置
   configuration:
-    #org.apache.ibatis.logging.stdout.StdOutImpl ?????sql??????sql??????
-    #org.apache.ibatis.logging.log4j2.Log4j2Impl ?????????????,???log4j???
-    #org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl ?????????????,???log4j???
+    # org.apache.ibatis.logging.stdout.StdOutImpl：將 SQL 日誌直接輸出至主控台
+    # org.apache.ibatis.logging.log4j2.Log4j2Impl：透過 Log4j2 記錄日誌
+    # org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl：透過 JDK 內建日誌系統記錄日誌
     log-impl: org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl
-    mapUnderscoreToCamelCase: true # ?????????
+    mapUnderscoreToCamelCase: true # 將底線分隔的欄位名稱對應至駝峰命名的屬性
 
 # -----------------------------
-# Logging ??
+# Logging 設定
 # -----------------------------
 logging:
   config: classpath:log4j2.xml
-  # ????
+  # 日誌層級
   level:
-    #??????dao?????mapper??????
+    # 設定指定 Mapper 套件的日誌層級
     com.example.demo.Mapper: DEBUG
     me.paulschwarz: DEBUG
