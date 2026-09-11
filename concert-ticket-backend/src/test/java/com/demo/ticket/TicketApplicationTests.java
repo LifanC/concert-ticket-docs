@@ -106,7 +106,7 @@ class TicketApplicationTests {
                 .header("Authorization", "Bearer test"))
                 .andDo(print())
                 .andExpect(status().isOk());
-        verify(booking).selectOnlyTicket(argThat(user -> user.email().equals("member@example.test")));
+        verify(booking).selectOnlyTicket(argThat(user -> user.email().equals("luke@admin.com")));
     }
 
     @Test
