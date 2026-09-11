@@ -83,10 +83,10 @@
 | 模組 | 代表 API | 用途 |
 | --- | --- | --- |
 | Activity | `GET /v1/activity/selectAllActivities` | 公開活動列表 |
-| 收藏 | `/v1/activity/selectOnlyFavoriteActivities`、`saveFavoriteActivity`、`deleteFavoriteActivity` | 查詢、新增與刪除收藏 |
+| Activity.Favorite | `/v1/activity/selectOnlyFavoriteActivities`、`saveFavoriteActivity`、`deleteFavoriteActivity` | 查詢、新增與刪除收藏 |
 | Login | `/v1/login/register`、`login`、`validate`、`saveProfile`、`logout` | 帳號與 Token 流程 |
 | Booking | 查詢活動／場次／票券、`saveTicket`、`cancelOrder`、`dopayprice` | 會員訂票流程 |
-| 座位 | `GET /v1/booking/selectOnlySeats`、`GET /v1/booking/selectOnlyUnavailableSeats` | 場次座位與不可用座位查詢 |
+| Booking.Seats | `GET /v1/booking/selectOnlySeats`、`GET /v1/booking/selectOnlyUnavailableSeats` | 場次座位與不可用座位查詢 |
 | Admin | 查詢活動／場次／票券、`saveActivity`、`deleteActivity`、`createSession` | 後台管理 |
 
 ### 架構流程
