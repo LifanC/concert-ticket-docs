@@ -215,13 +215,24 @@ Docker Compose 將報表掛載至本機 `concert-ticket-analytics/reports/`，�
 
 ## 測試與建置
 
+### 測試工具與功能說明
+
+| 工具 | 專案中的用途 | 設定與程式位置 |
+| --- | --- | --- |
+| JUnit | 驗證訂單付款、取消與逾期的狀態轉換，檢查重複操作、庫存異常、Spring 啟動及會員／管理員 API 權限。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)。 |
+| Mockito | 模擬 Mapper、Service、JWT 與 Redis 等依賴，透過 `mock()`、`when()`、`verify()` 與 `@MockitoBean` 設定回傳結果並確認呼叫行為，例如訂單不可重複扣減或釋放庫存、未授權請求不可進入業務服務。 | 與 JUnit 搭配使用，位於上述兩個 Java 測試檔；由 [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test` 引入。 |
+| Playwright（Microsoft Edge） | 使用 Edge 自動操作網頁，檢查活動載入、搜尋與收藏、未登入導向登入頁、會員登入與票券查詢、管理員後台及訂票流程；包含真實 API 與模擬 API 回應的案例。 | 依賴與指令：[package.json](concert-ticket-frontend/package.json)；瀏覽器設定：[playwright.config.js](concert-ticket-frontend/playwright.config.js)，指定 `channel: 'msedge'`；測試：[tests/e2e](concert-ticket-frontend/tests/e2e)。 |
+| Python unittest | 驗證銷售統計只計入已付款訂單、缺少付款金額時報錯、零銷售與免費票處理，以及 CSV 金額精度、Excel 編碼、公式字首防護與避免覆寫既有報表。 | Python 內建測試框架，搭配 `unittest.mock`；測試：[test_analyze.py](concert-ticket-analytics/test_analyze.py)；受測程式：[analyze.py](concert-ticket-analytics/analyze.py)。 |
+
+### 執行方式
+
 後端測試在 `concert-ticket-backend` 執行，需要 Java 21 與後端環境設定：
 
 ```powershell
 .\mvnw.cmd clean test
 ```
 
-前端先啟動前後端服務並安裝 Microsoft Edge，再於 `concert-ticket-frontend` 執行：
+前端先啟動前後端服務並安裝 Microsoft Edge，再於 `concert-ticket-frontend` 執行（完整操作說明見[前端 README](concert-ticket-frontend/README.md#playwright-網頁自動化測試microsoft-edge)）：
 
 ```powershell
 npm ci

@@ -67,7 +67,32 @@ npm run build
 npm run preview
 ```
 
-產物位於 `dist/`；preview 用於本機檢查建置結果。目前 npm scripts 未設定自動化測試。
+產物位於 `dist/`；preview 用於本機檢查建置結果。
+
+## Playwright 網頁自動化測試（Microsoft Edge）
+
+Playwright 會自動操作 Microsoft Edge，測試活動搜尋、收藏、登入、票券查詢與訂票等網頁流程。測試程式放在 [tests/e2e](tests/e2e)。
+
+[playwright.config.js](playwright.config.js) 是測試設定檔，執行下列指令時會自動讀取，不需要直接執行它。
+
+執行前請安裝 Microsoft Edge，並先啟動前後端服務（方式見[根目錄 README](../README.md#本機開發)）。前端預設網址為 `http://localhost:5173`；測試指令不會自動啟動服務。
+
+另開終端機，切換至 `concert-ticket-frontend` 目錄後執行：
+
+```powershell
+# 首次使用時安裝依賴；已安裝可略過
+npm ci
+
+# 執行測試，不顯示瀏覽器視窗
+npm run test:e2e
+
+# 想看到 Edge 自動操作畫面時，改用這個指令
+npm run test:e2e:headed
+```
+
+完成後可查看 `playwright-report/index.html` 測試報告。`headed` 只是顯示瀏覽器視窗，執行的測試相同。
+
+會員與管理員測試需要設定對應的 `E2E_MEMBER_ACCOUNT`／`E2E_MEMBER_PASSWORD` 與 `E2E_ADMIN_ACCOUNT`／`E2E_ADMIN_PASSWORD`；未提供時會跳過對應案例。訂票測試預設停在確認視窗，設定 `E2E_CREATE_ORDER=1` 才會建立並保留真實訂單。詳細設定與驗證範圍見[測試紀錄](../TEST_REPORT.md#重跑)。
 
 ## Docker
 
