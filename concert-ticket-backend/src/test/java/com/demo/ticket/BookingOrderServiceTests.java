@@ -30,13 +30,13 @@ class BookingOrderServiceTests {
         service = new BookingOrderService(mapper, core);
         ticket = new BookingSaveTicket();
         ticket.setOrderno("TEST-1");
-        ticket.setEmail("owner@example.test");
+        ticket.setEmail("wang@user.com");
         ticket.setSession_id("S1");
         ticket.setSeat("A1");
         ticket.setStatus("PENDING_PAYMENT");
         order = new BookingOrder();
         order.setOrderno("TEST-1");
-        order.setEmail("owner@example.test");
+        order.setEmail("wang@user.com");
         order.setSession_id("S1");
         order.setStatus(PAID);
         when(core.findOrder("TEST-1")).thenReturn(ticket);
