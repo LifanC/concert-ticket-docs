@@ -1,4 +1,4 @@
-  name: Frontend CI
+  name: Concert Ticket CI
 
   on:
     push:
@@ -9,7 +9,9 @@
 
   jobs:
     frontend-build:
+      name: 前端建置
       runs-on: ubuntu-latest
+      timeout-minutes: 15
 
       defaults:
         run:
@@ -31,3 +33,67 @@
 
         - name: 建置前端
           run: npm run build
+
+    backend-test:
+      name: 後端測試
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+
+      defaults:
+        run:
+          working-directory: concert-ticket-backend
+
+      env:
+        POSTGRES_PASSWORD: ci-test-password
+        REDIS_PASSWORD: ci-test-password
+        ANALYTICS_ENABLED: 'false'
+
+      steps:
+        - name: 下載程式碼
+          uses: actions/checkout@v4
+
+        - name: 準備 Java 21
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: '21'
+            cache: maven
+            cache-dependency-path: concert-ticket-backend/pom.xml
+
+        - name: 執行後端測試
+          run: bash mvnw --batch-mode clean test
+
+        - name: 保存後端測試報告
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: backend-test-reports
+            path: concert-ticket-backend/target/surefire-reports/
+            if-no-files-found: ignore
+            retention-days: 7
+
+    analytics-test:
+      name: Python 報表測試
+      runs-on: ubuntu-latest
+      timeout-minutes: 10
+
+      defaults:
+        run:
+          working-directory: concert-ticket-analytics
+
+      steps:
+        - name: 下載程式碼
+          uses: actions/checkout@v4
+
+        - name: 準備 Python
+          uses: actions/setup-python@v6
+          with:
+            python-version: '3.12'
+            cache: pip
+            cache-dependency-path: concert-ticket-analytics/requirements.txt
+
+        - name: 安裝依賴
+          run: python -m pip install -r requirements.txt
+
+        - name: 執行報表測試
+          run: python -m unittest -v test_analyze
