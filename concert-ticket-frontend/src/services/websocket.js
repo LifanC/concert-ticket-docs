@@ -1,6 +1,6 @@
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { toFindCookie } from '@/components/componentsJs/cookie'
+import { toFindCookie } from '@/components/componentsJs/Cookie'
 
 const webSocketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/ws'
 
