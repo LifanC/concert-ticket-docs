@@ -5,7 +5,7 @@ import {
   addCookie,
   clearCookie,
   toFindCookie
-} from '@/components/componentsJs/cookie'
+} from '@/components/componentsJs/cookie.js'
 
 const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'

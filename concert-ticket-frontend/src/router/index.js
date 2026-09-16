@@ -1,5 +1,5 @@
 import {createRouter, createWebHistory} from "vue-router";
-import { toFindCookie } from '@/components/componentsJs/cookie'
+import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
