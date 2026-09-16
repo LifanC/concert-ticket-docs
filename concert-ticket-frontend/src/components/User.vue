@@ -1,6 +1,6 @@
 <script setup>
 import { loginApi } from '@/services/api'
-import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie";
+import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/Cookie";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
 const activeTab = ref('login')

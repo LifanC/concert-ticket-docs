@@ -7,10 +7,6 @@ setInterval(() => {
   date.value = dateConversionYMDhms(true)
 }, 1000)
 
-const handleSelect = (url) => {
-  location.href = "/" + url
-}
-
 </script>
 
 <template>
