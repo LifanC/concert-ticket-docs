@@ -8,8 +8,42 @@ const dialogVisibleSessionsStatus = ref(false)
 const dialogMode = ref('')
 const keyword = ref('')
 const activities = ref([])
+const activityImageUrls = ref({})
 const sessions = ref([])
 const orders = ref([])
+let activityImageLoadVersion = 0
+
+async function loadActivityImages() {
+  const version = ++activityImageLoadVersion
+  const images = await Promise.all(activities.value.map(async (activity) => {
+    try {
+      const response = await adminApi({
+        method: 'get',
+        url: `/activityImage/${encodeURIComponent(activity.id)}`,
+        responseType: 'blob',
+      })
+      return [activity.id, response.data]
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error(`無法載入活動 ${activity.id} 的圖片`, error)
+      }
+      return [activity.id, null]
+    }
+  }))
+  if (version !== activityImageLoadVersion) return
+
+  const nextUrls = {}
+  for (const [id, blob] of images) {
+    if (blob) nextUrls[id] = URL.createObjectURL(blob)
+  }
+  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
+  activityImageUrls.value = nextUrls
+}
+
+onUnmounted(() => {
+  activityImageLoadVersion++
+  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
+})
 
 executeFirst()
 async function executeFirst() {
@@ -18,6 +52,7 @@ async function executeFirst() {
     url: '/selectAllActivities',
   });
   activities.value = response_selectAllActivities.data
+  void loadActivityImages()
   const response_selectAllSessions = await adminApi({
     method: 'get',
     url: '/selectAllSessions',
@@ -45,6 +80,7 @@ const activityForm = reactive(
 )
 const activityFormNotOk = ref(
   {
+    image: '',
     name: '',
     category: '',
     venue: '',
@@ -105,7 +141,37 @@ const filteredActivities =
       !keyword.value || `${item.id}${item.name}${item.venue}`.toLowerCase().includes(keyword.value.toLowerCase())
     )
   )
+const imageFile = ref(null)
+const imagePreview = ref('')
+const imageUpload = ref(null)
+let imageLoadVersion = 0
+
+function clearImageSelection() {
+  imageLoadVersion++
+  if (imagePreview.value) {
+    URL.revokeObjectURL(imagePreview.value)
+  }
+  imageFile.value = null
+  imagePreview.value = ''
+  imageUpload.value?.clearFiles()
+  activityFormNotOk.value.image = ''
+}
+
+function onImageChange(uploadFile) {
+  const file = uploadFile.raw
+  if (!file || file.type !== 'image/jpeg' || file.size > 10 * 1024 * 1024) {
+    clearImageSelection()
+    activityFormNotOk.value.image = '請選擇小於 10 MB 的 JPG 圖片'
+    return
+  }
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageLoadVersion++
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  activityFormNotOk.value.image = ''
+}
 const openAdd = () => {
+  clearImageSelection()
   Object.assign(
     activityForm,
     {
@@ -120,30 +186,62 @@ const openAdd = () => {
   dialogMode.value = '新增活動'
   dialogVisible.value = true
 }
-const openEdit = (activity) => {
+const openEdit = async (activity) => {
+  clearImageSelection()
+  const loadVersion = imageLoadVersion
   Object.assign(activityForm, activity)
   dialogMode.value = '修改活動'
   dialogVisible.value = true
+  try {
+    const response = await adminApi({
+      method: 'get',
+      url: `/activityImage/${encodeURIComponent(activity.id)}`,
+      responseType: 'blob',
+    })
+    if (imageLoadVersion === loadVersion && dialogVisible.value) {
+      imagePreview.value = URL.createObjectURL(response.data)
+    }
+  } catch (error) {
+    if (error.response?.status !== 404 && imageLoadVersion === loadVersion) {
+      ElMessage.error('無法載入活動圖片')
+    }
+  }
 }
 const saveActivity = async () => {
   activityFormNotOk.value = {
+    image: '',
     name: '',
     venue: ''
   }
-  if (!activityForm.name || !activityForm.venue || !activityForm.column || !activityForm.row) {
+  if (
+    !activityForm.name ||
+    !activityForm.venue ||
+    !activityForm.column ||
+    !activityForm.row
+  ) {
     return
   }
+  const formData = new FormData()
+  formData.append(
+    'activity',
+    new Blob(
+      [JSON.stringify(activityForm)], { type: 'application/json' }
+    )
+  )
+  if (imageFile.value) formData.append('image', imageFile.value)
   try {
     const response = await adminApi({
       method: 'post',
       url: '/saveActivity',
-      data: activityForm,
+      data: formData,
     });
     activities.value = response.data.data
+    void loadActivityImages()
     dialogVisible.value = false
   } catch (error) {
-    let data = error.response.data.data[1]?.error ?? {}
+    const data = error.response?.data?.data?.[1]?.error ?? {}
     activityFormNotOk.value = {
+      image: data.image ?? '',
       name: data.name ?? '',
       venue: data.venue ?? '',
     }
@@ -163,6 +261,7 @@ const deleteActivity = async (activity) => {
     data: activityForm,
   });
   activities.value = response.data.data
+  void loadActivityImages()
 }
 const createSession = async () => {
   sessionFormNotOk.value = {
@@ -237,8 +336,8 @@ const sessionStatusForm = reactive(
   }
 )
 const openSessionsStatusEdit = (sessions) => {
-    Object.assign(sessionStatusForm, sessions)
-    dialogVisibleSessionsStatus.value = true
+  Object.assign(sessionStatusForm, sessions)
+  dialogVisibleSessionsStatus.value = true
 }
 const saveSessionsStatus = async () => {
   const response = await adminApi({
@@ -308,6 +407,18 @@ const statusType = (status) => (
               </div>
             </template>
             <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
+              <el-table-column label="圖片" width="208">
+                <template #default="scope">
+                  <el-image
+                   v-if="activityImageUrls[scope.row.id]"
+                    :src="activityImageUrls[scope.row.id]"
+                    :preview-src-list="[activityImageUrls[scope.row.id]]"
+                    :alt="`${scope.row.name}圖片`"
+                    fit="contain" class="activity-table-image" preview-teleported
+                  />
+                  <span v-else class="activity-table-no-image">無圖片</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動名稱" min-width="190" />
               <el-table-column prop="venue" label="場地" min-width="160" />
@@ -455,8 +566,21 @@ const statusType = (status) => (
     </el-main>
   </el-container>
 
-  <el-dialog v-model="dialogVisible" :title="dialogMode" width="min(580px, 92vw)">
+  <el-dialog v-model="dialogVisible" :title="dialogMode" width="min(580px, 92vw)" @closed="clearImageSelection">
     <el-form :model="activityForm" label-position="top">
+      <el-form-item label="活動圖片" :error="activityFormNotOk.image">
+        <div class="image-picker">
+          <el-upload ref="imageUpload" accept=".jpg,.jpeg" :auto-upload="false" :show-file-list="false"
+            :on-change="onImageChange">
+            <el-button>選擇 JPG 圖片</el-button>
+          </el-upload>
+          <div v-if="imagePreview" class="image-preview-wrap">
+            <img :src="imagePreview" class="image-preview" alt="活動圖片預覽" />
+            <button type="button" class="image-preview-close" aria-label="移除預覽圖片"
+              @click="clearImageSelection">×</button>
+          </div>
+        </div>
+      </el-form-item>
       <el-form-item label="活動名稱" required :error="activityFormNotOk.name !== '' ? activityFormNotOk.name : ''">
         <el-input v-model="activityForm.name" />
       </el-form-item>
@@ -749,6 +873,61 @@ const statusType = (status) => (
 
 .mb-20 {
   margin-bottom: 20px;
+}
+
+.image-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.activity-table-image {
+  display: block;
+  width: 180px;
+  height: 102px;
+  object-fit: contain;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+}
+
+.activity-table-no-image {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+}
+
+.image-preview-wrap {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  height: 180px;
+}
+
+.image-preview {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 65%);
+  color: #fff;
+  font-size: 22px;
+  line-height: 28px;
+  cursor: pointer;
 }
 
 @media (max-width: 767px) {

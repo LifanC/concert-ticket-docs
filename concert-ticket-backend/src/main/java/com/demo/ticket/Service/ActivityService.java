@@ -10,6 +10,8 @@ public interface ActivityService {
 
     List<Map<String, Object>> selectAllActivities();
 
+    ResponseEntity<byte[]> activityImage(String activityId);
+
     List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user);
 
     ResponseEntity<?> saveFavoriteActivity(ActivityFavoriteRequest request, LoginUser user);

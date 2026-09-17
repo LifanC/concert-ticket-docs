@@ -11,6 +11,8 @@ public interface ActivityMapper {
 
     List<Map<String, Object>> selectAllActivities();
 
+    Map<String, Object> selectActivityImage(String activityId);
+
     List<Map<String, Object>> selectOnlyFavoriteActivities(ActivityFavorite activityFavorite);
 
     int saveFavoriteActivity(ActivityFavorite activityFavorite);

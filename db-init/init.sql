@@ -78,23 +78,59 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.secret (
 );
 
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity (
-                                              id varchar NOT NULL,
-                                              "name" varchar NOT NULL,
-											  category varchar NOT NULL,
-                                              venue varchar NOT NULL,
-                                              price numeric(12,2) NULL DEFAULT 0,
-                                              description varchar NULL,
-                                              created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                              CONSTRAINT activity_pk PRIMARY KEY (id),
-                                              CONSTRAINT activity_category_check CHECK (
-                                                category IN ('MUSIC_CONCERT', 'STAGE_PLAY', 'SPECIAL_EXHIBITION')
-                                              )
+    id varchar NOT NULL,
+    activity_uuid UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" varchar NOT NULL,
+    category varchar NOT NULL,
+    venue varchar NOT NULL,
+    price numeric(12,2) NULL DEFAULT 0,
+    description varchar NULL,
+    created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT activity_pk PRIMARY KEY (id),
+    CONSTRAINT activity_uuid_uk UNIQUE (activity_uuid),
+    CONSTRAINT activity_category_check CHECK (
+        category IN (
+            'MUSIC_CONCERT',
+            'STAGE_PLAY',
+            'SPECIAL_EXHIBITION'
+        )
+    )
 );
 
 CREATE OR REPLACE TRIGGER trigger_activity_updated_date
 BEFORE UPDATE
 ON interviewworks_ticket.activity
+FOR EACH ROW
+EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
+
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_image (
+                                              activity_uuid UUID PRIMARY KEY,
+                                              filename varchar NOT NULL,
+                                              content_type varchar NOT NULL,
+                                              width int NOT NULL,
+                                              height int NOT NULL,
+                                              image_data bytea NULL,
+                                              created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              updated_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                              CONSTRAINT activity_image_fk
+                                                  FOREIGN KEY (activity_uuid)
+                                                  REFERENCES interviewworks_ticket.activity(activity_uuid),
+                                              CONSTRAINT activity_image_type_check
+                                                  CHECK (content_type = 'image/jpeg'),
+                                              CONSTRAINT activity_image_dimensions_check
+											  CHECK (
+												  width BETWEEN 1 AND 1920 AND height BETWEEN 1 AND 1920
+											  ),
+                                              CONSTRAINT activity_image_data_size_check
+											  CHECK (
+												  octet_length(image_data) <= 1048576
+											  )
+);
+
+CREATE OR REPLACE TRIGGER trigger_activity_image_updated_date
+BEFORE UPDATE
+ON interviewworks_ticket.activity_image
 FOR EACH ROW
 EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 

@@ -54,7 +54,7 @@
         order by ticket.created_date, ticket.updated_date
     </select>
 
-    <select id="create_activity" resultType="java.lang.String">
+    <select id="create_activity" resultType="java.util.Map">
         WITH next_activity AS (
         INSERT INTO "interviewworks_ticket".activity_sequence
         (
@@ -101,11 +101,40 @@
             ON CONFLICT (id)
     DO UPDATE SET
             "name" = EXCLUDED."name",
-                       category = EXCLUDED.category,
-                       venue = EXCLUDED.venue,
-                       price = EXCLUDED.price,
-                       description = EXCLUDED.description
-                       RETURNING id
+            category = EXCLUDED.category,
+            venue = EXCLUDED.venue,
+            price = EXCLUDED.price,
+            description = EXCLUDED.description
+            RETURNING id AS activity_id, activity_uuid
+    </select>
+
+    <insert id="upsertActivityImage">
+        INSERT INTO "interviewworks_ticket".activity_image
+            (activity_uuid, filename, content_type, width, height, image_data)
+        VALUES
+            (#{activity_uuid}, #{filename}, 'image/jpeg', #{width}, #{height}, #{image_data})
+        ON CONFLICT (activity_uuid)
+        DO UPDATE SET
+            filename = EXCLUDED.filename,
+            content_type = EXCLUDED.content_type,
+            width = EXCLUDED.width,
+            height = EXCLUDED.height,
+            image_data = EXCLUDED.image_data
+    </insert>
+
+    <delete id="deleteActivityImage">
+        DELETE FROM "interviewworks_ticket".activity_image
+        WHERE activity_uuid = (
+            SELECT activity_uuid FROM "interviewworks_ticket".activity WHERE id = #{activityId}
+        )
+    </delete>
+
+    <select id="selectActivityImage" resultType="java.util.Map">
+        SELECT image.image_data
+        FROM "interviewworks_ticket".activity_image image
+        JOIN "interviewworks_ticket".activity activity
+            ON activity.activity_uuid = image.activity_uuid
+        WHERE activity.id = #{activityId}
     </select>
 
     <insert id="create_seat">

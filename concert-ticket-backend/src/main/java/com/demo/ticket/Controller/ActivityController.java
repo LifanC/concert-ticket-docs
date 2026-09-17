@@ -34,6 +34,11 @@ public class ActivityController {
         return activityService.selectAllActivities();
     }
 
+    @GetMapping("/activityImage/{activityId}")
+    public ResponseEntity<byte[]> activityImage(@PathVariable String activityId) {
+        return activityService.activityImage(activityId);
+    }
+
     @Operation(summary = "2.收藏活動資料", description = "收藏活動資料")
     @GetMapping("/selectOnlyFavoriteActivities")
     public List<Map<String, Object>> selectOnlyFavoriteActivities(

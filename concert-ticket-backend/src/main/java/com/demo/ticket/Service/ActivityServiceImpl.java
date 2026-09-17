@@ -6,6 +6,7 @@ import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Mapper.ActivityMapper;
 import com.demo.ticket.security.LoginUser;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,17 @@ public class ActivityServiceImpl implements ActivityService {
     @Override
     public List<Map<String, Object>> selectAllActivities() {
         return activityMapper.selectAllActivities();
+    }
+
+    @Override
+    public ResponseEntity<byte[]> activityImage(String activityId) {
+        Map<String, Object> image = activityMapper.selectActivityImage(activityId);
+        if (image == null || image.get("image_data") == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .body((byte[]) image.get("image_data"));
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.demo.ticket.Dto.Admin.AdminDeleteActivityRequest;
 import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,9 @@ public interface AdminService {
 
     List<Map<String, Object>> selectAllticket();
 
-    ResponseEntity<?> saveActivity(@Valid AdminSaveActivityRequest request);
+    ResponseEntity<?> saveActivity(@Valid AdminSaveActivityRequest request, MultipartFile image);
+
+    ResponseEntity<byte[]> activityImage(String activityId);
 
     ResponseEntity<?> deleteActivity(@Valid AdminDeleteActivityRequest request);
 

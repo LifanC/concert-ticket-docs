@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -48,9 +49,15 @@ public class AdminController {
     @PostMapping("/saveActivity")
     public ResponseEntity<?> saveActivity(
             @Valid
-            @RequestBody
-            AdminSaveActivityRequest request) {
-        return adminService.saveActivity(request);
+            @RequestPart("activity")
+            AdminSaveActivityRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        return adminService.saveActivity(request, image);
+    }
+
+    @GetMapping("/activityImage/{activityId}")
+    public ResponseEntity<byte[]> activityImage(@PathVariable String activityId) {
+        return adminService.activityImage(activityId);
     }
 
     @Operation(summary = "3.刪除活動", description = "刪除活動")

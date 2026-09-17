@@ -1,5 +1,11 @@
 # Roadmap 測試紀錄（2026-09-10）
 
+## 後續驗證：活動圖片（2026-09-17）
+
+- `AdminActivityImageTests` 4 項通過：2000 × 1000 JPG 儲存為 1280 × 640 且不超過 1 MB、未選圖不更新原圖、讀取圖片回傳 JPEG、刪除活動前先刪圖片。
+- 後端 Maven 編譯與前端 `npm run build` 通過。
+- 這些 Java 測試使用 mock Mapper；尚未以實際 PostgreSQL 驗證 `activity_image` SQL 寫入／讀取，也未以瀏覽器端對端測試圖片上傳及顯示。下方 2026-09-10 的既有測試數量與結果為當日紀錄。
+
 ## 環境與結果
 
 - 網頁：`http://localhost:5173/`，使用本機 Microsoft Edge（Playwright `channel: msedge`）。

@@ -19,9 +19,9 @@
 ## 功能概覽
 
 - 會員：註冊、登入、修改會員資料、登出。
-- 活動：查看活動列表與活動詳情、搜尋篩選、加入／取消收藏及只看收藏。
+- 活動：查看活動列表、活動圖片與詳情，搜尋篩選、加入／取消收藏及只看收藏。
 - 訂票：查詢活動與場次、選擇可用座位、建立訂單、付款、查看票券、取消訂單。
-- 管理後台：查看活動／場次／售票資料，並可新增、修改、刪除活動及建立場次。
+- 管理後台：查看活動／場次／售票資料，新增、修改、刪除活動及建立場次；可上傳並預覽活動 JPG 圖片。
 - 銷售分析：Java 啟動後自動執行 Python，預設每次完成後等待 30 分鐘，產生各場次已付款訂單數與金額的 CSV 報表。
 
 ## 功能解析
@@ -29,6 +29,7 @@
 ### 前台使用者
 
 - 公開瀏覽全部活動。
+- 活動列表與詳情顯示已上傳的圖片；同一活動有多個場次時，前端只下載一次圖片。
 - 會員註冊、登入、Token 驗證、個人資料修改及登出。
 - 依活動查詢場次、票券、價格及開賣日期。
 - 選擇日期、場次與座位；不可用座位依場次查詢，避免不同場次互相影響。
@@ -39,6 +40,7 @@
 
 - 查詢活動、場次及票券。
 - 新增、修改或刪除活動。
+- 活動圖片可選填；編輯時不選新圖片會保留原圖，刪除活動時一併刪除圖片。
 - 建立活動場次。
 - 管理 API 僅允許具 `ADMIN_ITEM_IMPLEMENT` 權限的使用者存取。
 
@@ -70,7 +72,7 @@
 
 ### 資料與部署
 
-- PostgreSQL 儲存權限、會員、活動、場次及票券資料。
+- PostgreSQL 儲存權限、會員、活動、活動圖片、場次及票券資料。
 - MyBatis Mapper／XML 負責 SQL 與物件映射。
 - Redis 用於 Token 狀態管理。
 - Docker Compose 編排 Vue、Spring Boot、PostgreSQL、Redis 四項服務；資料庫設有健康檢查與持久化 volume。
@@ -83,11 +85,13 @@
 | 模組 | 代表 API | 用途 |
 | --- | --- | --- |
 | Activity | `GET /v1/activity/selectAllActivities` | 公開活動列表 |
+| Activity.Image | `GET /v1/activity/activityImage/{activityId}` | 公開讀取活動 JPEG；無圖片時回傳 404 |
 | Activity.Favorite | `/v1/activity/selectOnlyFavoriteActivities`、`saveFavoriteActivity`、`deleteFavoriteActivity` | 查詢、新增與刪除收藏 |
 | Login | `/v1/login/register`、`login`、`validate`、`saveProfile`、`logout` | 帳號與 Token 流程 |
 | Booking | 查詢活動／場次／票券、`saveTicket`、`cancelOrder`、`dopayprice` | 會員訂票流程 |
 | Booking.Seats | `GET /v1/booking/selectOnlySeats`、`GET /v1/booking/selectOnlyUnavailableSeats` | 場次座位與不可用座位查詢 |
 | Admin | 查詢活動／場次／票券、`saveActivity`、`deleteActivity`、`createSession` | 後台管理 |
+| Admin.Image | `POST /v1/admin/saveActivity`、`GET /v1/admin/activityImage/{activityId}` | 隨活動儲存可選的 JPEG；管理員讀取圖片 |
 
 ### 架構流程
 
@@ -219,7 +223,7 @@ Docker Compose 將報表掛載至本機 `concert-ticket-analytics/reports/`，�
 
 | 工具 | 專案中的用途 | 設定與程式位置 |
 | --- | --- | --- |
-| JUnit | 驗證訂單付款、取消與逾期的狀態轉換，檢查重複操作、庫存異常、Spring 啟動及會員／管理員 API 權限。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)。 |
+| JUnit | 驗證訂單狀態轉換、Spring 啟動、API 權限，以及活動圖片縮放、讀取與刪除順序。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)、[AdminActivityImageTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/AdminActivityImageTests.java)。 |
 | Mockito | 模擬 Mapper、Service、JWT 與 Redis 等依賴，透過 `mock()`、`when()`、`verify()` 與 `@MockitoBean` 設定回傳結果並確認呼叫行為，例如訂單不可重複扣減或釋放庫存、未授權請求不可進入業務服務。 | 與 JUnit 搭配使用，位於上述兩個 Java 測試檔；由 [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test` 引入。 |
 | Playwright（Microsoft Edge） | 使用 Edge 自動操作網頁，檢查活動載入、搜尋與收藏、未登入導向登入頁、會員登入與票券查詢、管理員後台及訂票流程；包含真實 API 與模擬 API 回應的案例。 | 依賴與指令：[package.json](concert-ticket-frontend/package.json)；瀏覽器設定：[playwright.config.js](concert-ticket-frontend/playwright.config.js)，指定 `channel: 'msedge'`；測試：[tests/e2e](concert-ticket-frontend/tests/e2e)。 |
 | Python unittest | 驗證銷售統計只計入已付款訂單、缺少付款金額時報錯、零銷售與免費票處理，以及 CSV 金額精度、Excel 編碼、公式字首防護與避免覆寫既有報表。 | Python 內建測試框架，搭配 `unittest.mock`；測試：[test_analyze.py](concert-ticket-analytics/test_analyze.py)；受測程式：[analyze.py](concert-ticket-analytics/analyze.py)。 |

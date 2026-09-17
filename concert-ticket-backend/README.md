@@ -33,6 +33,9 @@
 | 註冊／登入／驗證／登出 | `POST /api/v1/login/register`、`/login`、`/validate`、`/logout` |
 | 修改會員資料 | `PUT /api/v1/login/saveProfile` |
 | 取得活動 | `GET /api/v1/activity/selectAllActivities` |
+| 公開讀取活動圖片 | `GET /api/v1/activity/activityImage/{activityId}` |
+| 管理員儲存活動與圖片 | `POST /api/v1/admin/saveActivity` |
+| 管理員讀取活動圖片 | `GET /api/v1/admin/activityImage/{activityId}` |
 | 建立訂單 | `POST /api/v1/booking/saveTicket` |
 | 查詢我的票券 | `GET /api/v1/booking/selectOnlyTicket` |
 | 付款／取消訂單 | `PUT /api/v1/booking/dopayprice`、`/cancelOrder` |
@@ -43,6 +46,14 @@
 | 座位／不可用座位 | `GET /api/v1/booking/selectOnlySeats`、`GET /api/v1/booking/selectOnlyUnavailableSeats` |
 
 WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization: Bearer <accessToken>` 標頭驗證，後端依 JWT 設定 Principal，並訂閱 `/user/queue/notifications` 個人通知佇列。
+
+### 活動圖片上傳與讀取
+
+管理員呼叫 `POST /api/v1/admin/saveActivity` 時，請使用 `multipart/form-data`：`activity` 是 `Content-Type: application/json` 的 `AdminSaveActivityRequest`，`image` 是可選的 JPEG 檔案。只送 `activity` 會新增活動但不建立圖片列；編輯活動時不送 `image` 會保留原圖。選新圖片後，活動與圖片在同一交易寫入 `activity`、`activity_image`。每個活動最多一張圖片，以 `activity_uuid` 關聯；刪除活動時先刪除圖片列。
+
+上傳檔上限為 10 MB，原圖最多 2,400 萬像素。後端檢查 JPEG 內容，保留原始比例並將最長邊縮至不超過 1280 px；再調整 JPEG 品質，必要時進一步縮小，使儲存內容不超過 1,048,576 bytes。圖片驗證失敗回傳 HTTP 400，訊息位於 `data[1].error.image`。請求大小限制由 `application.yml` 與 `application-docker.yml` 的 multipart 設定控制，整筆請求上限為 11 MB。
+
+公開 `GET /api/v1/activity/activityImage/{activityId}` 和管理員 `GET /api/v1/admin/activityImage/{activityId}` 都回傳 `image/jpeg`；活動沒有圖片時回傳 404。管理員端點需要 `ADMIN_ITEM_IMPLEMENT` 權限，公開端點無需登入。
 
 # JWT 登入驗證流程
 

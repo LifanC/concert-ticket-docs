@@ -44,6 +44,14 @@
         ORDER BY activity.id
     </select>
 
+    <select id="selectActivityImage" resultType="java.util.Map">
+        SELECT image.image_data
+        FROM "interviewworks_ticket".activity_image image
+        JOIN "interviewworks_ticket".activity activity
+            ON activity.activity_uuid = image.activity_uuid
+        WHERE activity.id = #{activityId}
+    </select>
+
     <select id="selectOnlyFavoriteActivities" resultType="java.util.Map">
         SELECT activity_id, session_id
         FROM interviewworks_ticket.activity_favorite

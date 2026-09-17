@@ -12,11 +12,45 @@ const detailVisible = ref(false)
 const currentActivity = ref(null)
 const favoriteActivityIds = ref(new Set())
 const showFavoritesOnly = ref(false)
+const activities = ref([])
+const activityImageUrls = ref({})
+let imageRequestsCancelled = false
+
+async function loadActivityImages() {
+  const ids = [...new Set(activities.value.map((activity) => activity.id))]
+  const images = await Promise.all(ids.map(async (id) => {
+    try {
+      const response = await activityApi.get(`/activityImage/${encodeURIComponent(id)}`, {
+        responseType: 'blob',
+      })
+      return [id, response.data]
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error(`無法載入活動 ${id} 的圖片`, error)
+      }
+      return [id, null]
+    }
+  }))
+  if (imageRequestsCancelled) return
+
+  const nextUrls = {}
+  for (const [id, blob] of images) {
+    if (blob) nextUrls[id] = URL.createObjectURL(blob)
+  }
+  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
+  activityImageUrls.value = nextUrls
+}
+
+onUnmounted(() => {
+  imageRequestsCancelled = true
+  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
+})
 
 executeFirst()
 async function executeFirst() {
   const response = await activityApi.get('/selectAllActivities')
   activities.value = response.data
+  void loadActivityImages()
   if (toFindCookie('accessToken')) {
     const favoriteResponse = await activityApi.get(
       '/selectOnlyFavoriteActivities'
@@ -47,8 +81,6 @@ const categoryMap = {
   STAGE_PLAY: '舞台劇',
   SPECIAL_EXHIBITION: '展覽特展',
 }
-
-const activities = ref([])
 
 const filteredActivities = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase()
@@ -202,6 +234,14 @@ const statusType = (status) => (
           </div>
         </template>
         <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到符合篩選條件的活動">
+          <el-table-column label="圖片" width="208">
+            <template #default="scope">
+              <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
+                :preview-src-list="[activityImageUrls[scope.row.id]]" :alt="`${scope.row.name}圖片`"
+                fit="contain" class="activity-table-image" preview-teleported />
+              <span v-else class="activity-table-no-image">無圖片</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="name" label="活動名稱" min-width="220">
             <template #default="scope">
               <div class="activity-name">
@@ -247,6 +287,9 @@ const statusType = (status) => (
           {{ statusMap[currentActivity.status] }}
         </el-tag>
       </div>
+      <el-image v-if="activityImageUrls[currentActivity.id]" :src="activityImageUrls[currentActivity.id]"
+        :preview-src-list="[activityImageUrls[currentActivity.id]]" :alt="`${currentActivity.name}圖片`"
+        fit="contain" class="detail-image" preview-teleported />
       <el-descriptions :column="1" border class="detail-list">
         <el-descriptions-item label="活動日期">
           {{ currentActivity.date }} {{ currentActivity.dow }} {{ currentActivity.time }}
@@ -311,6 +354,28 @@ const statusType = (status) => (
   margin-bottom: 4px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+}
+
+.activity-table-image {
+  display: block;
+  width: 180px;
+  height: 102px;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+}
+
+.activity-table-no-image {
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+}
+
+.detail-image {
+  display: block;
+  width: 100%;
+  height: 280px;
+  margin-bottom: 20px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
 }
 
 .detail-heading {

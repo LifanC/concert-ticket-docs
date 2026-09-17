@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,10 +35,9 @@ public class GlobalExceptionHandler {
 
     // DTO 驗證失敗
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<?> handleValidationException(
             MethodArgumentNotValidException ex) {
-        logger.error(ex.getMessage(), ex);
+        logger.warn("參數驗證失敗: {}", ex.getMessage());
 
         Map<String, String> fieldErrors = new TreeMap<>();
         ex.getBindingResult()
@@ -51,11 +49,21 @@ public class GlobalExceptionHandler {
                     );
                 });
 
-        List<Map<String, Object>> data = msg("參數驗證失敗");
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("error", fieldErrors);
-        data.add(dataMap);
+        return validationError(fieldErrors);
+    }
+
+    @ExceptionHandler(FieldValidationException.class)
+    public ResponseEntity<?> handleFieldValidation(FieldValidationException ex) {
+        logger.warn("欄位驗證失敗: {}: {}", ex.getField(), ex.getMessage());
+        return validationError(Map.of(ex.getField(), ex.getMessage()));
+    }
+
+    private ResponseEntity<?> validationError(Map<String, String> fieldErrors) {
         HttpStatus status = HttpStatus.BAD_REQUEST;
+        List<Map<String, Object>> data = List.of(
+                Map.of("remark", "參數驗證失敗"),
+                Map.of("error", fieldErrors)
+        );
         return ResponseEntity
                 .status(status)
                 .body(ApiResponse.api(
