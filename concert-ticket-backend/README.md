@@ -55,6 +55,12 @@ WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization:
 
 公開 `GET /api/v1/activity/activityImage/{activityId}` 和管理員 `GET /api/v1/admin/activityImage/{activityId}` 都回傳 `image/jpeg`；活動沒有圖片時回傳 404。管理員端點需要 `ADMIN_ITEM_IMPLEMENT` 權限，公開端點無需登入。
 
+### 活動座位配置
+
+`AdminSaveActivityRequest` 的 `category` 決定最多可設定的排數：`MUSIC_CONCERT` 為 50 排（A～AX）、`STAGE_PLAY` 為 100 排（A～CV）、`SPECIAL_EXHIBITION` 為 150 排（A～ET）。`column` 傳最後一排的字母編號，後端自 A 排依序建立座位；`row` 是每排座位數，限制為 1～10。修改活動時會替換該活動的座位配置。訂票座位 API 會去除儲存排別字串中的空白，座位編號格式為 `A-01`、`AA-01` 等。
+
+目前座位配置的單元測試使用 mock Mapper；尚未以真實 PostgreSQL 驗證修改已有訂單的活動時，座位配置與既有訂單的相容性。
+
 # JWT 登入驗證流程
 
 ## ① Login

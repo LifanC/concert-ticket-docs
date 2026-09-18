@@ -72,12 +72,37 @@ const activityForm = reactive(
     category: '',
     venue: '',
     price: 0,
-    seat: '',
     description: '',
     column: '',
-    row: '',
+    row: 10,
   }
 )
+const seatRowCountByCategory = {
+  MUSIC_CONCERT: 50,
+  STAGE_PLAY: 100,
+  SPECIAL_EXHIBITION: 150,
+}
+const seatRowLabel = (index) => {
+  let number = index
+  let label = ''
+  while (number > 0) {
+    number--
+    label = String.fromCharCode(65 + number % 26) + label
+    number = Math.floor(number / 26)
+  }
+  return label
+}
+const seatRangeOptions = computed(() => {
+  const rowCount = seatRowCountByCategory[activityForm.category] ?? 0
+  return Array.from({ length: rowCount }, (_, index) => {
+    const end = seatRowLabel(index + 1)
+    return { label: `A～${end} 排（${index + 1} 排）`, value: end }
+  })
+})
+const onActivityCategoryChange = () => {
+  activityForm.column = ''
+  activityFormNotOk.value.column = ''
+}
 const activityFormNotOk = ref(
   {
     image: '',
@@ -85,7 +110,6 @@ const activityFormNotOk = ref(
     category: '',
     venue: '',
     price: '',
-    seat: '',
     column: '',
     row: '',
   }
@@ -177,10 +201,12 @@ const openAdd = () => {
     {
       id: '',
       name: '',
-      category: 'MUSIC_CONCERT',
+      category: '',
       venue: '',
       price: 1280,
-      description: ''
+      description: '',
+      column: '',
+      row: 10,
     }
   )
   dialogMode.value = '新增活動'
@@ -190,6 +216,8 @@ const openEdit = async (activity) => {
   clearImageSelection()
   const loadVersion = imageLoadVersion
   Object.assign(activityForm, activity)
+  activityForm.column = activity.seat_rows?.split(',').at(-1)?.trim() ?? ''
+  activityForm.row = activity.row == null ? 10 : Number(activity.row)
   dialogMode.value = '修改活動'
   dialogVisible.value = true
   try {
@@ -211,12 +239,25 @@ const saveActivity = async () => {
   activityFormNotOk.value = {
     image: '',
     name: '',
-    venue: ''
+    category: '',
+    venue: '',
+    price: '',
+    column: '',
+    row: '',
+  }
+  if (!activityForm.category) {
+    activityFormNotOk.value.category = '請選擇活動類型'
+  }
+  if (!seatRangeOptions.value.some((option) => option.value === activityForm.column)) {
+    activityFormNotOk.value.column = activityForm.category
+      ? '請選擇符合活動類型的座位排別'
+      : '請先選擇活動類型'
   }
   if (
     !activityForm.name ||
+    !activityForm.category ||
     !activityForm.venue ||
-    !activityForm.column ||
+    activityFormNotOk.value.column ||
     !activityForm.row
   ) {
     return
@@ -243,7 +284,11 @@ const saveActivity = async () => {
     activityFormNotOk.value = {
       image: data.image ?? '',
       name: data.name ?? '',
+      category: data.category ?? '',
       venue: data.venue ?? '',
+      price: data.price ?? '',
+      column: data.column ?? '',
+      row: data.row ?? '',
     }
     dialogVisible.value = true
   }
@@ -584,8 +629,9 @@ const statusType = (status) => (
       <el-form-item label="活動名稱" required :error="activityFormNotOk.name !== '' ? activityFormNotOk.name : ''">
         <el-input v-model="activityForm.name" />
       </el-form-item>
-      <el-form-item label="活動類型" :error="activityFormNotOk.category !== '' ? activityFormNotOk.category : ''">
-        <el-select v-model="activityForm.category" style="width: 100%">
+      <el-form-item label="活動類型" required :error="activityFormNotOk.category !== '' ? activityFormNotOk.category : ''">
+        <el-select v-model="activityForm.category" placeholder="請先選擇活動類型" style="width: 100%"
+          @change="onActivityCategoryChange">
           <el-option label="音樂演唱會" value="MUSIC_CONCERT" />
           <el-option label="舞台劇" value="STAGE_PLAY" />
           <el-option label="展覽特展" value="SPECIAL_EXHIBITION" />
@@ -597,16 +643,20 @@ const statusType = (status) => (
       <el-form-item label="起始票價" :error="activityFormNotOk.price !== '' ? activityFormNotOk.price : ''">
         <el-input-number v-model="activityForm.price" :min="0" />
       </el-form-item>
-      <el-form-item label="座位編號" :error="activityFormNotOk.seat !== '' ? activityFormNotOk.seat : ''">
-        <el-row :gutter="16">
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="欄" required :error="sessionFormNotOk.column !== '' ? sessionFormNotOk.column : ''">
-              <el-input v-model="activityForm.column" placeholder="ABCDEFG輸入AG" />
+      <el-form-item label="座位編號">
+        <el-row :gutter="16" style="width: 100%">
+          <el-col :xs="24" :sm="16">
+            <el-form-item label="排別範圍" required :error="activityFormNotOk.column">
+              <el-select v-model="activityForm.column" :disabled="!activityForm.category"
+                :placeholder="activityForm.category ? '請選擇 A～B 等排別' : '請先選擇活動類型'" style="width: 100%">
+                <el-option v-for="option in seatRangeOptions" :key="option.value" :label="option.label"
+                  :value="option.value" />
+              </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="列" required :error="sessionFormNotOk.row !== '' ? sessionFormNotOk.row : ''">
-              <el-input v-model="activityForm.row" placeholder="輸入1~10" />
+          <el-col :xs="24" :sm="8">
+            <el-form-item label="每排座位數" required :error="activityFormNotOk.row">
+              <el-input-number v-model="activityForm.row" :min="1" :max="10" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>

@@ -45,6 +45,16 @@ public class AdminServiceImpl implements AdminService{
         this.adminMapper = adminMapper;
     }
 
+    private String seatRowLabel(int number) {
+        StringBuilder label = new StringBuilder();
+        while (number > 0) {
+            number--;
+            label.insert(0, (char) ('A' + number % 26));
+            number /= 26;
+        }
+        return label.toString();
+    }
+
     @Override
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectAllActivities() {
@@ -75,7 +85,23 @@ public class AdminServiceImpl implements AdminService{
         final String description = request.description() == null ? "" : request.description().trim();
         final String column = request.column().trim();
         final BigDecimal row = request.row();
-        final String seat_id = column + "-" + row.toString();
+        final int maxRows = switch (category) {
+            case "MUSIC_CONCERT" -> 50;
+            case "STAGE_PLAY" -> 100;
+            case "SPECIAL_EXHIBITION" -> 150;
+            default -> throw new FieldValidationException("category", "活動類型錯誤");
+        };
+        if (!column.matches("[A-Z]{1,2}")) {
+            throw new FieldValidationException("column", "座位排別格式錯誤");
+        }
+        int selectedRows = 0;
+        for (char letter : column.toCharArray()) {
+            selectedRows = selectedRows * 26 + letter - 'A' + 1;
+        }
+        if (selectedRows > maxRows) {
+            throw new FieldValidationException("column", "座位排別不符合活動類型");
+        }
+        final String seat_id = column + "-" + row.toPlainString();
         PreparedImage preparedImage = prepareImage(image);
         Activity activity = new Activity();
         activity.setId(id);
@@ -87,9 +113,10 @@ public class AdminServiceImpl implements AdminService{
         Map<String, Object> savedActivity = adminMapper.create_activity(activity);
         String activity_id = savedActivity.get("activity_id").toString();
         StringJoiner result = new StringJoiner(", ");
-        for (char c = column.charAt(0); c <= column.charAt(1); c++) {
-            result.add(String.valueOf(c));
+        for (int number = 1; number <= selectedRows; number++) {
+            result.add(seatRowLabel(number));
         }
+        adminMapper.delete_seat_by_activity(activity_id);
         adminMapper.create_seat(seat_id, activity_id, result.toString(), row);
         if (preparedImage != null) {
             UUID activity_uuid = UUID.fromString(savedActivity.get("activity_uuid").toString());
@@ -251,7 +278,6 @@ public class AdminServiceImpl implements AdminService{
         if (dataMapOnlySeats != null) {
             int rows = dataMapOnlySeats.get("seat_rows").toString().split(",").length;
             int seatsPerRow = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
-
             capacity = BigDecimal.valueOf((long) rows * seatsPerRow);
         }
         session.setCapacity(capacity);

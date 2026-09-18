@@ -92,27 +92,15 @@ public record AdminSaveActivityRequest(
     )
     String description,
 
-    @Schema(
-            description = "欄",
-            example = "AB",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotBlank(message = "欄不可為空")
-    @Size(min = 2, max = 2, message = "欄長度需介於 2~50 字")
-    @Pattern(
-            regexp = "^[A-Z]{2}$",
-            message = "欄格式錯誤"
-    )
+    @Schema(description = "座位最後一排（自 A 排起）", example = "AX", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "請選擇座位排別範圍")
+    @Pattern(regexp = "^[A-Z]{1,2}$", message = "座位排別格式錯誤")
     String column,
 
-    @Schema(
-            description = "列",
-            example = "1~10",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
-    @NotNull(message = "列不能為空")
-    @Min(value = 1, message = "列必須介於 1～10")
-    @Max(value = 10, message = "列必須介於 1～10")
+    @Schema(description = "每排座位數", example = "10", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "每排座位數不可為空")
+    @Min(value = 1, message = "每排座位數必須介於 1～10")
+    @Max(value = 10, message = "每排座位數必須介於 1～10")
     BigDecimal row
 
 ) {}

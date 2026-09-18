@@ -2,6 +2,7 @@ package com.demo.ticket;
 
 import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
 import com.demo.ticket.Dto.Admin.AdminDeleteActivityRequest;
+import com.demo.ticket.Exception.FieldValidationException;
 import com.demo.ticket.Mapper.AdminMapper;
 import com.demo.ticket.Service.AdminServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +72,30 @@ class AdminActivityImageTests {
     }
 
     @Test
+    void rejectsSeatRowsOutsideTheActivityCategory() {
+        var request = new AdminSaveActivityRequest(
+                "", "測試活動", "SPECIAL_EXHIBITION", "測試場地",
+                BigDecimal.valueOf(1280), "", "EU", BigDecimal.TEN);
+
+        assertThrows(FieldValidationException.class, () -> service.saveActivity(request, null));
+        verify(mapper, never()).create_activity(any());
+    }
+
+    @Test
+    void createsRowsThroughTheCategoryLimit() {
+        service.saveActivity(request("MUSIC_CONCERT", "AX"), null);
+        service.saveActivity(request("STAGE_PLAY", "CV"), null);
+        service.saveActivity(request("SPECIAL_EXHIBITION", "ET"), null);
+
+        var rows = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(mapper, times(3)).create_seat(anyString(), anyString(), rows.capture(), eq(BigDecimal.TEN));
+        assertEquals(List.of(50, 100, 150), rows.getAllValues().stream()
+                .map(value -> value.split(", ").length).toList());
+        assertEquals(List.of("AX", "CV", "ET"), rows.getAllValues().stream()
+                .map(value -> value.substring(value.lastIndexOf(", ") + 2)).toList());
+    }
+
+    @Test
     void readsStoredImageForEditing() {
         byte[] jpeg = { (byte) 0xff, (byte) 0xd8, (byte) 0xff };
         when(mapper.selectActivityImage("ACT-20260917-001"))
@@ -92,8 +117,12 @@ class AdminActivityImageTests {
     }
 
     private AdminSaveActivityRequest request() {
+        return request("MUSIC_CONCERT", "B");
+    }
+
+    private AdminSaveActivityRequest request(String category, String lastRow) {
         return new AdminSaveActivityRequest(
-                "", "測試活動", "MUSIC_CONCERT", "測試場地",
-                BigDecimal.valueOf(1280), "", "AB", BigDecimal.TEN);
+                "", "測試活動", category, "測試場地",
+                BigDecimal.valueOf(1280), "", lastRow, BigDecimal.TEN);
     }
 }

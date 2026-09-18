@@ -59,6 +59,7 @@
 - 會員註冊、登入、Token 驗證、個人資料修改及登出。
 - 依活動查詢場次、票券、價格及開賣日期。
 - 選擇日期、場次與座位；不可用座位依場次查詢，避免不同場次互相影響。
+- 座位圖逐排顯示排號、可選狀態與已選座位，支援快速跳排、座位區捲動及載入失敗重試。
 - 建立票券訂單、查詢個人票券、付款及取消訂單。
 - 接收個人 WebSocket 訂單通知。
 
@@ -66,6 +67,7 @@
 
 - 查詢活動、場次及票券。
 - 新增、修改或刪除活動。
+- 新增活動時先選活動類型，再選 A 排起的最後一排；音樂演唱會最多 50 排（AX）、舞台劇 100 排（CV）、展覽特展 150 排（ET），每排 1～10 席。修改活動時可重新設定座位配置。
 - 活動圖片可選填；編輯時不選新圖片會保留原圖，刪除活動時一併刪除圖片。
 - 建立活動場次。
 - 管理 API 僅允許具 `ADMIN_ITEM_IMPLEMENT` 權限的使用者存取。
@@ -249,8 +251,8 @@ Docker Compose 將報表掛載至本機 `concert-ticket-analytics/reports/`，�
 
 | 工具 | 專案中的用途 | 設定與程式位置 |
 | --- | --- | --- |
-| JUnit | 驗證訂單狀態轉換、Spring 啟動、API 權限，以及活動圖片縮放、讀取與刪除順序。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)、[AdminActivityImageTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/AdminActivityImageTests.java)。 |
-| Mockito | 模擬 Mapper、Service、JWT 與 Redis 等依賴，透過 `mock()`、`when()`、`verify()` 與 `@MockitoBean` 設定回傳結果並確認呼叫行為，例如訂單不可重複扣減或釋放庫存、未授權請求不可進入業務服務。 | 與 JUnit 搭配使用，位於上述兩個 Java 測試檔；由 [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test` 引入。 |
+| JUnit | 驗證訂單狀態轉換、Spring 啟動、API 權限、活動圖片處理及不同活動類型的座位排數上限。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)、[AdminActivityImageTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/AdminActivityImageTests.java)。 |
+| Mockito | 模擬 Mapper、Service、JWT 與 Redis 等依賴，透過 `mock()`、`when()`、`verify()` 與 `@MockitoBean` 設定回傳結果並確認呼叫行為，例如訂單不可重複扣減或釋放庫存、未授權請求不可進入業務服務。 | 與 JUnit 搭配使用，位於上述 Java 測試檔；由 [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test` 引入。 |
 | Playwright（Microsoft Edge） | 使用 Edge 自動操作網頁，檢查活動載入、搜尋與收藏、未登入導向登入頁、會員登入與票券查詢、管理員後台及訂票流程；包含真實 API 與模擬 API 回應的案例。 | 依賴與指令：[package.json](concert-ticket-frontend/package.json)；瀏覽器設定：[playwright.config.js](concert-ticket-frontend/playwright.config.js)，指定 `channel: 'msedge'`；測試：[tests/e2e](concert-ticket-frontend/tests/e2e)。 |
 | Python unittest | 驗證銷售統計只計入已付款訂單、缺少付款金額時報錯、零銷售與免費票處理，以及 CSV 金額精度、Excel 編碼、公式字首防護與避免覆寫既有報表。 | Python 內建測試框架，搭配 `unittest.mock`；測試：[test_analyze.py](concert-ticket-analytics/test_analyze.py)；受測程式：[analyze.py](concert-ticket-analytics/analyze.py)。 |
 
@@ -280,7 +282,7 @@ Python 測試需先完成分析虛擬環境安裝，再於 `concert-ticket-analy
 .\.venv\Scripts\python.exe -m unittest -v test_analyze
 ```
 
-2026-09-10 的既有紀錄包含 Java 18 項、Edge 9 項與 Python 6 項測試通過，以及前端建置成功。Java 訂單測試使用 mock Mapper，Python 聚合測試使用 SQLite；這些結果不代表已驗證真實 PostgreSQL 併發、交易回滾或完整付款流程。實際驗證範圍與限制以 [TEST_REPORT.md](TEST_REPORT.md) 為準。
+2026-09-18 後端 24 項測試與前端建置通過；Microsoft Edge 9 項與 Python 6 項仍為 2026-09-10 的既有紀錄，尚未重新驗證新版座位圖。Java 訂單與座位配置測試使用 mock Mapper，Python 聚合測試使用 SQLite；這些結果不代表已驗證真實 PostgreSQL 併發、交易回滾或完整付款流程。實際驗證範圍與限制以 [TEST_REPORT.md](TEST_REPORT.md) 為準。
 
 ## 後續規劃
 

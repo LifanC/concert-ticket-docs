@@ -33,6 +33,8 @@ public interface AdminMapper {
 
     void create_seat(String id, String activity_id, String seat_rows, BigDecimal seats_per_row);
 
+    void delete_seat_by_activity(String activity_id);
+
     @MapKey("activity_id")
     Map<String, Map<String, Object>> selectOnlySeats(String activity_id);
 }

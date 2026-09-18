@@ -11,6 +11,7 @@
             activity.price,
             activity.description,
             seat.id as seat_id,
+            seat.seat_rows,
             split_part(seat.id, '-', 1) AS "column",
             split_part(seat.id, '-', 2) AS "row"
         from
@@ -136,6 +137,11 @@
             ON activity.activity_uuid = image.activity_uuid
         WHERE activity.id = #{activityId}
     </select>
+
+    <delete id="delete_seat_by_activity">
+        DELETE FROM "interviewworks_ticket"."seat"
+               WHERE activity_id = #{activity_id}
+    </delete>
 
     <insert id="create_seat">
         INSERT INTO "interviewworks_ticket"."seat"

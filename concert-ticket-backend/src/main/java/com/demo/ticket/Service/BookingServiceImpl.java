@@ -335,7 +335,8 @@ public class BookingServiceImpl implements BookingService {
             if (seatConfig != null) {
                 String[] rows = seatConfig.get("seat_rows").toString().split(",");
                 int seatsPerRow = Integer.parseInt(seatConfig.get("seats_per_row").toString());
-                for (String row : rows) {
+                for (String rawRow : rows) {
+                    String row = rawRow.trim();
                     for (int number = 1; number <= seatsPerRow; number++) {
                         data.add(Map.of(
                                 "id", "%s-%02d".formatted(row, number),
