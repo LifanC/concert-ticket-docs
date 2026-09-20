@@ -47,17 +47,12 @@ public class AdminController {
 
     @Operation(summary = "2.增加、修改活動", description = "增加、修改活動")
     @PostMapping("/saveActivity")
-    public ResponseEntity<?> saveActivity(
+    public Map<String, Object> saveActivity(
             @Valid
             @RequestPart("activity")
             AdminSaveActivityRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image) {
         return adminService.saveActivity(request, image);
-    }
-
-    @GetMapping("/activityImage/{activityId}")
-    public ResponseEntity<byte[]> activityImage(@PathVariable String activityId) {
-        return adminService.activityImage(activityId);
     }
 
     @Operation(summary = "3.刪除活動", description = "刪除活動")

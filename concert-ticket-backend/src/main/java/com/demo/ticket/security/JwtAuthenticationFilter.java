@@ -53,7 +53,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v1/login/validate",
             "/api/v1/activity/selectAllActivities",
             "/api/v1/activity/activityImage/",
-            "/api/v1/activity/selectOnlyFavoriteActivities",
             // WebSocket
             "/api/ws",
             // Swagger

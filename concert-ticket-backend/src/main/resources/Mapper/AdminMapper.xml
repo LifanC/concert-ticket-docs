@@ -13,11 +13,39 @@
             seat.id as seat_id,
             seat.seat_rows,
             split_part(seat.id, '-', 1) AS "column",
-            split_part(seat.id, '-', 2) AS "row"
+            split_part(seat.id, '-', 2) AS "row",
+            activity_image.content_type,
+            activity_image.image_data
         from
             "interviewworks_ticket"."activity" activity
                 LEFT JOIN "interviewworks_ticket".seat seat
                           ON activity.id = seat.activity_id
+                inner JOIN "interviewworks_ticket".activity_image activity_image
+                           ON activity_image.activity_uuid = activity.activity_uuid
+        order by activity.id
+    </select>
+
+    <select id="selectOnlyActivities" resultType="java.util.Map">
+        select
+            activity.id,
+            activity."name",
+            activity.category,
+            activity.venue,
+            activity.price,
+            activity.description,
+            seat.id as seat_id,
+            seat.seat_rows,
+            split_part(seat.id, '-', 1) AS "column",
+            split_part(seat.id, '-', 2) AS "row",
+            activity_image.content_type,
+            activity_image.image_data
+        from
+            "interviewworks_ticket"."activity" activity
+                LEFT JOIN "interviewworks_ticket".seat seat
+                          ON activity.id = seat.activity_id
+                inner JOIN "interviewworks_ticket".activity_image activity_image
+                           ON activity_image.activity_uuid = activity.activity_uuid
+        WHERE activity.id = #{id}
         order by activity.id
     </select>
 
@@ -126,17 +154,16 @@
     <delete id="deleteActivityImage">
         DELETE FROM "interviewworks_ticket".activity_image
         WHERE activity_uuid = (
-            SELECT activity_uuid FROM "interviewworks_ticket".activity WHERE id = #{activityId}
+            SELECT activity_uuid
+            FROM "interviewworks_ticket".activity
+            WHERE id = #{id}
+              AND NOT EXISTS (
+                SELECT 1
+                FROM "interviewworks_ticket"."session" "session"
+                WHERE "session".activity_id = activity.id
+              )
         )
     </delete>
-
-    <select id="selectActivityImage" resultType="java.util.Map">
-        SELECT image.image_data
-        FROM "interviewworks_ticket".activity_image image
-        JOIN "interviewworks_ticket".activity activity
-            ON activity.activity_uuid = image.activity_uuid
-        WHERE activity.id = #{activityId}
-    </select>
 
     <delete id="delete_seat_by_activity">
         DELETE FROM "interviewworks_ticket"."seat"
@@ -165,8 +192,13 @@
     </insert>
 
     <delete id="delete_activity">
-        DELETE FROM "interviewworks_ticket"."activity"
-        WHERE id = #{id}
+        DELETE FROM "interviewworks_ticket".activity activity
+        WHERE activity.id = #{id}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "interviewworks_ticket"."session" "session"
+            WHERE "session".activity_id = activity.id
+          )
     </delete>
 
     <select id="create_session" resultType="java.lang.String">

@@ -58,6 +58,10 @@ function setupAuthInterceptor(client) {
           const newToken = response.data?.data?.[0]?.accessToken
 
           if (!newToken) {
+            ElMessage({
+              type: 'info',
+              message: `${'重新登入'}`,
+            })
             throw new Error('Refresh API 沒有回傳 accessToken')
           }
 
@@ -102,7 +106,7 @@ function setupAuthInterceptor(client) {
           type: 'info',
           message: '重新登入',
         })
-        
+
         if (currentRoute.name !== 'User') {
           clearCookie('accessName')
           clearCookie('accessToken')

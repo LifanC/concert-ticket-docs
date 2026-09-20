@@ -13,38 +13,6 @@ const sessions = ref([])
 const orders = ref([])
 let activityImageLoadVersion = 0
 
-async function loadActivityImages() {
-  const version = ++activityImageLoadVersion
-  const images = await Promise.all(activities.value.map(async (activity) => {
-    try {
-      const response = await adminApi({
-        method: 'get',
-        url: `/activityImage/${encodeURIComponent(activity.id)}`,
-        responseType: 'blob',
-      })
-      return [activity.id, response.data]
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error(`無法載入活動 ${activity.id} 的圖片`, error)
-      }
-      return [activity.id, null]
-    }
-  }))
-  if (version !== activityImageLoadVersion) return
-
-  const nextUrls = {}
-  for (const [id, blob] of images) {
-    if (blob) nextUrls[id] = URL.createObjectURL(blob)
-  }
-  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
-  activityImageUrls.value = nextUrls
-}
-
-onUnmounted(() => {
-  activityImageLoadVersion++
-  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
-})
-
 executeFirst()
 async function executeFirst() {
   const response_selectAllActivities = await adminApi({
@@ -52,7 +20,22 @@ async function executeFirst() {
     url: '/selectAllActivities',
   });
   activities.value = response_selectAllActivities.data
-  void loadActivityImages()
+  const version = ++activityImageLoadVersion
+  if (version !== activityImageLoadVersion) return
+  const nextUrls = {}
+  for (const { id, image_data, content_type } of response_selectAllActivities.data) {
+    if (image_data) {
+      const blob = new Blob(
+        [Uint8Array.from(atob(image_data), c => c.charCodeAt(0))],
+        { type: content_type }
+      )
+      nextUrls[id] = URL.createObjectURL(blob)
+    }
+  }
+  Object.values(response_selectAllActivities.data).forEach((url) => {
+    URL.revokeObjectURL(url)
+  })
+  activityImageUrls.value = nextUrls
   const response_selectAllSessions = await adminApi({
     method: 'get',
     url: '/selectAllSessions',
@@ -180,20 +163,6 @@ function clearImageSelection() {
   imageUpload.value?.clearFiles()
   activityFormNotOk.value.image = ''
 }
-
-function onImageChange(uploadFile) {
-  const file = uploadFile.raw
-  if (!file || file.type !== 'image/jpeg' || file.size > 10 * 1024 * 1024) {
-    clearImageSelection()
-    activityFormNotOk.value.image = '請選擇小於 10 MB 的 JPG 圖片'
-    return
-  }
-  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
-  imageLoadVersion++
-  imageFile.value = file
-  imagePreview.value = URL.createObjectURL(file)
-  activityFormNotOk.value.image = ''
-}
 const openAdd = () => {
   clearImageSelection()
   Object.assign(
@@ -220,20 +189,22 @@ const openEdit = async (activity) => {
   activityForm.row = activity.row == null ? 10 : Number(activity.row)
   dialogMode.value = '修改活動'
   dialogVisible.value = true
-  try {
-    const response = await adminApi({
-      method: 'get',
-      url: `/activityImage/${encodeURIComponent(activity.id)}`,
-      responseType: 'blob',
-    })
-    if (imageLoadVersion === loadVersion && dialogVisible.value) {
-      imagePreview.value = URL.createObjectURL(response.data)
-    }
-  } catch (error) {
-    if (error.response?.status !== 404 && imageLoadVersion === loadVersion) {
-      ElMessage.error('無法載入活動圖片')
-    }
+  if (imageLoadVersion === loadVersion && dialogVisible.value) {
+    imagePreview.value = `data:${activity.content_type};base64,${activity.image_data}`
   }
+}
+function onImageChange(uploadFile) {
+  const file = uploadFile.raw
+  if (!file || file.type !== 'image/jpeg' || file.size > 10 * 1024 * 1024) {
+    clearImageSelection()
+    activityFormNotOk.value.image = '請選擇小於 10 MB 的 JPG 圖片'
+    return
+  }
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageLoadVersion++
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  activityFormNotOk.value.image = ''
 }
 const saveActivity = async () => {
   activityFormNotOk.value = {
@@ -276,8 +247,23 @@ const saveActivity = async () => {
       url: '/saveActivity',
       data: formData,
     });
-    activities.value = response.data.data
-    void loadActivityImages()
+    const id = response.data.id
+    let activity = activities.value.find(item => item.id === id)
+    if (activity) {
+      Object.assign(activity, response.data)
+    } else {
+      activities.value.push(response.data)
+      activity = response.data
+    }
+    if (activity.image_data) {
+      if (activityImageUrls.value[id]) {
+        URL.revokeObjectURL(activityImageUrls.value[id])
+      }
+      activityImageUrls.value[id] = base64ToUrl(
+        activity.image_data,
+        activity.content_type
+      )
+    }
     dialogVisible.value = false
   } catch (error) {
     const data = error.response?.data?.data?.[1]?.error ?? {}
@@ -293,6 +279,13 @@ const saveActivity = async () => {
     dialogVisible.value = true
   }
 }
+const base64ToUrl = (data, type) =>
+  URL.createObjectURL(
+    new Blob(
+      [Uint8Array.from(atob(data), c => c.charCodeAt(0))],
+      { type }
+    )
+  )
 const deleteActivity = async (activity) => {
   Object.assign(
     activityForm,
@@ -306,7 +299,6 @@ const deleteActivity = async (activity) => {
     data: activityForm,
   });
   activities.value = response.data.data
-  void loadActivityImages()
 }
 const createSession = async () => {
   sessionFormNotOk.value = {
@@ -408,6 +400,11 @@ const statusMap = {
   EXPIRED: '超過付款期限',
   REFUNDED: '已退款',
 }
+const categoryMap = {
+  MUSIC_CONCERT: '音樂演唱會',
+  STAGE_PLAY: '舞台劇',
+  SPECIAL_EXHIBITION: '展覽特展',
+}
 const statusType = (status) => (
   {
     'COMING_SOON': 'warning',
@@ -454,20 +451,19 @@ const statusType = (status) => (
             <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
               <el-table-column label="圖片" width="208">
                 <template #default="scope">
-                  <el-image
-                   v-if="activityImageUrls[scope.row.id]"
-                    :src="activityImageUrls[scope.row.id]"
-                    :preview-src-list="[activityImageUrls[scope.row.id]]"
-                    :alt="`${scope.row.name}圖片`"
-                    fit="contain" class="activity-table-image" preview-teleported
-                  />
+                  <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
+                    :preview-src-list="[activityImageUrls[scope.row.id]]" :alt="`${scope.row.name}圖片`" fit="contain"
+                    class="activity-table-image" preview-teleported />
                   <span v-else class="activity-table-no-image">無圖片</span>
                 </template>
               </el-table-column>
               <el-table-column prop="id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動名稱" min-width="190" />
+              <el-table-column label="活動類型" width="110">
+                <template #default="scope">{{ categoryMap[scope.row.category] }}</template>
+              </el-table-column>
               <el-table-column prop="venue" label="場地" min-width="160" />
-              <el-table-column label="票價" width="110">
+              <el-table-column label="票價" width="160">
                 <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>
               </el-table-column>
               <el-table-column label="操作" width="150" fixed="right">

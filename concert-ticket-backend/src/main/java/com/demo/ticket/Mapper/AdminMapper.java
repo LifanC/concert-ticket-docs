@@ -15,6 +15,9 @@ public interface AdminMapper {
 
     List<Map<String,Object>> selectAllActivities();
 
+    @MapKey("id")
+    Map<String, Map<String, Object>> selectOnlyActivities(String id);
+
     List<Map<String,Object>> selectAllSessions();
 
     List<Map<String, Object>> selectAllticket();
@@ -23,11 +26,9 @@ public interface AdminMapper {
 
     void upsertActivityImage(UUID activity_uuid, String filename, int width, int height, byte[] image_data);
 
-    void deleteActivityImage(String activityId);
+    int deleteActivityImage(String id);
 
-    Map<String, Object> selectActivityImage(String activityId);
-
-    void delete_activity(String id);
+    int delete_activity(String id);
 
     void create_session(Session session);
 

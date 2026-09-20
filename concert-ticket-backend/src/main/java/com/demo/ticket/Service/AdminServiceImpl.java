@@ -76,7 +76,7 @@ public class AdminServiceImpl implements AdminService{
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
-    public ResponseEntity<?> saveActivity(AdminSaveActivityRequest request, MultipartFile image) {
+    public Map<String, Object> saveActivity(AdminSaveActivityRequest request, MultipartFile image) {
         final String id = request.id() == null ? "" : request.id().trim();
         final String name = request.name().trim();
         final String category = request.category().trim();
@@ -91,9 +91,6 @@ public class AdminServiceImpl implements AdminService{
             case "SPECIAL_EXHIBITION" -> 150;
             default -> throw new FieldValidationException("category", "活動類型錯誤");
         };
-        if (!column.matches("[A-Z]{1,2}")) {
-            throw new FieldValidationException("column", "座位排別格式錯誤");
-        }
         int selectedRows = 0;
         for (char letter : column.toCharArray()) {
             selectedRows = selectedRows * 26 + letter - 'A' + 1;
@@ -128,14 +125,7 @@ public class AdminServiceImpl implements AdminService{
                     preparedImage.data()
             );
         }
-        List<Map<String, Object>> data = adminMapper.selectAllActivities();
-        HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+        return adminMapper.selectOnlyActivities(activity_id).get(activity_id);
     }
 
     private PreparedImage prepareImage(MultipartFile image) {
@@ -227,24 +217,17 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
-    public ResponseEntity<byte[]> activityImage(String activityId) {
-        Map<String, Object> image = adminMapper.selectActivityImage(activityId);
-        if (image == null || image.get("image_data") == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG)
-                .body((byte[]) image.get("image_data"));
-    }
-
-    @Override
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> deleteActivity(AdminDeleteActivityRequest request) {
         final String id = request.id().trim();
-        adminMapper.deleteActivityImage(id);
-        adminMapper.delete_activity(id);
+        int[] cnts = {
+                adminMapper.deleteActivityImage(id),
+                adminMapper.delete_activity(id)
+        };
+        if (Arrays.stream(cnts).allMatch(cnt -> cnt > 0)) {
+            adminMapper.delete_seat_by_activity(id);
+        }
         List<Map<String, Object>> data = adminMapper.selectAllActivities();
         HttpStatus status = HttpStatus.OK;
         return ResponseEntity

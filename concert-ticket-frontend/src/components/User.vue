@@ -92,7 +92,7 @@ const submitLogin = async () => {
         let data = response.data.data[0] ?? {}
         if (data.judge) {
           if (data.accessToken) {
-            activeTab.value = 'profile'
+            activeTab.value = 'login'
             isLoggedIn_ = true
             addCookie('accessName', data.name)
             addCookie('accessToken', data.accessToken)
@@ -174,7 +174,7 @@ const submitRegister = async () => {
         birthday: data.birthday
       }
     )
-    activeTab.value = 'login'
+    activeTab.value = 'profile'
     ElMessage({
       type: 'success',
       message: `${'註冊成功'}`,
@@ -345,7 +345,9 @@ const logout = async () => {
               </el-form-item>
               <el-button type="primary" class="submit-button" native-type="submit">登入</el-button>
             </el-form>
-            <p class="switch-text">還沒有帳戶？<el-button text type="primary" @click="activeTab = 'register'">立即註冊</el-button>
+            <p class="switch-text">還沒有帳戶？
+              <el-button text type="primary" @click="activeTab = 'register'">立即註冊</el-button>
+              <el-button v-if="isLoggedIn" text type="danger" plain @click="logout">登出</el-button>
             </p>
           </el-tab-pane>
           <el-tab-pane label="註冊" name="register">
@@ -407,7 +409,6 @@ const logout = async () => {
                   style="width: 100%" />
               </el-form-item>
               <div class="profile-actions">
-                <el-button v-if="isLoggedIn" type="danger" plain @click="logout">登出</el-button>
                 <el-button type="primary" native-type="submit" :disabled="!isLoggedIn">儲存修改</el-button>
               </div>
             </el-form>

@@ -44,8 +44,8 @@ public record AdminSaveActivityRequest(
     @NotBlank(message = "活動名稱不可為空")
     @Size(min = 2, max = 50, message = "活動名稱長度需介於 2~50 字")
     @Pattern(
-            regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
-            message = "活動名稱格式錯誤"
+            regexp = "^[\\u4e00-\\u9fa5A-Za-z0-9 ]+$",
+            message = "活動名稱只能包含中文、英文、數字及空格"
     )
     String name,
 
@@ -71,7 +71,7 @@ public record AdminSaveActivityRequest(
     @NotBlank(message = "活動場地名稱不可為空")
     @Size(min = 2, max = 50, message = "活動場地名稱長度需介於 2~50 字")
     @Pattern(
-            regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
+            regexp = "^[\\u4e00-\\u9fa5A-Za-z0-9 ]+$",
             message = "活動場地名稱格式錯誤"
     )
     String venue,

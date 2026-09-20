@@ -45,6 +45,7 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user) {
         List<Map<String, Object>> data = new ArrayList<>();
         if (user != null && Boolean.TRUE.equals(user.accessExists())) {

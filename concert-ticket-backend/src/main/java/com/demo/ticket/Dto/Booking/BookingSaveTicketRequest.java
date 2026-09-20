@@ -61,8 +61,8 @@ public record BookingSaveTicketRequest(
     @NotBlank(message = "活動名稱不可為空")
     @Size(min = 2, max = 50, message = "活動名稱長度需介於 2~50 字")
     @Pattern(
-            regexp = "^[\\u4e00-\\u9fa5A-Za-z ]+$",
-            message = "活動名稱格式錯誤"
+            regexp = "^[\\u4e00-\\u9fa5A-Za-z0-9 ]+$",
+            message = "活動名稱只能包含中文、英文、數字及空格"
     )
     String name,
 
@@ -102,16 +102,16 @@ public record BookingSaveTicketRequest(
 
     @Schema(
             description = "座位號碼",
-            example = "A-01",
+            example = "AC-01",
             minLength = 4,
-            maxLength = 4,
+            maxLength = 5,
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     @NotBlank(message = "座位號碼不可為空")
-    @Size(min = 4, max = 4, message = "座位號碼長度需為 4 個字元")
+    @Size(min = 4, max = 5, message = "座位號碼長度需為 4 至 5 個字元")
     @Pattern(
-            regexp = "^[A-Z]{1}-\\d{2}$",
-            message = "座位號碼格式需為 X-00，例如 A-01"
+            regexp = "^[A-Z]{1,2}-\\d{2}$",
+            message = "座位號碼格式需為 X-00 或 XX-00，例如 A-01、AC-01"
     )
     String seat,
 

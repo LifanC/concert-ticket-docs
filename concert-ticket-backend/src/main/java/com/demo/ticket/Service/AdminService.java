@@ -18,9 +18,7 @@ public interface AdminService {
 
     List<Map<String, Object>> selectAllticket();
 
-    ResponseEntity<?> saveActivity(@Valid AdminSaveActivityRequest request, MultipartFile image);
-
-    ResponseEntity<byte[]> activityImage(String activityId);
+    Map<String, Object> saveActivity(@Valid AdminSaveActivityRequest request, MultipartFile image);
 
     ResponseEntity<?> deleteActivity(@Valid AdminDeleteActivityRequest request);
 
