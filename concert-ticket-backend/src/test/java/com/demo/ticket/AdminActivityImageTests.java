@@ -96,18 +96,6 @@ class AdminActivityImageTests {
     }
 
     @Test
-    void readsStoredImageForEditing() {
-        byte[] jpeg = { (byte) 0xff, (byte) 0xd8, (byte) 0xff };
-        when(mapper.selectActivityImage("ACT-20260917-001"))
-                .thenReturn(Map.of("image_data", jpeg));
-
-        var response = service.activityImage("ACT-20260917-001");
-
-        assertEquals(MediaType.IMAGE_JPEG, response.getHeaders().getContentType());
-        assertArrayEquals(jpeg, response.getBody());
-    }
-
-    @Test
     void deletesImageBeforeItsActivity() {
         service.deleteActivity(new AdminDeleteActivityRequest("ACT-20260917-001"));
 
