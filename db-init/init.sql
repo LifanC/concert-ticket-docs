@@ -176,11 +176,10 @@ EXECUTE FUNCTION interviewworks_ticket.update_updated_date();
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_favorite (
     user_email varchar NOT NULL,
     activity_id varchar NOT NULL,
-    session_id varchar NOT NULL,
     created_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT activity_favorite_pk
-        PRIMARY KEY (user_email, activity_id, session_id),
+        PRIMARY KEY (user_email, activity_id),
 
     CONSTRAINT activity_favorite_user_fk
         FOREIGN KEY (user_email)
@@ -190,11 +189,6 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_favorite (
     CONSTRAINT activity_favorite_activity_fk
         FOREIGN KEY (activity_id)
         REFERENCES interviewworks_ticket.activity(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT activity_favorite_session_fk
-        FOREIGN KEY (activity_id, session_id)
-        REFERENCES interviewworks_ticket.session(activity_id, id)
         ON DELETE CASCADE
 );
 

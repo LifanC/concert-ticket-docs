@@ -59,9 +59,8 @@ public class BookingServiceImpl implements BookingService {
     public List<Map<String, Object>> selectOnlyActivities(
             BookingSelectOnlyActivitiesRequest request, LoginUser user) {
         final String activity_id = request.activity_id().trim();
-        final String session_id = request.session_id().trim();
         return Boolean.TRUE.equals(user.accessExists())
-                ? bookingMapper.selectOnlyActivities(activity_id, session_id)
+                ? bookingMapper.selectOnlyActivities(activity_id)
                 : new ArrayList<>();
     }
 
@@ -98,12 +97,20 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> saveTicket(BookingSaveTicketRequest request, LoginUser user, String idempotencyKey) {
         requireAuthenticated(user);
-        final String session_id = request.session_id().trim();
         final String activity_id = request.activity_id().trim();
         if (idempotencyKey == null || !idempotencyKey.matches("[A-Za-z0-9_-]{1,128}")) {
             throw new BookingException("INVALID_IDEMPOTENCY_KEY", "請提供有效的 Idempotency-Key", HttpStatus.BAD_REQUEST);
         }
         final String seat = request.seat().trim();
+        final String name = request.name().trim();
+        final String date = request.date().trim();
+        final String time = request.time().trim();
+        Map<String, Object> sessionMap =
+                bookingMapper.getOnlySessionId(activity_id, date, time).get(activity_id);
+        if (sessionMap == null) {
+            throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次編號", HttpStatus.NOT_FOUND);
+        }
+        final String session_id = sessionMap.get("session_id").toString();
         final String hash = requestHash(session_id, activity_id, seat);
         BookingCoreKey bookingCoreKey = new BookingCoreKey();
         bookingCoreKey.setEmail(user.email());
@@ -124,9 +131,6 @@ public class BookingServiceImpl implements BookingService {
         if (snapshot == null || !activity_id.equals(snapshot.get("activity_id"))) {
             throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次", HttpStatus.NOT_FOUND);
         }
-        final String name = snapshot.get("name").toString();
-        final String date = snapshot.get("date").toString();
-        final String time = snapshot.get("time").toString();
         if (snapshot.get("price") == null || new BigDecimal(snapshot.get("price").toString()).signum() < 0) {
             throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_CONTENT);
         }
@@ -353,9 +357,22 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
-    public List<String> selectOnlyUnavailableSeats(BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user) {
+    public List<String> selectOnlyUnavailableSeats(
+            BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user) {
         requireAuthenticated(user);
-        return bookingCoreMapper.unavailableSeats(request.session_id().trim());
+        final String activityId = request.activity_id().trim();
+        final String selectedDate = request.selected_date().trim();
+        final String selectedSession = request.selected_session().trim();
+        Map<String, Object> sessionMap =
+                bookingMapper.getOnlySessionId(activityId, selectedDate, selectedSession).get(activityId);
+        if (sessionMap == null) {
+            return List.of();
+        }
+        final String sessionId = sessionMap.get("session_id").toString();
+        List<String> seatsList = bookingCoreMapper.unavailableSeats(sessionId);
+        return seatsList.isEmpty()
+                ? List.of()
+                : seatsList;
     }
 
 }

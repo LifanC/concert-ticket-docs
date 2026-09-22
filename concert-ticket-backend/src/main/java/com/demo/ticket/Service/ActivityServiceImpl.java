@@ -45,7 +45,7 @@ public class ActivityServiceImpl implements ActivityService {
     }
 
     @Override
-    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
+    @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT') or hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user) {
         List<Map<String, Object>> data = new ArrayList<>();
         if (user != null && Boolean.TRUE.equals(user.accessExists())) {
@@ -72,13 +72,11 @@ public class ActivityServiceImpl implements ActivityService {
 
     private ResponseEntity<?> changeFavoriteActivity(ActivityFavoriteRequest request, LoginUser user, boolean save) {
         final String activity_id = request.activity_id().trim();
-        final String session_id = request.session_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new HashMap<>();
         ActivityFavorite activityFavorite =  new ActivityFavorite();
         activityFavorite.setEmail(user.email());
         activityFavorite.setActivity_id(activity_id);
-        activityFavorite.setSession_id(session_id);
         int cnt = save
                 ? activityMapper.saveFavoriteActivity(activityFavorite)
                 : activityMapper.deleteFavoriteActivity(activityFavorite);

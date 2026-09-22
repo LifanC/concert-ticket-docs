@@ -116,7 +116,7 @@ public class BookingController {
         return bookingService.selectOnlySeats(request, user);
     }
 
-    @Operation(summary = "8.已預訂座位資料", description = "已預訂座位資料")
+    @Operation(summary = "8.指定場次資料", description = "指定場次資料")
     @GetMapping("/selectOnlyUnavailableSeats")
     public List<String> selectOnlyUnavailableSeats(
             @ModelAttribute

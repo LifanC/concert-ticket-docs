@@ -55,7 +55,10 @@ public class SecurityConfig {
                                 "/v1/activity/activityImage/**"
                         ).permitAll()
                         .requestMatchers(
-                                "/v1/activity/selectOnlyFavoriteActivities",
+                                "/v1/activity/selectOnlyFavoriteActivities"
+                        )
+                        .hasAnyAuthority("USER_ITEM_IMPLEMENT", "ADMIN_ITEM_IMPLEMENT")
+                        .requestMatchers(
                                 "/v1/activity/saveFavoriteActivity",
                                 "/v1/activity/deleteFavoriteActivity"
                         )

@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 @Mapper
 public interface BookingMapper {
 
-    List<Map<String, Object>> selectOnlyActivities(String activity_id, String session_id);
+    List<Map<String, Object>> selectOnlyActivities(String activity_id);
 
     List<Map<String, Object>> selectOnlySession(String date, String activity_id);
 
@@ -51,4 +51,7 @@ public interface BookingMapper {
     Map<String, Map<String, Object>> selectOnlySeats(String activity_id);
 
     List<Map<String, Object>> selectOnlyUnavailableSeats(BookingSaveTicket bookingSaveTicket);
+
+    @MapKey("activity_id")
+    Map<String, Map<String, Object>> getOnlySessionId(String activityId, String selectedDate, String selectedSession);
 }

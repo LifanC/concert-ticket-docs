@@ -3,44 +3,17 @@
 <mapper namespace="com.demo.ticket.Mapper.ActivityMapper">
 
     <select id="selectAllActivities" resultType="java.util.Map">
-        SELECT
+        SELECT DISTINCT
             activity.id,
-            "session".id as sessionid,
             activity."name",
             activity.category,
-            TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "date",
-            '(' ||
-            CASE EXTRACT(ISODOW FROM TO_DATE("session"."date", 'YYYY/MM/DD'))
-                WHEN 1 THEN '一'
-                WHEN 2 THEN '二'
-                WHEN 3 THEN '三'
-                WHEN 4 THEN '四'
-                WHEN 5 THEN '五'
-                WHEN 6 THEN '六'
-                WHEN 7 THEN '日'
-                end || ')' AS dow,
-            "session"."time" AS "time",
             activity.venue,
-            "session".status,
-            activity.price,
-            TO_CHAR(TO_DATE("session".salesdate, 'YYYY/MM/DD'), 'YYYY-MM-DD') ||
-            ' (' ||
-            CASE EXTRACT(ISODOW FROM TO_DATE("session".salesdate, 'YYYY/MM/DD'))
-                WHEN 1 THEN '一'
-                WHEN 2 THEN '二'
-                WHEN 3 THEN '三'
-                WHEN 4 THEN '四'
-                WHEN 5 THEN '五'
-                WHEN 6 THEN '六'
-                WHEN 7 THEN '日'
-                end || ') ' || "session".salestime AS sales_start,
-            activity.description
-        FROM
-            "interviewworks_ticket"."activity" activity
-                INNER JOIN "interviewworks_ticket"."session" "session"
-                           ON activity.id = "session".activity_id
-                LEFT JOIN "interviewworks_ticket".seat seat
-                          ON activity.id = seat.activity_id
+            "session".status
+        FROM "interviewworks_ticket"."activity" activity
+                 INNER JOIN "interviewworks_ticket"."session" "session"
+                            ON activity.id = "session".activity_id
+                 LEFT JOIN "interviewworks_ticket".seat seat
+                           ON activity.id = seat.activity_id
         ORDER BY activity.id
     </select>
 
@@ -53,23 +26,22 @@
     </select>
 
     <select id="selectOnlyFavoriteActivities" resultType="java.util.Map">
-        SELECT activity_id, session_id
+        SELECT activity_id
         FROM interviewworks_ticket.activity_favorite
         WHERE user_email = #{email}
         ORDER BY created_date DESC
     </select>
 
     <insert id="saveFavoriteActivity">
-        INSERT INTO interviewworks_ticket.activity_favorite (user_email, activity_id, session_id)
-        VALUES (#{email}, #{activity_id}, #{session_id})
-        ON CONFLICT (user_email, activity_id, session_id) DO NOTHING
+        INSERT INTO interviewworks_ticket.activity_favorite (user_email, activity_id)
+        VALUES (#{email}, #{activity_id})
+        ON CONFLICT (user_email, activity_id) DO NOTHING
     </insert>
 
     <delete id="deleteFavoriteActivity">
         DELETE FROM interviewworks_ticket.activity_favorite
         WHERE user_email = #{email}
           AND activity_id = #{activity_id}
-          AND session_id = #{session_id}
     </delete>
 
 </mapper>

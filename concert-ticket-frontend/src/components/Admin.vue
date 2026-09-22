@@ -2,6 +2,9 @@
 import { adminApi } from '@/services/api'
 
 const activeTab = ref('activities')
+const activityLayout = ref('grid')
+const sessionLayout = ref('grid')
+const orderLayout = ref('grid')
 const dialogVisible = ref(false)
 const dialogVisibleSessions = ref(false)
 const dialogVisibleSessionsStatus = ref(false)
@@ -445,10 +448,36 @@ const statusType = (status) => (
             <template #header>
               <div class="card-title">
                 <span>活動列表</span>
+                <el-radio-group v-model="activityLayout" size="small" aria-label="活動列表排列方式">
+                  <el-radio-button value="grid">卡片檢視</el-radio-button>
+                  <el-radio-button value="table">清單檢視</el-radio-button>
+                </el-radio-group>
                 <el-text type="info">共 {{ filteredActivities.length }} 個活動</el-text>
               </div>
             </template>
-            <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
+            <template v-if="activityLayout === 'grid'">
+              <div v-if="filteredActivities.length" class="activity-grid">
+                <el-card v-for="activity in filteredActivities" :key="activity.id" shadow="never" class="activity-card">
+                  <el-image v-if="activityImageUrls[activity.id]" :src="activityImageUrls[activity.id]"
+                    :preview-src-list="[activityImageUrls[activity.id]]" :alt="`${activity.name}圖片`"
+                    fit="contain" class="activity-card-image" preview-teleported />
+                  <div v-else class="activity-card-image activity-card-no-image">無圖片</div>
+                  <h3>{{ activity.name }}</h3>
+                  <dl class="activity-card-details">
+                    <dt>活動編號</dt><dd>{{ activity.id }}</dd>
+                    <dt>活動類型</dt><dd>{{ categoryMap[activity.category] }}</dd>
+                    <dt>場地</dt><dd>{{ activity.venue }}</dd>
+                    <dt>票價</dt><dd>NT$ {{ activity.price.toLocaleString() }}</dd>
+                  </dl>
+                  <div class="activity-card-actions">
+                    <el-button text type="primary" @click="openEdit(activity)">修改活動</el-button>
+                    <el-button text type="danger" @click="deleteActivity(activity)">刪除活動</el-button>
+                  </div>
+                </el-card>
+              </div>
+              <el-empty v-else description="找不到活動" />
+            </template>
+            <el-table v-else :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
               <el-table-column label="圖片" width="208">
                 <template #default="scope">
                   <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
@@ -545,9 +574,39 @@ const statusType = (status) => (
             <template #header>
               <div class="card-title">
                 <span>已建立場次</span>
+                <el-radio-group v-model="sessionLayout" size="small" aria-label="場次列表排列方式">
+                  <el-radio-button value="grid">卡片檢視</el-radio-button>
+                  <el-radio-button value="table">清單檢視</el-radio-button>
+                </el-radio-group>
               </div>
             </template>
-            <el-table :data="sessions" stripe style="width: 100%" empty-text="找不到場次">
+            <template v-if="sessionLayout === 'grid'">
+              <div v-if="sessions.length" class="activity-grid">
+                <el-card v-for="session in sessions" :key="session.id" shadow="never" class="activity-card">
+                  <h3>{{ session.name }}</h3>
+                  <el-tag :type="statusType(session.status)" effect="light">{{ statusMap[session.status] }}</el-tag>
+                  <dl class="activity-card-details">
+                    <dt>場次編號</dt><dd>{{ session.id }}</dd>
+                    <dt>活動編號</dt><dd>{{ session.activity_id }}</dd>
+                    <dt>開演日期</dt><dd>{{ session.date }}</dd>
+                    <dt>開演時間</dt><dd>{{ session.time }}</dd>
+                    <dt>開賣日期</dt><dd>{{ session.salesdate }}</dd>
+                    <dt>開賣時間</dt><dd>{{ session.salestime }}</dd>
+                    <dt>座位數</dt><dd>{{ session.capacity }}</dd>
+                    <dt>未付款數量</dt><dd>{{ session.reserved }}</dd>
+                    <dt>已售</dt><dd>{{ session.sold }}</dd>
+                  </dl>
+                  <div class="activity-card-actions">
+                    <el-button text :type="statusType(session.status)"
+                      :disabled="['TICKETS_ARE_ON_SALE', 'SOLD_OUT', 'ENDED'].includes(session.status)"
+                      @click="openSessionsEdit(session)">活動延後</el-button>
+                    <el-button text type="primary" @click="openSessionsStatusEdit(session)">更改狀態</el-button>
+                  </div>
+                </el-card>
+              </div>
+              <el-empty v-else description="找不到場次" />
+            </template>
+            <el-table v-else :data="sessions" stripe style="width: 100%" empty-text="找不到場次">
               <el-table-column prop="id" label="場次編號" width="140" />
               <el-table-column prop="activity_id" label="活動編號" width="140" />
               <el-table-column prop="name" label="活動" min-width="180" />
@@ -586,10 +645,28 @@ const statusType = (status) => (
             <template #header>
               <div class="card-title">
                 <span>訂單列表</span>
+                <el-radio-group v-model="orderLayout" size="small" aria-label="訂單列表排列方式">
+                  <el-radio-button value="grid">卡片檢視</el-radio-button>
+                  <el-radio-button value="table">清單檢視</el-radio-button>
+                </el-radio-group>
                 <el-text type="info">最近訂單</el-text>
               </div>
             </template>
-            <el-table :data="orders" stripe style="width: 100%" empty-text="找不到訂單">
+            <template v-if="orderLayout === 'grid'">
+              <div v-if="orders.length" class="activity-grid">
+                <el-card v-for="order in orders" :key="order.orderno" shadow="never" class="activity-card">
+                  <h3>{{ order.name }}</h3>
+                  <dl class="activity-card-details">
+                    <dt>訂單編號</dt><dd>{{ order.orderno }}</dd>
+                    <dt>金額</dt><dd>NT$ {{ order.price.toLocaleString() }}</dd>
+                    <dt>狀態</dt>
+                    <dd><el-tag :type="statusType(order.status)" effect="light">{{ statusMap[order.status] }}</el-tag></dd>
+                  </dl>
+                </el-card>
+              </div>
+              <el-empty v-else description="找不到訂單" />
+            </template>
+            <el-table v-else :data="orders" stripe style="width: 100%" empty-text="找不到訂單">
               <el-table-column prop="orderno" label="訂單編號" min-width="150" />
               <el-table-column prop="name" label="活動" min-width="180" />
               <el-table-column label="金額" width="120">
@@ -821,6 +898,68 @@ const statusType = (status) => (
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.activity-card {
+  min-width: 0;
+}
+
+.activity-card-image {
+  width: 100%;
+  height: 220px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 6px;
+}
+
+.activity-card-no-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-secondary);
+}
+
+.activity-card h3 {
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-card-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 16px;
+}
+
+.activity-card-details dt {
+  color: var(--el-text-color-secondary);
+}
+
+.activity-card-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1199px) {
+  .activity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .activity-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .session-form {

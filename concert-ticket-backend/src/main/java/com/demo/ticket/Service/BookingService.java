@@ -29,4 +29,5 @@ public interface BookingService {
     List<Map<String, Object>> selectOnlySeats(@Valid BookingSelectOnlySeatsRequest request, LoginUser user);
 
     List<String> selectOnlyUnavailableSeats(@Valid BookingSelectOnlyUnavailableSeatsRequest request, LoginUser user);
+
 }

@@ -5,7 +5,6 @@
     <select id="selectOnlyActivities" resultType="java.util.Map">
         select distinct
             activity.id,
-            "session".id,
             '主舞台・' || activity."name" as note,
             TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "value",
             TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'FMMM"月"FMDD"日"')
@@ -23,12 +22,11 @@
                  INNER JOIN "interviewworks_ticket"."session" "session"
                             ON activity.id = "session".activity_id
         where activity.id = #{activity_id}
-          and "session".id = #{session_id}
         ORDER BY activity.id
     </select>
 
     <select id="selectOnlySession" resultType="java.util.Map">
-        select
+        select distinct
             "session".id,
             "session"."time" as "value",
             "session"."time" || ' ' ||
@@ -37,7 +35,8 @@
 			    WHEN "session"."time"::time BETWEEN '12:00'::time AND '17:59:59'::time THEN '午後場'
 			    ELSE '星空場'
             END AS "label",
-            "session".capacity - "session".reserved - "session".sold as available
+            "session".capacity - "session".reserved - "session".sold as available,
+            "session"."date"
         FROM "interviewworks_ticket"."session" "session"
         where "session"."date" = #{date}
         and "session".activity_id = #{activity_id}
@@ -241,6 +240,16 @@
           and "date" = #{date}
           and "time" = #{time}
         order by ticket.seat
+    </select>
+
+    <select id="getOnlySessionId" resultType="java.util.Map">
+        select
+            "session".activity_id,
+            "session".id as session_id
+        from "interviewworks_ticket"."session" "session"
+        where "session".activity_id = #{activityId}
+          and "session"."date" = #{selectedDate}
+          and "session"."time" = #{selectedSession}
     </select>
 
 </mapper>

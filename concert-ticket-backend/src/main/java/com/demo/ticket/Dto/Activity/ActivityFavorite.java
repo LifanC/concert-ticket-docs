@@ -4,7 +4,6 @@ public class ActivityFavorite {
 
     private String email;
     private String activity_id;
-    private String session_id;
 
     public String getEmail() {
         return email;
@@ -22,11 +21,4 @@ public class ActivityFavorite {
         this.activity_id = activity_id;
     }
 
-    public String getSession_id() {
-        return session_id;
-    }
-
-    public void setSession_id(String session_id) {
-        this.session_id = session_id;
-    }
 }

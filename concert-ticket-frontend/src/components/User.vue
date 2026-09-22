@@ -106,6 +106,10 @@ const submitLogin = async () => {
               }
             )
             accessName.value = toFindCookie('accessName') ?? ''
+            ElMessage({
+              type: 'success',
+              message: `${'登入成功'}`,
+            })
           }
         } else {
           activeTab.value = 'login'

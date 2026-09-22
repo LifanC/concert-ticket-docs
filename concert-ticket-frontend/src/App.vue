@@ -14,7 +14,6 @@ setInterval(() => {
     <el-header>
       <el-breadcrumb separator="*">
         <el-breadcrumb-item :to="{ path: '/' }">活動</el-breadcrumb-item>
-        <el-breadcrumb-item :to="{ path: '/booking' }">訂票</el-breadcrumb-item>
         <el-breadcrumb-item :to="{ path: '/user' }">會員</el-breadcrumb-item>
         <el-breadcrumb-item :to="{ path: '/admin' }">管理後台</el-breadcrumb-item>
         <el-breadcrumb-item></el-breadcrumb-item>

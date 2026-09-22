@@ -24,8 +24,6 @@
 
 ![活動列表畫面](docs/images/Activity_1.jpg)
 
-[查看活動詳情畫面](docs/images/Activity_2.jpg)
-
 ### 選位與訂單
 
 選擇場次與座位後建立訂單，並在「我的票券」查看訂單狀態。
