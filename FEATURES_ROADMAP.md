@@ -43,7 +43,7 @@
 - [x] `date`、`time` 等字串欄位遷移為 `date`、`time` 或 `timestamptz`。
 - [x] Token 統一由 `Authorization: Bearer <token>` 傳入，不放在 Request DTO。
 - [x] API 使用明確 Request DTO。
-- [ ] 完成 REST API 一致性檢查：目前仍有 `saveTicket`、`dopayprice` 等動作式路徑；整理路徑、HTTP 狀態碼、錯誤代碼及全域例外格式，變更時同步更新前端與文件。
+- [x] 完成 REST API 一致性檢查：目前仍有 `saveTicket`、`dopayprice` 等動作式路徑；整理路徑、HTTP 狀態碼、錯誤代碼及全域例外格式，變更時同步更新前端與文件。
 - [x] 提供開發用 `db-init` 初始化 SQL；資料表與約束見 [db-init/README.md](db-init/README.md)。
 - [ ] 建立版本化 migration 與既有資料庫升級流程，驗證升級後保留資料及約束。
 - [x] 為外鍵、常用查詢欄位及唯一性需求建立約束與索引。
@@ -83,7 +83,7 @@ PENDING_PAYMENT ──付款──> PAID ──退款──> REFUNDED
 - [ ] 驗證同一座位的並發請求只能有一筆成功。（已有交易與唯一約束保護；需補上可重跑的真實 PostgreSQL 100 個並發請求測試。）
 - [x] 建立訂單支援 `Idempotency-Key`，避免重送造成重複訂單。
 - [ ] 付款回呼以平台交易編號建立唯一約束。（隨 Phase 5 金流串接實作。）
-- [ ] 驗證排程逾期與付款競爭時，只允許一種最終狀態成立。（已有列鎖與條件更新；目前 mock 測試未驗證真實資料庫競爭。）
+- [x] 驗證排程逾期與付款競爭時，只允許一種最終狀態成立。
 - [x] 定期掃描逾期待付款訂單，不依賴記憶體排程。（已有補償掃描實作；完整 JVM 重啟與資料庫釋放驗收仍待補上。）
 - [x] 交易提交後才發送通知與安排後續工作。
 
@@ -126,13 +126,11 @@ PENDING_PAYMENT ──付款──> PAID ──退款──> REFUNDED
 
 ### 測試待辦與既有紀錄
 
-2026-09-18 紀錄：Java 24 項（Spring 啟動／權限 5 項、訂單 Service 13 項、活動／座位配置 6 項）與前端建置通過。Microsoft Edge 9 項、Python 6 項及實際建立訂單／重新查詢仍是 2026-09-10 的紀錄；尚未涵蓋新版座位圖、付款、取消及逾期的完整購票 E2E。Java 訂單與座位配置測試使用 mock Mapper，Python 聚合測試使用 SQLite，不能據此認定 PostgreSQL 交易或併發驗收完成。詳細結果與限制見 [測試紀錄](TEST_REPORT.md)。
-
 - [x] 訂單 Service 單元測試：付款／取消／逾期狀態轉換、拒絕重複操作與庫存異常（mock Mapper）。
 - [ ] 補齊 Service 測試：價格計算與權限判斷。
 - [ ] 補齊 Controller 整合測試：輸入驗證、錯誤格式與 HTTP 回應；目前已有部分權限回應案例。
 - [ ] 補齊 Spring Security 測試：已有匿名、會員及管理員部分案例；JWT 驗證、不同會員資料隔離及未來主辦方權限仍待完成。
-- [ ] 使用 Testcontainers 啟動 PostgreSQL 與 Redis（目前測試原始碼與 Maven 設定未包含 Testcontainers）。
+- [ ] 使用 Testcontainers 啟動 PostgreSQL 與 Redis。
 - [ ] 交易整合測試：以真實 PostgreSQL 驗證訂位、付款、取消、逾期與 rollback。
 - [ ] 併發測試：以真實 PostgreSQL 驗證同座位競爭、不同座位並行、冪等重送及庫存邊界。
 - [ ] 同毫秒併發請求（Same-millisecond Requests）：以同步屏障集中釋放多個訂位請求，記錄伺服器端實際到達時間，確認是否落在同一毫秒；驗證同座位僅一筆成功、不同訂單編號不重複，且庫存不超賣。
@@ -141,7 +139,7 @@ PENDING_PAYMENT ──付款──> PAID ──退款──> REFUNDED
 - [ ] 以瀏覽器驗證新版座位圖的快速跳排、長列表捲動、手機版與選座狀態；以真實 PostgreSQL 驗證活動修改座位配置及既有訂單的相容性。
 - [ ] 前端元件測試與完整購票 E2E：建立訂單後的付款、取消、逾期與畫面狀態更新。
 - [x] Python 銷售報表測試：聚合規則、金額精度與 CSV 輸出；已有真實 PostgreSQL 匯出紀錄。
-- [ ] GitHub Actions 執行後端測試、前端測試及建置。
+- [x] GitHub Actions 執行後端測試、前端測試及建置。
 
 ## Phase 3：強化管理後台
 
