@@ -12,6 +12,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
 import io.jsonwebtoken.JwtException;
 
+import java.time.Instant;
 import java.util.*;
 
 @RestControllerAdvice
@@ -28,7 +29,7 @@ public class GlobalExceptionHandler {
                                 "code", ex.getCode(),
                                 "message", ex.getMessage(),
                                 "traceId", UUID.randomUUID().toString(),
-                                "timestamp", java.time.Instant.now().toString()
+                                "timestamp", Instant.now().toString()
                         )
                 );
     }
@@ -38,7 +39,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<?> handleValidationException(
             MethodArgumentNotValidException ex) {
         logger.warn("參數驗證失敗: {}", ex.getMessage());
-
         Map<String, String> fieldErrors = new TreeMap<>();
         ex.getBindingResult()
                 .getFieldErrors()

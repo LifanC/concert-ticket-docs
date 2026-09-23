@@ -1,4 +1,4 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Login;
 
 import com.demo.ticket.Dto.Login.*;
 import com.demo.ticket.security.LoginUser;

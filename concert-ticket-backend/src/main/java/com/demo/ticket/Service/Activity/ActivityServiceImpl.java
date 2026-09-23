@@ -1,4 +1,4 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Activity;
 
 import com.demo.ticket.Dto.Activity.ActivityFavorite;
 import com.demo.ticket.Dto.Activity.ActivityFavoriteRequest;
@@ -36,12 +36,16 @@ public class ActivityServiceImpl implements ActivityService {
     @Override
     public ResponseEntity<byte[]> activityImage(String activityId) {
         Map<String, Object> image = activityMapper.selectActivityImage(activityId);
-        if (image == null || image.get("image_data") == null) {
+        if (image == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Object imageData = image.get("image_data");
+        if (!(imageData instanceof byte[] bytes)) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_JPEG)
-                .body((byte[]) image.get("image_data"));
+                .body(bytes);
     }
 
     @Override

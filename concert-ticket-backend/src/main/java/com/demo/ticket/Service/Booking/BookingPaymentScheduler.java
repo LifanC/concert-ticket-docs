@@ -1,4 +1,4 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Booking;
 
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;

@@ -1,4 +1,4 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Activity;
 
 import com.demo.ticket.Dto.Activity.ActivityFavoriteRequest;
 import com.demo.ticket.security.LoginUser;

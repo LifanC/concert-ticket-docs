@@ -1,4 +1,4 @@
-package com.demo.ticket.Config;
+package com.demo.ticket.Config.log;
 
 import com.demo.ticket.Mapper.SecretMapper;
 import jakarta.annotation.PostConstruct;

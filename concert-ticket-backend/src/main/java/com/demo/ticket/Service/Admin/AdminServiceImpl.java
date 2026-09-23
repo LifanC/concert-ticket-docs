@@ -1,11 +1,10 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Admin;
 
 import com.demo.ticket.Dto.Admin.*;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Exception.FieldValidationException;
 import com.demo.ticket.Mapper.AdminMapper;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -45,16 +44,6 @@ public class AdminServiceImpl implements AdminService{
         this.adminMapper = adminMapper;
     }
 
-    private String seatRowLabel(int number) {
-        StringBuilder label = new StringBuilder();
-        while (number > 0) {
-            number--;
-            label.insert(0, (char) ('A' + number % 26));
-            number /= 26;
-        }
-        return label.toString();
-    }
-
     @Override
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectAllActivities() {
@@ -85,19 +74,7 @@ public class AdminServiceImpl implements AdminService{
         final String description = request.description() == null ? "" : request.description().trim();
         final String column = request.column().trim();
         final BigDecimal row = request.row();
-        final int maxRows = switch (category) {
-            case "MUSIC_CONCERT" -> 50;
-            case "STAGE_PLAY" -> 100;
-            case "SPECIAL_EXHIBITION" -> 150;
-            default -> throw new FieldValidationException("category", "活動類型錯誤");
-        };
-        int selectedRows = 0;
-        for (char letter : column.toCharArray()) {
-            selectedRows = selectedRows * 26 + letter - 'A' + 1;
-        }
-        if (selectedRows > maxRows) {
-            throw new FieldValidationException("column", "座位排別不符合活動類型");
-        }
+        int selectedRows = getSelectedRows(category, column);
         final String seat_id = column + "-" + row.toPlainString();
         PreparedImage preparedImage = prepareImage(image);
         Activity activity = new Activity();
@@ -126,6 +103,33 @@ public class AdminServiceImpl implements AdminService{
             );
         }
         return adminMapper.selectOnlyActivities(activity_id).get(activity_id);
+    }
+
+    private int getSelectedRows(String category, String column) {
+        final int maxRows = switch (category) {
+            case "MUSIC_CONCERT" -> 50;
+            case "STAGE_PLAY" -> 100;
+            case "SPECIAL_EXHIBITION" -> 150;
+            default -> throw new FieldValidationException("category", "活動類型錯誤");
+        };
+        int selectedRows = 0;
+        for (char letter : column.toCharArray()) {
+            selectedRows = selectedRows * 26 + letter - 'A' + 1;
+        }
+        if (selectedRows > maxRows) {
+            throw new FieldValidationException("column", "座位排別不符合活動類型");
+        }
+        return selectedRows;
+    }
+
+    private String seatRowLabel(int number) {
+        StringBuilder label = new StringBuilder();
+        while (number > 0) {
+            number--;
+            label.insert(0, (char) ('A' + number % 26));
+            number /= 26;
+        }
+        return label.toString();
     }
 
     private PreparedImage prepareImage(MultipartFile image) {

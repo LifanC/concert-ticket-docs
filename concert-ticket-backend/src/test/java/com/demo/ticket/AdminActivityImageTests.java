@@ -4,11 +4,10 @@ import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
 import com.demo.ticket.Dto.Admin.AdminDeleteActivityRequest;
 import com.demo.ticket.Exception.FieldValidationException;
 import com.demo.ticket.Mapper.AdminMapper;
-import com.demo.ticket.Service.AdminServiceImpl;
+import com.demo.ticket.Service.Admin.AdminServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.http.MediaType;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

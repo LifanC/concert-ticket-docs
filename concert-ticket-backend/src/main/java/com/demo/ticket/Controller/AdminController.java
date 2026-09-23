@@ -1,7 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Admin.*;
-import com.demo.ticket.Service.AdminService;
+import com.demo.ticket.Service.Admin.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

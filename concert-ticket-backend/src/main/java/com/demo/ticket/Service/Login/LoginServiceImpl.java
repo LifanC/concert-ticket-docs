@@ -1,11 +1,11 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Login;
 
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Common.RedisKey;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Dto.Login.*;
-import com.demo.ticket.Exception.*;
 import com.demo.ticket.Mapper.LoginMapper;
+import com.demo.ticket.Service.JwtTokenService;
 import com.demo.ticket.security.LoginUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -20,7 +20,6 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -237,77 +236,75 @@ public class LoginServiceImpl implements LoginService {
         dataMap.put("email", "");
         dataMap.put("phone", "");
         dataMap.put("judge", false);
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            try {
-                Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
-                final String accessJtId = claims.getId();
-                final String accountJwt = claims.getSubject();
-                final String userDataOnly = String.format(
-                        RedisKey.redisUserDataKey.get("userDataOnly"),
+        try {
+            Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
+            final String accessJtId = claims.getId();
+            final String accountJwt = claims.getSubject();
+            final String userDataOnly = String.format(
+                    RedisKey.redisUserDataKey.get("userDataOnly"),
+                    accountJwt
+            );
+            String json = stringRedisTemplate.opsForValue().get(userDataOnly);
+            if (json != null) {
+                Map<String, Object> userDataSelect = objectMapper.readValue(json, new TypeReference<>() {});
+                int accessExpirationSecondsAddRndomNumber = accessExpirationSecondsAddRndomNumber();
+                String accessToken = jwtTokenService.createAccessToken(
+                        accessExpirationSecondsAddRndomNumber,
+                        accessJtId,
                         accountJwt
                 );
-                String json = stringRedisTemplate.opsForValue().get(userDataOnly);
-                if (json != null) {
-                    Map<String, Object> userDataSelect = objectMapper.readValue(json, new TypeReference<>() {});
-                    int accessExpirationSecondsAddRndomNumber = accessExpirationSecondsAddRndomNumber();
-                    String accessToken = jwtTokenService.createAccessToken(
-                            accessExpirationSecondsAddRndomNumber,
-                            accessJtId,
-                            accountJwt
-                    );
-                    String accessRedisKey = String.format(
-                            RedisKey.redisKey.get("access"),
-                            "*",
-                            accountJwt
-                    );
-                    // 避免 Redis key 無限制增加導致記憶體耗盡
-                    int cnt = 100;
-                    ScanOptions options = ScanOptions.scanOptions()
-                            .match(accessRedisKey)
-                            .count(cnt)
-                            .build();
-                    // redis(指定key)的數量
-                    Long redisCount =
-                            stringRedisTemplate.execute((RedisCallback<Long>) connection -> {
-                                long count = 0;
-                                try (Cursor<byte[]> cursor = connection.scan(options)) {
-                                    while (cursor.hasNext()) {
-                                        cursor.next();
-                                        count++;
-                                    }
+                String accessRedisKey = String.format(
+                        RedisKey.redisKey.get("access"),
+                        "*",
+                        accountJwt
+                );
+                // 避免 Redis key 無限制增加導致記憶體耗盡
+                int cnt = 100;
+                ScanOptions options = ScanOptions.scanOptions()
+                        .match(accessRedisKey)
+                        .count(cnt)
+                        .build();
+                // redis(指定key)的數量
+                Long redisCount =
+                        stringRedisTemplate.execute((RedisCallback<Long>) connection -> {
+                            long count = 0;
+                            try (Cursor<byte[]> cursor = connection.scan(options)) {
+                                while (cursor.hasNext()) {
+                                    cursor.next();
+                                    count++;
                                 }
-                                return count;
-                            });
-                    redisCount = redisCount == null ? 0L : redisCount;
-                    // redis(指定key)的上限數量
-                    int maximumQuantity = 20;
-                    if (redisCount >= maximumQuantity) {
-                        // Redis「我希望每次 SCAN 返回大約 5 個 key」
-                        // 這是一個 建議值，Redis 可能返回多於或少於這個數量，取決於內部算法。
-                        redisDels(accessRedisKey, cnt);
-                    }
-                    accessRedisKey = String.format(
-                            RedisKey.redisKey.get("access"),
-                            accessJtId,
-                            accountJwt
-                    );
-                    stringRedisTemplate.opsForValue().setIfAbsent(
-                            accessRedisKey,
-                            accessToken,
-                            Duration.ofSeconds(accessExpirationSecondsAddRndomNumber())
-                    );
-                    dataMap.put("remark", "驗證成功");
-                    dataMap.put("accessToken", accessToken);
-                    dataMap.put("name", userDataSelect.get("name").toString());
-                    dataMap.put("email", userDataSelect.get("email").toString());
-                    dataMap.put("phone", userDataSelect.get("phone").toString());
-                    dataMap.put("birthday", userDataSelect.get("birthday").toString());
-                    dataMap.put("judge", true);
+                            }
+                            return count;
+                        });
+                redisCount = redisCount == null ? 0L : redisCount;
+                // redis(指定key)的上限數量
+                int maximumQuantity = 20;
+                if (redisCount >= maximumQuantity) {
+                    // Redis「我希望每次 SCAN 返回大約 5 個 key」
+                    // 這是一個 建議值，Redis 可能返回多於或少於這個數量，取決於內部算法。
+                    redisDels(accessRedisKey, cnt);
                 }
-            } catch (JwtException e) {
-
-                throw new JwtException("JWT 無效", e);
+                accessRedisKey = String.format(
+                        RedisKey.redisKey.get("access"),
+                        accessJtId,
+                        accountJwt
+                );
+                stringRedisTemplate.opsForValue().setIfAbsent(
+                        accessRedisKey,
+                        accessToken,
+                        Duration.ofSeconds(accessExpirationSecondsAddRndomNumber())
+                );
+                dataMap.put("remark", "驗證成功");
+                dataMap.put("accessToken", accessToken);
+                dataMap.put("name", userDataSelect.get("name").toString());
+                dataMap.put("email", userDataSelect.get("email").toString());
+                dataMap.put("phone", userDataSelect.get("phone").toString());
+                dataMap.put("birthday", userDataSelect.get("birthday").toString());
+                dataMap.put("judge", true);
             }
+        } catch (JwtException e) {
+
+            throw new JwtException("JWT 無效", e);
         }
         data.add(dataMap);
         HttpStatus status = HttpStatus.OK;
@@ -368,57 +365,55 @@ public class LoginServiceImpl implements LoginService {
         Map<String, Object> dataMap = new TreeMap<>();
         dataMap.put("remark", "登出失敗");
         dataMap.put("judge", false);
-        if (StringUtils.hasText(refreshToken)) {
-            try {
-                Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
-                final String jti = claims.getId();
-                final String jwt = claims.getSubject();
-                final String refreshRedisKey = String.format(
-                        RedisKey.redisKey.get("refresh"),
-                        jti,
-                        jwt
+        try {
+            Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
+            final String jti = claims.getId();
+            final String jwt = claims.getSubject();
+            final String refreshRedisKey = String.format(
+                    RedisKey.redisKey.get("refresh"),
+                    jti,
+                    jwt
+            );
+            long remainingMillis = Duration.between(
+                    Instant.now(),
+                    user.expiresAt()
+            ).toMillis();
+            long remainingSeconds = remainingMillis > 0
+                    ? (remainingMillis + 999) / 1000
+                    : 0;
+            if (remainingSeconds > 0) {
+                final String blacklistRedisKey = String.format(
+                        RedisKey.redisKey.get("blacklist"),
+                        jti
                 );
-                long remainingMillis = Duration.between(
-                        Instant.now(),
-                        user.expiresAt()
-                ).toMillis();
-                long remainingSeconds = remainingMillis > 0
-                        ? (remainingMillis + 999) / 1000
-                        : 0;
-                if (remainingSeconds > 0) {
-                    final String blacklistRedisKey = String.format(
-                            RedisKey.redisKey.get("blacklist"),
-                            jti
-                    );
-                    stringRedisTemplate.opsForValue().set(
-                            blacklistRedisKey,
-                            "revoked",
-                            Duration.ofSeconds(remainingSeconds)
-                    );
-                }
-                final String refreshJtiRedisKey = String.format(
-                        RedisKey.redisKey.get("refreshJti"),
-                        jwt
+                stringRedisTemplate.opsForValue().set(
+                        blacklistRedisKey,
+                        "revoked",
+                        Duration.ofSeconds(remainingSeconds)
                 );
-                final String accessRedisKey = String.format(
-                        RedisKey.redisKey.get("access"),
-                        jti,
-                        jwt
-                );
-                final String userDataOnly = String.format(
-                        RedisKey.redisUserDataKey.get("userDataOnly"),
-                        jwt
-                );
-                stringRedisTemplate.delete(refreshRedisKey);
-                stringRedisTemplate.delete(refreshJtiRedisKey);
-                stringRedisTemplate.delete(accessRedisKey);
-                stringRedisTemplate.delete(userDataOnly);
-                dataMap.put("remark", "登出成功");
-                dataMap.put("judge", true);
-            } catch (JwtException e) {
-
-                throw new JwtException("JWT 無效", e);
             }
+            final String refreshJtiRedisKey = String.format(
+                    RedisKey.redisKey.get("refreshJti"),
+                    jwt
+            );
+            final String accessRedisKey = String.format(
+                    RedisKey.redisKey.get("access"),
+                    jti,
+                    jwt
+            );
+            final String userDataOnly = String.format(
+                    RedisKey.redisUserDataKey.get("userDataOnly"),
+                    jwt
+            );
+            stringRedisTemplate.delete(refreshRedisKey);
+            stringRedisTemplate.delete(refreshJtiRedisKey);
+            stringRedisTemplate.delete(accessRedisKey);
+            stringRedisTemplate.delete(userDataOnly);
+            dataMap.put("remark", "登出成功");
+            dataMap.put("judge", true);
+        } catch (JwtException e) {
+
+            throw new JwtException("JWT 無效", e);
         }
         data.add(dataMap);
         HttpStatus status = HttpStatus.OK;

@@ -4,7 +4,7 @@ import com.demo.ticket.Dto.Booking.*;
 import com.demo.ticket.Exception.BookingException;
 import com.demo.ticket.Mapper.BookingCoreMapper;
 import com.demo.ticket.Mapper.BookingMapper;
-import com.demo.ticket.Service.BookingOrderService;
+import com.demo.ticket.Service.Booking.BookingOrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

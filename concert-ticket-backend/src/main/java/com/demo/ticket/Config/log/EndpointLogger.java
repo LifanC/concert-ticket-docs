@@ -1,4 +1,4 @@
-package com.demo.ticket.Config;
+package com.demo.ticket.Config.log;
 
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;

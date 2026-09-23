@@ -1,7 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Activity.ActivityFavoriteRequest;
-import com.demo.ticket.Service.ActivityService;
+import com.demo.ticket.Service.Activity.ActivityService;
 import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +35,8 @@ public class ActivityController {
     }
 
     @GetMapping("/activityImage/{activityId}")
-    public ResponseEntity<byte[]> activityImage(@PathVariable String activityId) {
+    public ResponseEntity<byte[]> activityImage(
+            @PathVariable String activityId) {
         return activityService.activityImage(activityId);
     }
 

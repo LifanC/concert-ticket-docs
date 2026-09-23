@@ -1,7 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Booking.*;
-import com.demo.ticket.Service.BookingService;
+import com.demo.ticket.Service.Booking.BookingService;
 import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

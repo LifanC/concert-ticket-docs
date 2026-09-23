@@ -1,7 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Login.*;
-import com.demo.ticket.Service.LoginService;
+import com.demo.ticket.Service.Login.LoginService;
 import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +46,7 @@ public class LoginController {
     @Operation(summary = "3.驗證", description = "驗證Token")
     @PostMapping("/validate")
     public ResponseEntity<?> validate(
-            @CookieValue(name = "refreshToken", required = false)
+            @CookieValue(name = "refreshToken")
             String refreshToken) {
         return loginService.validate(refreshToken);
     }
@@ -65,7 +65,7 @@ public class LoginController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(
             @AuthenticationPrincipal LoginUser user,
-            @CookieValue(name = "refreshToken", required = false)
+            @CookieValue(name = "refreshToken")
             String refreshToken) {
         return loginService.logout(user, refreshToken);
     }

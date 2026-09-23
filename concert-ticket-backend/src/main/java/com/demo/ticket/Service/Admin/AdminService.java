@@ -1,4 +1,4 @@
-package com.demo.ticket.Service;
+package com.demo.ticket.Service.Admin;
 
 import com.demo.ticket.Dto.Admin.AdminCreateSessionRequest;
 import com.demo.ticket.Dto.Admin.AdminDeleteActivityRequest;

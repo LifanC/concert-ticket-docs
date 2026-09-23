@@ -101,8 +101,6 @@ npm run test:e2e:headed
 
 完成後可查看 `playwright-report/index.html` 測試報告。`headed` 只是顯示瀏覽器視窗，執行的測試相同。
 
-會員與管理員測試需要設定對應的 `E2E_MEMBER_ACCOUNT`／`E2E_MEMBER_PASSWORD` 與 `E2E_ADMIN_ACCOUNT`／`E2E_ADMIN_PASSWORD`；未提供時會跳過對應案例。訂票測試預設停在確認視窗，設定 `E2E_CREATE_ORDER=1` 才會建立並保留真實訂單。詳細設定與驗證範圍見[測試紀錄](../TEST_REPORT.md#重跑)。
-
 ## Docker
 
 由專案根目錄執行下列指令，即可連同後端、PostgreSQL 與 Redis 一起啟動：
