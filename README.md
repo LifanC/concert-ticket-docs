@@ -10,9 +10,9 @@
 2. 實作 10 分鐘付款期限、訂單到期排程與定期補償掃描，處理付款、取消及逾期狀態轉換，並補償服務重啟後遺留的逾期訂單。
 3. 整合 Spring Security、JWT Access Token／Refresh Token 與 Redis，實作會員及管理員權限、Token 更新與登出失效機制；使用 STOMP WebSocket 推送個人訂單通知。
 4. 以 Docker Compose 整合前端、後端、PostgreSQL 與 Redis，並由 Java 定時執行 Python，匯出各場次已付款訂單數與金額的 CSV 報表。
-5. 建立訂單狀態轉換、Spring 啟動與角色權限、Playwright 瀏覽器流程及 Python 報表測試，於測試紀錄列出結果與驗證限制。
+5. 建立訂單狀態轉換、Spring 啟動與角色權限、Playwright 瀏覽器流程及 Python 報表測試；GitHub Actions 已設定後端測試、前端建置與 Python 測試。
 
-目前付款為系統內訂單狀態操作；外部金流、退款及完整高併發驗收仍待完成，詳見[測試紀錄](TEST_REPORT.md)與[功能規劃](FEATURES_ROADMAP.md)。
+目前付款為系統內訂單狀態操作；外部金流、退款及完整高併發驗收仍待完成，詳見[測試與建置](#測試與建置)與[功能規劃](FEATURES_ROADMAP.md)。
 
 本專案採用 OpenAI Codex 協作開發，協助需求拆解、架構討論、程式碼撰寫與重構、問題排查及文件整理；由本人進行需求確認、技術方案取捨、程式碼檢視、系統整合與測試驗證。
 
@@ -153,24 +153,25 @@ Python 與 Java 共用資料庫連線設定；Docker 中的 Python 位於後端�
 
 | 類別 | 技術 |
 | --- | --- |
-| 前端 | Vue 3、Vite、Element Plus 2.14、Axios |
-| 後端 | Java 21、Spring Boot、Spring Security、MyBatis |
+| 前端 | Vue 3、Vite 7、Element Plus 2.14.3、Axios |
+| 後端 | Java 21、Spring Boot 4.1.0、Spring Security、MyBatis |
 | 銷售分析 | Python、pg8000、python-dotenv |
 | 資料儲存 | PostgreSQL 16、Redis 7 |
 | 驗證與文件 | JWT、Springdoc OpenAPI / Swagger UI |
 | 容器化 | Docker、Docker Compose |
 | 測試 | JUnit、Mockito、Playwright（Microsoft Edge）、Python unittest |
+| CI | GitHub Actions：後端測試、前端建置、Python 報表測試 |
 
 ## 專案結構
 
 ```text
 concert-ticket-docs/
+├── .github/workflows/ci.yml    # GitHub Actions 自動檢查
 ├── concert-ticket-backend/    # Spring Boot API
 ├── concert-ticket-frontend/   # Vue 3 網站
 ├── concert-ticket-analytics/  # Python 銷售分析與 CSV 報表
 ├── db-init/                   # PostgreSQL 初始化 SQL
 ├── .env.example               # 前端、後端與分析共用範本
-├── TEST_REPORT.md             # 測試結果、重跑方式與驗證限制
 ├── FEATURES_ROADMAP.md        # 功能規劃與待完成項目
 └── docker-compose.yml
 ```
@@ -186,6 +187,8 @@ concert-ticket-docs/
    ```powershell
    Copy-Item .env.example .env
    ```
+
+   本機 HTTP 開發保留 `REFRESH_COOKIE_SECURE=false`。前端預設連線至 `http://localhost:8080/api` 與 `http://localhost:8080/api/ws`；若需修改，將範本中的 `VITE_*` 寫入 `concert-ticket-frontend/.env.local`。Compose 的前端服務不會讀取根目錄 `.env`。
 
 2. 啟動所有服務。
 
@@ -222,15 +225,18 @@ concert-ticket-docs/
    docker compose up -d db redis
    ```
 
-2. 在 `concert-ticket-backend/.env` 設定與根目錄相同的 `POSTGRES_PASSWORD`、`REDIS_PASSWORD`，以及 `REFRESH_COOKIE_SECURE=false`。自動分析預設開啟，請依[後端 Python 環境說明](concert-ticket-backend/README.md#python-自動銷售分析)安裝依賴；暫時不使用分析時設定 `ANALYTICS_ENABLED=false`。在後端目錄執行：
+2. 在 `concert-ticket-backend/.env` 設定與根目錄相同的 `POSTGRES_PASSWORD`、`REDIS_PASSWORD`，以及 `REFRESH_COOKIE_SECURE=false`。自動分析預設開啟，請依[後端 Python 環境說明](concert-ticket-backend/README.md#python-自動銷售分析)安裝依賴；暫時不使用分析時設定 `ANALYTICS_ENABLED=false`。從專案根目錄切換至後端並啟動：
 
    ```powershell
+   Set-Location concert-ticket-backend
    .\mvnw.cmd spring-boot:run
    ```
 
-3. 在 `concert-ticket-frontend/.env.local` 放入根目錄範本中的兩個 `VITE_*` 參數，另開終端機於前端目錄執行：
+3. 在 `concert-ticket-frontend/.env.local` 放入根目錄範本中的兩個 `VITE_*` 參數，另開終端機從專案根目錄切換至前端並啟動：
 
    ```powershell
+   # 從專案根目錄的另一個終端機執行
+   Set-Location concert-ticket-frontend
    npm ci
    npm run dev
    ```
@@ -272,7 +278,27 @@ npm run test:e2e:headed
 npm run build
 ```
 
-前端建置產物位於 `dist/`，Playwright HTML 報告位於 `playwright-report/index.html`。真實帳號測試需提供 `E2E_ADMIN_ACCOUNT`／`E2E_ADMIN_PASSWORD` 或 `E2E_MEMBER_ACCOUNT`／`E2E_MEMBER_PASSWORD`，未提供時跳過對應案例。訂票案例預設停在確認視窗；設定 `E2E_CREATE_ORDER=1` 才會送出並保留真實待付款訂單，詳細條件見[測試紀錄](TEST_REPORT.md#重跑)。
+前端建置產物位於 `dist/`，Playwright HTML 報告位於 `playwright-report/index.html`。測試指令不會自動啟動前後端；首頁案例會呼叫真實活動 API。
+
+Playwright 透過終端機環境變數讀取以下設定，不會自動載入 `.env.local`：
+
+| 環境變數 | 用途 |
+| --- | --- |
+| `E2E_BASE_URL` | 前端網址，預設 `http://localhost:5173` |
+| `E2E_MEMBER_ACCOUNT`、`E2E_MEMBER_PASSWORD` | 真實會員登入與訂票案例；未提供時跳過 |
+| `E2E_ADMIN_ACCOUNT`、`E2E_ADMIN_PASSWORD` | 真實管理員登入與查詢案例；未提供時跳過 |
+| `E2E_CREATE_ORDER` | 設為 `1` 才會送出真實訂單並查詢確認；預設只走到訂位確認視窗 |
+| `E2E_VERIFY_ORDER`、`E2E_VERIFY_SEAT` | 訂票案例改為查詢既有訂單，驗證座位與 `PENDING_PAYMENT` 狀態 |
+
+例如在前端目錄的 PowerShell 設定測試會員後執行：
+
+```powershell
+$env:E2E_MEMBER_ACCOUNT = '<測試會員帳號>'
+$env:E2E_MEMBER_PASSWORD = '<測試會員密碼>'
+npm run test:e2e
+```
+
+訂票案例需要售票中的活動、場次與可用座位。啟用 `E2E_CREATE_ORDER=1` 會保留真實待付款訂單並占用座位，測試不會自動取消訂單。
 
 Python 測試需先完成分析虛擬環境安裝，再於 `concert-ticket-analytics` 執行：
 
@@ -280,11 +306,21 @@ Python 測試需先完成分析虛擬環境安裝，再於 `concert-ticket-analy
 .\.venv\Scripts\python.exe -m unittest -v test_analyze
 ```
 
-2026-09-18 後端 24 項測試與前端建置通過；Microsoft Edge 9 項與 Python 6 項仍為 2026-09-10 的既有紀錄，尚未重新驗證新版座位圖。Java 訂單與座位配置測試使用 mock Mapper，Python 聚合測試使用 SQLite；這些結果不代表已驗證真實 PostgreSQL 併發、交易回滾或完整付款流程。實際驗證範圍與限制以 [TEST_REPORT.md](TEST_REPORT.md) 為準。
+### 持續整合與驗證範圍
+
+[GitHub Actions 工作流程](.github/workflows/ci.yml) 在推送至 `master` 時執行三項獨立工作：
+
+- 前端：使用 Node.js 22，執行 `npm ci` 與 `npm run build`。
+- 後端：使用 Java 21，執行 `bash mvnw --batch-mode clean test`；測試報告以 `backend-test-reports` artifact 保留 7 天。
+- Python：使用 Python 3.12，安裝 `requirements.txt` 後執行 `python -m unittest -v test_analyze`。
+
+目前 CI 未執行 Playwright，也未設定 Pull Request 觸發。是否通過應以該次 Actions 執行結果或本機測試報告為準；後端本機報告位於 `concert-ticket-backend/target/surefire-reports/`。
+
+Java 訂單與座位配置測試使用 mock Mapper，Python 聚合測試使用 SQLite；這些測試不代表已驗證真實 PostgreSQL 併發、交易回滾或完整付款流程。新版座位圖的快速跳排、捲動、手機版，以及修改已有訂單活動的座位配置，仍需依[功能規劃](FEATURES_ROADMAP.md)補齊驗證。
 
 ## 後續規劃
 
-待完成項目包含完整購票與付款 E2E、真實資料庫併發與重啟補償驗證、CI、後台銷售儀表板、主辦方權限、QR Code 驗票、外部金流與退款，以及負載／壓力測試。詳細規劃見 [FEATURES_ROADMAP.md](FEATURES_ROADMAP.md)；其中歷史完成標記需搭配測試紀錄判讀。
+待完成項目包含完整購票與付款 E2E、真實資料庫交易／併發與重啟補償驗證、版本化 migration、將 Playwright 納入 CI、後台銷售儀表板、主辦方權限、QR Code 驗票、外部金流與退款，以及負載／壓力測試。詳細規劃見 [FEATURES_ROADMAP.md](FEATURES_ROADMAP.md)；功能實作與驗收完成應分開判讀。
 
 ## 常用 Docker 指令
 
@@ -329,7 +365,7 @@ docker exec -it redis-container redis-cli -a <password>
 
 ## 延伸文件
 
-- [測試紀錄與重跑方式](TEST_REPORT.md)
+- [測試執行方式與 CI 範圍](#測試與建置)
 - [功能規劃與待辦](FEATURES_ROADMAP.md)
 - [後端說明](concert-ticket-backend/README.md)
 - [前端說明](concert-ticket-frontend/README.md)
