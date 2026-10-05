@@ -35,7 +35,11 @@ springdoc:
 # -----------------------------
 spring:
   config:
-    import: optional:file:.env[.properties]
+    # 支援從專案根目錄或後端目錄啟動；後端 .env 優先於根目錄 .env。
+    import:
+      - optional:file:../.env[.properties]
+      - optional:file:.env[.properties]
+      - optional:file:concert-ticket-backend/.env[.properties]
   servlet:
     multipart:
       max-file-size: 10MB

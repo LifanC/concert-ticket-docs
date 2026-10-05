@@ -265,7 +265,7 @@ const createOrder = async () => {
 
 .page-header {
   height: auto;
-  padding: 24px 0;
+  padding: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;

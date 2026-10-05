@@ -1,31 +1,37 @@
 <script setup>
 import {dateConversionYMDhms} from "@/components/componentsJs/ConvertPadding";
+import '@/styles/theme.css'
 
-const date = ref('')
+const date = ref(dateConversionYMDhms(true))
 
-setInterval(() => {
+const clockInterval = setInterval(() => {
   date.value = dateConversionYMDhms(true)
 }, 1000)
+onUnmounted(() => clearInterval(clockInterval))
 
 </script>
 
 <template>
-  <el-container>
-    <el-header>
-      <el-breadcrumb separator="*">
-        <el-breadcrumb-item :to="{ path: '/' }">活動</el-breadcrumb-item>
-        <el-breadcrumb-item :to="{ path: '/user' }">會員</el-breadcrumb-item>
-        <el-breadcrumb-item :to="{ path: '/admin' }">管理後台</el-breadcrumb-item>
-        <el-breadcrumb-item></el-breadcrumb-item>
-      </el-breadcrumb>
-      <el-text>{{ date }}</el-text>
-    </el-header>
-    <el-container>
-      <el-main>
-        <router-view/>
-      </el-main>
-    </el-container>
-  </el-container>
+  <div class="site-shell">
+    <header class="site-header">
+      <router-link class="site-brand" to="/" aria-label="回到活動首頁">
+        <span class="brand-emblem" aria-hidden="true">♪</span>
+        <span><strong>拾光售票</strong><small>LIVE IN THE MOMENT</small></span>
+      </router-link>
+      <nav class="site-nav" aria-label="主要導覽">
+        <router-link to="/" exact-active-class="is-active">活動</router-link>
+        <router-link to="/user" active-class="is-active">會員</router-link>
+        <router-link to="/admin" active-class="is-active">管理後台</router-link>
+      </nav>
+      <time class="site-clock">{{ date }}</time>
+    </header>
+    <main class="site-main"><router-view /></main>
+    <footer class="site-footer">
+      <router-link to="/" class="footer-brand">拾光售票 <span>LIVE IN THE MOMENT</span></router-link>
+      <p>把喜歡的聲音，收藏成生活的風景。</p>
+      <span class="footer-note">音樂・劇場・展覽</span>
+    </footer>
+  </div>
 </template>
 
 <style scoped>
