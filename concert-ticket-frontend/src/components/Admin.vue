@@ -431,7 +431,7 @@ const statusType = (status) => (
       </div>
       <el-tag type="warning" effect="light">管理員權限</el-tag>
     </el-header>
-    <el-main>
+    <el-main class="admin-main">
       <el-tabs v-model="activeTab" class="admin-tabs">
         <el-tab-pane label="活動管理" name="activities">
           <el-card shadow="never" class="filter-card">
@@ -866,10 +866,14 @@ const statusType = (status) => (
 
 .page-header {
   height: auto;
-  padding: 24px 0;
+  padding: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.admin-page > .admin-main {
+  padding: 20px 24px;
 }
 
 .page-header h1 {

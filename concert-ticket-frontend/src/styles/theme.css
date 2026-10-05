@@ -1,0 +1,71 @@
+:root:root {
+  font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+  color: #433a3a;
+  background: #e5e1df;
+  --el-color-primary: #89664d;
+  --el-color-primary-light-3: #ad917c;
+  --el-color-primary-light-5: #c4af9f;
+  --el-color-primary-light-7: #dcd0c7;
+  --el-color-primary-light-8: #e7dfd8;
+  --el-color-primary-light-9: #f3eeea;
+  --el-color-primary-dark-2: #6d503c;
+  --el-color-success: #60765f;
+  --el-color-warning: #987044;
+  --el-color-danger: #a45852;
+  --el-text-color-primary: #433a3a;
+  --el-text-color-regular: #5e5550;
+  --el-text-color-secondary: #756b64;
+  --el-border-color: #cfc7be;
+  --el-border-color-light: #e1d9d1;
+  --el-border-color-lighter: #eae3dc;
+  --el-fill-color-light: #f4f0ec;
+  --el-fill-color-lighter: #f8f5f1;
+  --el-bg-color: #fdfbf8;
+  --el-bg-color-overlay: #fdfbf8;
+  --el-border-radius-base: 3px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+button, input, select { font: inherit; }
+button:focus-visible, a:focus-visible { outline: 2px solid #89664d; outline-offset: 5px; }
+.site-shell { min-height: 100vh; }
+.site-header { max-width: 1320px; margin: auto; min-height: 116px; padding: 24px 40px; display: flex; align-items: center; gap: 42px; border-bottom: 1px solid #cfc7be; }
+.site-brand { display: flex; gap: 14px; align-items: center; text-decoration: none; }
+.brand-emblem { width: 44px; height: 54px; border: 1px solid #a1795c; border-radius: 24px 24px 0 0; display: grid; place-items: center; font-size: 30px; color: #89664d; }
+.site-brand strong { display: block; font-family: 'Noto Serif TC', 'PMingLiU', serif; font-size: 25px; letter-spacing: 5px; font-weight: 500; }
+.site-brand small { display: block; font-family: Georgia, serif; font-size: 9px; letter-spacing: 2px; margin-top: 8px; }
+.site-nav { display: flex; gap: 32px; margin-left: auto; }
+.site-nav a { text-decoration: none; padding: 12px 0; letter-spacing: 2px; font-size: 14px; border-bottom: 1px solid transparent; }
+.site-nav a:hover, .site-nav .is-active { color: #89664d; border-bottom-color: #a1795c; }
+.site-clock { font-size: 11px; color: #756b64; font-variant-numeric: tabular-nums; }
+.site-main { max-width: 1320px; margin: auto; padding: 36px 40px 72px; }
+.site-main .activity-page, .site-main .user-page, .site-main .booking-page, .site-main .admin-page { background: transparent; }
+.site-main .el-main { padding: 20px 0; }
+.site-main .page-header h1 { font-family: 'Noto Serif TC', 'PMingLiU', serif; font-weight: 500; letter-spacing: 3px; }
+.site-shell .el-card { --el-card-border-color: #cfc7be; --el-card-bg-color: #fdfbf8; border-radius: 3px; }
+.el-card__header { background: #f4f0eb; }
+.el-button { letter-spacing: 1px; }
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) { background: #89664d; border-color: #89664d; }
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):hover { background: #6d503c; border-color: #6d503c; }
+.site-shell .el-table { --el-table-header-bg-color: #eee7df; --el-table-tr-bg-color: #fdfbf8; --el-table-row-hover-bg-color: #f1e9e0; }
+.el-table th.el-table__cell { font-weight: 500; letter-spacing: 1px; }
+.el-table td.el-table__cell { padding-top: 18px; padding-bottom: 18px; }
+.site-shell .el-table__empty-text { width: 100%; line-height: 1.8; padding: 24px 12px; }
+.site-footer { max-width: 1240px; margin: 0 auto; padding: 36px 0 40px; border-top: 1px solid #cfc7be; display: flex; align-items: center; gap: 30px; }
+.footer-brand { text-decoration: none; font-family: 'PMingLiU', serif; font-size: 20px; letter-spacing: 3px; }
+.footer-brand span { display: block; margin-top: 8px; font: 9px Georgia, serif; letter-spacing: 2px; }
+.site-footer p, .footer-note { font-size: 12px; color: #756b64; letter-spacing: 1px; }
+.footer-note { margin-left: auto; }
+@media (max-width: 1000px) {
+  .site-clock { display: none; }
+  .site-footer { margin: 0 40px; }
+}
+@media (max-width: 600px) {
+  .site-header { padding: 20px; flex-wrap: wrap; gap: 20px; }
+  .site-brand strong { font-size: 23px; }
+  .site-nav { width: 100%; margin: 0; justify-content: space-between; gap: 16px; }
+  .site-main { padding: 24px 20px 40px; }
+  .site-footer { margin: 0 20px; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .footer-note { margin-left: 0; }
+}

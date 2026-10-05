@@ -290,9 +290,24 @@ const myTicketsVisibleDialog = async () => {
 </script>
 
 <template>
+  <section class="experience-hero" aria-labelledby="experience-title">
+    <div class="hero-copy">
+      <p class="eyebrow">MUSIC · THEATRE · EXHIBITION</p>
+      <h2 id="experience-title">讓每一次相遇，<br>都成為值得珍藏的時光。</h2>
+      <p class="hero-description">一首歌、一場戲、一段心動的瞬間。<br>在這裡，找到屬於你的下一場精彩。</p>
+      <a href="#discover" class="discover-link">探索活動 <span aria-hidden="true">↗</span></a>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="art-arch"><div class="vinyl-record"><span>LIVE<br><i>the moment</i></span></div></div>
+      <span class="art-caption">A LITTLE MUSIC. A BEAUTIFUL LIFE.</span>
+      <span class="art-star">✳</span>
+    </div>
+    <span class="hero-edition" aria-hidden="true">THE EXPERIENCE COLLECTION / 01</span>
+  </section>
   <el-container class="activity-page">
-    <el-header class="page-header">
+    <el-header id="discover" class="page-header">
       <div>
+        <p class="eyebrow section-eyebrow">DISCOVER YOUR NEXT MOMENT</p>
         <h1>活動資訊</h1><el-text type="info">探索最新活動，找到屬於你的精彩體驗。</el-text>
       </div>
       <el-tag type="primary" effect="light">{{ filteredActivities.length }} 個活動</el-tag>
@@ -425,8 +440,27 @@ const myTicketsVisibleDialog = async () => {
 <style scoped>
 .activity-page {
   min-height: 100%;
-  background: #f7f8fa;
+  background: transparent;
 }
+
+.experience-hero { position: relative; display: grid; grid-template-columns: 1.2fr 1fr; min-height: 430px; background: #f3eee8; overflow: hidden; margin-bottom: 32px; }
+.hero-copy { padding: 60px 52px 64px; position: relative; z-index: 1; }
+.eyebrow { font-size: 10px; letter-spacing: 3px; color: #89664d; margin: 0 0 24px; }
+.hero-copy h2 { font-family: 'Noto Serif TC', 'PMingLiU', serif; font-size: clamp(26px, 3vw, 40px); font-weight: 500; line-height: 1.7; letter-spacing: 3px; margin: 0 0 20px; }
+.hero-description { color: #756b64; font-size: 13px; line-height: 2.1; letter-spacing: 1px; }
+.discover-link { display: inline-flex; align-items: center; gap: 42px; text-decoration: none; border-bottom: 1px solid #a1795c; padding: 14px 0 10px; font-size: 13px; letter-spacing: 2px; }
+.discover-link:hover { color: #89664d; }
+.hero-art { position: relative; display: flex; align-items: center; justify-content: center; background: #d8cec4; min-height: 430px; overflow: hidden; }
+.art-arch { position: relative; width: 68%; height: 340px; border-radius: 180px 180px 0 0; background: #b59b85; border: 1px solid #b19984; transform: translateY(36px); }
+.art-arch::before { content: ''; position: absolute; inset: -18px 18px 18px -18px; border: 1px solid #a1795c; border-radius: inherit; }
+.vinyl-record { position: absolute; width: 290px; max-width: 115%; aspect-ratio: 1; left: 50%; top: 44%; transform: translate(-50%, -50%) rotate(-15deg); border-radius: 50%; background: repeating-radial-gradient(circle, #433a3a 0 2px, #504641 3px 4px); box-shadow: 14px 24px 35px #433a3a30; display: grid; place-items: center; }
+.vinyl-record span { display: grid; align-content: center; text-align: center; width: 110px; height: 110px; border-radius: 50%; background: #e5d6c6; font: 23px Georgia, serif; letter-spacing: 4px; color: #433a3a; }
+.vinyl-record i { font-size: 12px; margin-top: 8px; letter-spacing: 0; }
+.art-caption { position: absolute; bottom: 22px; font-size: 8px; letter-spacing: 2px; }
+.art-star { position: absolute; right: 22px; top: 20px; color: #89664d; font-size: 55px; font-weight: 300; }
+.hero-edition { position: absolute; bottom: 20px; left: 52px; font-size: 8px; letter-spacing: 2px; color: #756b64; }
+.section-eyebrow { margin-bottom: 12px; }
+#discover { scroll-margin-top: 24px; }
 
 .page-header {
   height: auto;
@@ -448,6 +482,7 @@ const myTicketsVisibleDialog = async () => {
 
 .filter-form {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 12px;
 }
@@ -507,6 +542,14 @@ const myTicketsVisibleDialog = async () => {
 }
 
 @media (max-width: 767px) {
+  .experience-hero { grid-template-columns: 1fr; }
+  .hero-copy { padding: 32px 26px 50px; }
+  .hero-copy h2 { letter-spacing: 1px; }
+  .hero-art { min-height: 300px; }
+  .art-arch { width: 230px; height: 270px; transform: translateY(30px); }
+  .vinyl-record { width: 230px; }
+  .hero-edition { top: 16px; bottom: auto; left: auto; right: 16px; font-size: 7px; }
+  .hero-copy .eyebrow { margin-top: 12px; letter-spacing: 2px; font-size: 9px; }
   .page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -515,7 +558,7 @@ const myTicketsVisibleDialog = async () => {
 
   .filter-form {
     display: grid;
-    gap: 0;
+    gap: 12px;
   }
 
   .filter-form :deep(.el-form-item),

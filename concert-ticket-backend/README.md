@@ -208,7 +208,7 @@ REFRESH_COOKIE_SECURE=false
 .\mvnw.cmd spring-boot:run
 ```
 
-Spring 預設讀取啟動工作目錄的 `.env`，因此上述方式讀取後端 `.env`。若希望改讀根目錄 `.env`，可在同一終端機啟動前設定 `$env:SPRING_CONFIG_IMPORT = 'optional:file:../.env[.properties]'`；此覆寫仍存在時，修改後端 `.env` 不會生效。IDE 的工作目錄也會影響讀取位置。
+從專案根目錄或後端目錄啟動時，Spring 都會載入根目錄 `.env` 與 `concert-ticket-backend/.env`；只放其中一份也可以。兩份設定會合併，同名參數以後端 `.env` 優先，修改後需重新啟動。系統或 IDE 的環境變數仍優先於檔案；若曾設定 `SPRING_CONFIG_IMPORT`，請移除此覆寫以使用上述載入規則。
 
 預設本機連線設定：
 
