@@ -40,13 +40,37 @@
       runs-on: ubuntu-latest
       timeout-minutes: 15
 
+      services:
+        postgres:
+          image: postgres:16
+          env:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: ci-test-password
+            POSTGRES_DB: interviewworks
+          ports:
+            - 5432:5432
+          options: >-
+            --health-cmd "pg_isready -U postgres -d interviewworks"
+            --health-interval 5s
+            --health-timeout 5s
+            --health-retries 10
+        redis:
+          image: redis:7
+          ports:
+            - 6379:6379
+          options: >-
+            --health-cmd "redis-cli ping"
+            --health-interval 5s
+            --health-timeout 5s
+            --health-retries 10
+
       defaults:
         run:
           working-directory: concert-ticket-backend
 
       env:
         POSTGRES_PASSWORD: ci-test-password
-        REDIS_PASSWORD: ci-test-password
+        REDIS_PASSWORD: ''
         ANALYTICS_ENABLED: 'false'
 
       steps:
@@ -61,8 +85,25 @@
             cache: maven
             cache-dependency-path: concert-ticket-backend/pom.xml
 
+        - name: 初始化測試資料庫
+          env:
+            POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+          run: >-
+            docker exec -i "$POSTGRES_CONTAINER_ID"
+            psql -U postgres -d interviewworks -v ON_ERROR_STOP=1
+            < ../db-init/init.sql
+
         - name: 執行後端測試
           run: bash mvnw --batch-mode clean test
+
+        - name: 顯示後端測試錯誤
+          if: failure()
+          run: |
+            shopt -s nullglob
+            reports=(target/surefire-reports/*.txt)
+            if ((${#reports[@]})); then
+              cat "${reports[@]}"
+            fi
 
         - name: 保存後端測試報告
           if: always()
