@@ -14,7 +14,8 @@ import java.math.BigDecimal;
                 "time",
                 "status",
                 "seat",
-                "total",
+                "price",
+                "ticketTypeId",
         }
 )
 @Schema(description = "新增訂單")
@@ -100,30 +101,16 @@ public record BookingSaveTicketRequest(
     String seat,
 
     @Schema(
-            description = "票價",
+            description = "舊版相容欄位；實際票價由後端計算",
             example = "1280",
-            requiredMode = Schema.RequiredMode.REQUIRED
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
-    @NotNull(message = "票價不可為空")
     @DecimalMin(value = "0", message = "票價不可小於 0")
-    @Digits(integer = 10, fraction = 0, message = "票價必須為整數")
-    BigDecimal price
+    @Digits(integer = 10, fraction = 2, message = "票價最多兩位小數")
+    BigDecimal price,
+
+    @Schema(description = "票種編號；已設定銷售配置的場次需選擇票種", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 36, message = "票種編號不可超過 36 個字元")
+    String ticketTypeId
 
 ) {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.demo.ticket.Mapper.SalesSettingsMapper">
+    <select id="session" resultType="java.util.Map" flushCache="true">
+        SELECT s.id,
+               s.activity_id,
+               s.capacity,
+               s.reserved,
+               s.sold,
+               a.price,
+               l.seat_rows,
+               l.seats_per_row
+        FROM interviewworks_ticket.session s
+                 JOIN interviewworks_ticket.activity a ON a.id = s.activity_id
+                 LEFT JOIN interviewworks_ticket.seat l ON l.activity_id = s.activity_id
+        WHERE s.id = #{sessionId}
+    </select>
+    <select id="settings" resultType="java.util.Map" flushCache="true">
+        SELECT session_id, max_tickets_per_member, version, seat_rows, seats_per_row
+        FROM interviewworks_ticket.session_sales_settings
+        WHERE session_id = #{sessionId}
+    </select>
+    <select id="zones" resultType="java.util.Map">
+        SELECT z.id,
+               z.name,
+               z.color,
+               z.row_start                     AS "rowStart",
+               z.row_end                       AS "rowEnd",
+               z.price,
+               (SELECT count(*)
+                FROM interviewworks_ticket.session_seat ss
+                WHERE ss.session_id = z.session_id
+                  AND ss.zone_id = z.id)       AS capacity,
+               (SELECT count(*)
+                FROM interviewworks_ticket.session_seat ss
+                WHERE ss.session_id = z.session_id
+                  AND ss.zone_id = z.id
+                  AND ss.status = 'AVAILABLE') AS available
+        FROM interviewworks_ticket.session_zone z
+        WHERE z.session_id = #{sessionId}
+        ORDER BY z.sort_order
+    </select>
+    <select id="ticketTypes" resultType="java.util.Map">
+        SELECT id, name, price_percent AS "pricePercent", eligibility
+        FROM interviewworks_ticket.session_ticket_type
+        WHERE session_id = #{sessionId}
+        ORDER BY sort_order
+    </select>
+    <select id="seats" resultType="java.lang.String">
+        SELECT seat_id
+        FROM interviewworks_ticket.session_seat
+        WHERE session_id = #{sessionId}
+        ORDER BY seat_id
+    </select>
+    <select id="occupied" resultType="int" flushCache="true">
+        SELECT (EXISTS (SELECT 1
+                        FROM interviewworks_ticket.session_seat
+                        WHERE session_id = #{sessionId}
+                          AND status IN ('RESERVED', 'SOLD'))
+            OR EXISTS (SELECT 1
+                       FROM interviewworks_ticket.ticket
+                       WHERE session_id = #{sessionId}
+                         AND status IN ('PENDING_PAYMENT', 'PAID'))) ::int
+    </select>
+    <select id="memberQuantity" resultType="long" flushCache="true">
+        SELECT coalesce(sum(quantity), 0)
+        FROM interviewworks_ticket.ticket
+        WHERE session_id = #{sessionId}
+          AND email = #{email}
+          AND (status = 'PAID' OR (status = 'PENDING_PAYMENT' AND expires_at > CURRENT_TIMESTAMP))
+    </select>
+    <insert id="saveSettings">
+        INSERT INTO interviewworks_ticket.session_sales_settings
+            (session_id, max_tickets_per_member, version, seat_rows, seats_per_row)
+        VALUES (#{sessionId}, #{maxTicketsPerMember}, #{version}, #{seatRows},
+                #{seatsPerRow}) ON CONFLICT (session_id) DO
+        UPDATE SET max_tickets_per_member = EXCLUDED.max_tickets_per_member,
+            version = EXCLUDED.version, seat_rows = EXCLUDED.seat_rows, seats_per_row = EXCLUDED.seats_per_row
+    </insert>
+    <update id="clearSeatZones">
+        UPDATE interviewworks_ticket.session_seat
+        SET zone_id = NULL
+        WHERE session_id = #{sessionId}
+    </update>
+    <delete id="deleteZones">
+        DELETE
+        FROM interviewworks_ticket.session_zone
+        WHERE session_id = #{sessionId}
+    </delete>
+    <delete id="deleteTicketTypes">
+        DELETE
+        FROM interviewworks_ticket.session_ticket_type
+        WHERE session_id = #{sessionId}
+    </delete>
+    <insert id="insertZone">
+        INSERT INTO interviewworks_ticket.session_zone (id, session_id, name, color, row_start, row_end, price, sort_order)
+        VALUES (#{id}, #{sessionId}, #{name}, #{color}, #{rowStart}, #{rowEnd}, #{price}, #{sortOrder})
+    </insert>
+    <insert id="insertTicketType">
+        INSERT INTO interviewworks_ticket.session_ticket_type (id, session_id, name, price_percent, eligibility, sort_order)
+        VALUES (#{id}, #{sessionId}, #{name}, #{pricePercent}, #{eligibility}, #{sortOrder})
+    </insert>
+    <insert id="insertSeats">
+        INSERT INTO interviewworks_ticket.session_seat (session_id, seat_id) VALUES
+        <foreach collection="seats" item="seat" separator=",">(#{sessionId}, #{seat})</foreach>
+        ON CONFLICT (session_id, seat_id) DO NOTHING
+    </insert>
+    <update id="assignZone">
+        UPDATE interviewworks_ticket.session_seat SET zone_id = #{zoneId} WHERE session_id = #{sessionId} AND seat_id IN
+        <foreach collection="seats" item="seat" open="(" separator="," close=")">#{seat}</foreach>
+    </update>
+    <select id="seatPrice" resultType="java.util.Map">
+        SELECT z.id   AS zone_id,
+               z.name AS zone_name,
+               z.price,
+               t.id   AS ticket_type_id,
+               t.name AS ticket_type_name,
+               t.price_percent
+        FROM interviewworks_ticket.session_seat ss
+                 JOIN interviewworks_ticket.session_zone z ON z.session_id = ss.session_id AND z.id = ss.zone_id
+                 JOIN interviewworks_ticket.session_ticket_type t
+                      ON t.session_id = ss.session_id AND t.id = #{ticketTypeId}
+        WHERE ss.session_id = #{sessionId}
+          AND ss.seat_id = #{seat}
+    </select>
+</mapper>

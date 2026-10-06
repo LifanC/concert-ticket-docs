@@ -5,6 +5,24 @@ import { toFindCookie } from '@/components/componentsJs/cookie.js'
 const webSocketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/ws'
 
 let client = null;
+const displayedNotifications = new Set();
+
+function showNotification(notification) {
+    if (notification.id && displayedNotifications.has(notification.id)) return;
+    if (notification.id) {
+        displayedNotifications.add(notification.id);
+        if (displayedNotifications.size > 100) {
+            displayedNotifications.delete(displayedNotifications.values().next().value);
+        }
+    }
+    ElMessage({
+        type: ['success', 'warning', 'error', 'info'].includes(notification.type)
+            ? notification.type : 'success',
+        message: `${notification.title}：${notification.content}`,
+        duration: notification.type === 'warning' ? 8000 : 600000,
+        showClose: true
+    });
+}
 
 function connectWebSocket() {
 
@@ -38,16 +56,7 @@ function connectWebSocket() {
 
                     console.log("收到通知", notification);
 
-                    ElMessage({
-                        type: "success",
-                        dangerouslyUseHTMLString: true,
-                        message:
-                            notification.title +
-                            "<br>" +
-                            notification.content,
-                        duration: 600000,
-                        showClose: true
-                    });
+                    showNotification(notification);
                 }
             );
         },
@@ -74,5 +83,5 @@ function disconnectWebSocket() {
 }
 
 export {
-    connectWebSocket, disconnectWebSocket
+    connectWebSocket, disconnectWebSocket, showNotification
 }

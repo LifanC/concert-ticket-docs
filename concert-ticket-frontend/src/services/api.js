@@ -100,26 +100,7 @@ function setupAuthInterceptor(client) {
 
       const currentRoute = router.currentRoute.value
 
-      // 如果你的後端確定 400 代表需要重新登入，可以保留
-      if (status === 400) {
-        ElMessage({
-          type: 'info',
-          message: '重新登入',
-        })
-
-        if (currentRoute.name !== 'User') {
-          clearCookie('accessName')
-          clearCookie('accessToken')
-
-          await router.push({
-            name: 'User',
-            query: {
-              isLoggedIn: 'false',
-              redirect: currentRoute.fullPath
-            }
-          })
-        }
-      }
+      // 400 is a validation error; keep the session and let the form display it.
 
       if (status === 403) {
         ElMessage({

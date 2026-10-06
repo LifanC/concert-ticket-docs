@@ -14,6 +14,10 @@ public class BookingSaveTicket {
     private String status;
     private String seat;
     private BigDecimal price;
+    private String zoneId;
+    private String ticketTypeId;
+    private String zoneName;
+    private String ticketTypeName;
     private Date expires_at;
     private Date paid_at;
     private Date cancelled_at;
@@ -88,6 +92,38 @@ public class BookingSaveTicket {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public String getZoneId() {
+        return zoneId;
+    }
+
+    public void setZoneId(String zoneId) {
+        this.zoneId = zoneId;
+    }
+
+    public String getTicketTypeId() {
+        return ticketTypeId;
+    }
+
+    public void setTicketTypeId(String ticketTypeId) {
+        this.ticketTypeId = ticketTypeId;
+    }
+
+    public String getZoneName() {
+        return zoneName;
+    }
+
+    public void setZoneName(String zoneName) {
+        this.zoneName = zoneName;
+    }
+
+    public String getTicketTypeName() {
+        return ticketTypeName;
+    }
+
+    public void setTicketTypeName(String ticketTypeName) {
+        this.ticketTypeName = ticketTypeName;
     }
 
     public Date getExpires_at() {

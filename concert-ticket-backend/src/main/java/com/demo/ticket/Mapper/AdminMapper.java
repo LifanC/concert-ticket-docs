@@ -29,8 +29,12 @@ public interface AdminMapper {
     int deleteActivityImage(String id);
 
     int delete_activity(String id);
+    String lockActivity(String id);
+    boolean activityHasSessions(String id);
 
     void create_session(Session session);
+    void lockSession(String id);
+    Map<String, Object> configuredSession(String id);
 
     void create_seat(String id, String activity_id, String seat_rows, BigDecimal seats_per_row);
 

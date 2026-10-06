@@ -35,7 +35,9 @@
 | 取得活動 | `GET /api/v1/activity/selectAllActivities` |
 | 公開讀取活動圖片 | `GET /api/v1/activity/activityImage/{activityId}` |
 | 管理員儲存活動與圖片 | `POST /api/v1/admin/saveActivity` |
-| 管理員讀取活動圖片 | `GET /api/v1/admin/activityImage/{activityId}` |
+| 管理員活動列表（含 Base64 圖片） | `GET /api/v1/admin/selectAllActivities` |
+| 刪除活動 | `DELETE /api/v1/admin/deleteActivity` |
+| 新增／更新場次 | `POST /api/v1/admin/createSession` |
 | 建立訂單 | `POST /api/v1/booking/saveTicket` |
 | 查詢我的票券 | `GET /api/v1/booking/selectOnlyTicket` |
 | 付款／取消訂單 | `PUT /api/v1/booking/dopayprice`、`/cancelOrder` |
@@ -53,13 +55,21 @@ WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization:
 
 上傳檔上限為 10 MB，原圖最多 2,400 萬像素。後端檢查 JPEG 內容，保留原始比例並將最長邊縮至不超過 1280 px；再調整 JPEG 品質，必要時進一步縮小，使儲存內容不超過 1,048,576 bytes。圖片驗證失敗回傳 HTTP 400，訊息位於 `data[1].error.image`。請求大小限制由 `application.yml` 與 `application-docker.yml` 的 multipart 設定控制，整筆請求上限為 11 MB。
 
-公開 `GET /api/v1/activity/activityImage/{activityId}` 和管理員 `GET /api/v1/admin/activityImage/{activityId}` 都回傳 `image/jpeg`；活動沒有圖片時回傳 404。管理員端點需要 `ADMIN_ITEM_IMPLEMENT` 權限，公開端點無需登入。
+公開 `GET /api/v1/activity/activityImage/{activityId}` 回傳 `image/jpeg`；活動沒有圖片時回傳 404，無需登入。管理員透過 `GET /api/v1/admin/selectAllActivities` 取得含 `image_data`、`content_type` 的活動資料，由前端產生圖片網址；此端點需要 `ADMIN_ITEM_IMPLEMENT` 權限。
+
+### 刪除活動與場次管理
+
+`DELETE /api/v1/admin/deleteActivity` 接收活動 `id`。交易內先鎖定活動，再檢查是否已有場次：活動不存在回傳 404；已有場次回傳 409，不刪除活動、圖片、座位或訂單。沒有場次時依序刪除圖片、座位及活動，成功回傳更新後的活動列表。
+
+刪除受阻時，使用 `NotifierConsumer` 向目前管理員的 `/user/queue/notifications` 推送通知，包含 `id`、`type: warning`、`title` 與 `content`。HTTP 409 回應也包含相同的 `notification` 與 `message`，讓前端在 WebSocket 無法收訊時仍能顯示原因；同一通知編號只顯示一次。
+
+`POST /api/v1/admin/createSession` 同時處理新增與更新：`id` 為空字串時產生新場次編號，指定既有編號時更新原場次。前端建立新場次會清空送出的編號，延期或狀態修改保留原編號。不同活動可各自建立場次。
 
 ### 活動座位配置
 
 `AdminSaveActivityRequest` 的 `category` 決定最多可設定的排數：`MUSIC_CONCERT` 為 50 排（A～AX）、`STAGE_PLAY` 為 100 排（A～CV）、`SPECIAL_EXHIBITION` 為 150 排（A～ET）。`column` 傳最後一排的字母編號，後端自 A 排依序建立座位；`row` 是每排座位數，限制為 1～10。修改活動時會替換該活動的座位配置。訂票座位 API 會去除儲存排別字串中的空白，座位編號格式為 `A-01`、`AA-01` 等。
 
-目前座位配置的單元測試使用 mock Mapper；尚未以真實 PostgreSQL 驗證修改已有訂單的活動時，座位配置與既有訂單的相容性。
+目前未保留座位配置的業務測試；尚未以真實 PostgreSQL 驗證修改已有訂單的活動時，座位配置與既有訂單的相容性。
 
 # JWT 登入驗證流程
 
@@ -189,7 +199,7 @@ Frontend ── Logout ──> Backend
 - 會員：註冊、登入、驗證 Token、修改會員資料、登出。
 - 活動：取得活動列表、查詢收藏、新增與刪除收藏。
 - 訂票：查詢活動、場次、票券與票價；建立訂單、付款、取消訂單。
-- 管理：查詢活動／場次／售票資料；儲存或刪除活動、建立場次。
+- 管理：查詢活動／場次／售票資料；儲存活動、刪除尚無場次的活動、建立與更新場次，以及分區、票種與會員限購設定。
 - 自動分析：定時啟動 Python，匯出各場次已付款訂單數與金額 CSV。
 
 ## 本機執行
@@ -258,7 +268,7 @@ py -m venv concert-ticket-analytics/.venv
 
 目前 CORS 僅允許 `http://localhost:5173`，並允許 `GET`、`POST`、`PUT`、`DELETE` 與 `OPTIONS` 方法。若前端改以其他網域或埠號執行，需同步調整 `security/SecurityConfig.java`。
 
-REST CORS 允許 credentials；Cookie 的 Secure 屬性由 `REFRESH_COOKIE_SECURE` 控制。訂票與新增／刪除收藏需要 `USER_ITEM_IMPLEMENT`。Security 放行登入路徑與活動／收藏列表，個別服務仍依使用者身分處理請求。Axios 收到 401 時會攜帶 Cookie 更新 Access Token 並重試一次，失敗後返回會員頁。
+REST CORS 允許 credentials；Cookie 的 Secure 屬性由 `REFRESH_COOKIE_SECURE` 控制。訂票需要 `USER_ITEM_IMPLEMENT`；收藏查詢、新增與刪除允許 `USER_ITEM_IMPLEMENT` 或 `ADMIN_ITEM_IMPLEMENT`，依目前登入者的 email 處理自己的收藏。Security 放行登入路徑、公開活動列表與活動圖片。Axios 收到 401 時會攜帶 Cookie 更新 Access Token 並重試一次，失敗後返回會員頁。
 
 ## 訂票一致性與逾期處理
 
@@ -270,3 +280,35 @@ REST CORS 允許 credentials；Cookie 的 Secure 屬性由 `REFRESH_COOKIE_SECUR
 - 補償掃描只恢復狀態、座位與庫存，不補送 WebSocket 通知。付款尚未串接外部金流，退款尚未實作。
 
 回到[專案說明](../README.md)。
+
+## 銷售設定
+
+管理 API 使用 `SalesSettingsController`，會員查詢使用 `BookingController`；兩者注入 `SalesSettingsService` 介面，由 `SalesSettingsServiceImpl` 實作。
+
+| 功能 | 方法與完整路徑 | Service 方法 | 權限 |
+| --- | --- | --- | --- |
+| 管理員查詢設定 | `GET /api/v1/admin/sessions/{sessionId}/sales-settings` | `readAdmin(sessionId)` | `ADMIN_ITEM_IMPLEMENT` |
+| 管理員儲存設定 | `PUT /api/v1/admin/sessions/{sessionId}/sales-settings` | `save(sessionId, request)` | `ADMIN_ITEM_IMPLEMENT` |
+| 會員查詢票價與額度 | `GET /api/v1/booking/sessions/{sessionId}/sales-settings` | `readBooking(sessionId, email)` | `USER_ITEM_IMPLEMENT` |
+
+`JwtAuthenticationFilter` 驗證 JWT 並建立使用者與權限，`SecurityConfig` 限制管理員及訂票 API 路徑；Service 再以各自的 `@PreAuthorize` 檢查方法權限。管理員與會員查詢共用私有 `readSettings()`，不共用對外權限。
+
+`SalesSettingsRequest` 包含 `version`、`maxTicketsPerMember`、`zones`、`ticketTypes`。分區與票種分別使用獨立的 `ZoneRequest`、`TicketTypeRequest`；它們也是前端傳入的資料，清單透過 `@Valid` 執行巢狀驗證。DTO 檢查必填、格式與數值範圍，Service 檢查名稱重複、分區重疊、座位完整涵蓋與容量一致性。
+
+儲存設定時鎖定場次並檢查版本；已有保留或售出座位時回傳 409，禁止修改。設定保存場次排別與每排席數快照；修改活動座位配置不會改變已設定場次的配置，已設定分區的場次也不能更換活動。
+
+`quote(sessionId, seat, ticketTypeId, email, BigDecimal defaultPrice)` 由下單流程取得共用場次鎖後呼叫，負責票價與限購判斷。未配置場次沿用活動票價；已配置場次以分區價格乘票種百分比計算，四捨五入至兩位小數。價格及分區／票種名稱保存到訂單，付款沿用訂單價格。會員限購計入已付款與有效待付款票券，取消或逾期後釋放額度。
+
+初始化方式見 [資料庫 README](../db-init/README.md#分區票種與限購)：使用全新空白資料庫執行 `init.sql`，不使用 `ALTER TABLE`。
+
+### 目前測試狀態
+
+在後端目錄執行：
+
+```powershell
+.\mvnw.cmd test
+```
+
+後端目前只保留基本的 `TicketApplicationTests.contextLoads()`，用於載入 Spring 應用程式環境。訂單、活動圖片、銷售設定、方法權限及活動刪除的業務測試與測試輔助檔案已移除，後續再補上。
+
+2026-10-06 還原後執行 `./mvnw.cmd test-compile -DskipTests`，編譯通過，未執行測試。原有測試尚未依新功能調整；銷售設定、活動刪除通知、實際 SQL、資料庫鎖與交易回滾仍待驗收。

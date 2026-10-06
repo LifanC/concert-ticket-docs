@@ -4,6 +4,10 @@ import com.demo.ticket.Dto.Admin.*;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Exception.FieldValidationException;
 import com.demo.ticket.Mapper.AdminMapper;
+import com.demo.ticket.Config.WebSocket.NotificationMessage;
+import com.demo.ticket.Config.WebSocket.NotifierConsumer;
+import com.demo.ticket.security.LoginUser;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,6 +41,8 @@ public class AdminServiceImpl implements AdminService{
     private static final float[] JPEG_QUALITIES = {0.85f, 0.75f, 0.65f, 0.55f, 0.45f};
 
     private final AdminMapper adminMapper;
+    @org.springframework.beans.factory.annotation.Autowired
+    private NotifierConsumer notifierConsumer;
 
     public AdminServiceImpl(
             AdminMapper adminMapper
@@ -225,12 +231,33 @@ public class AdminServiceImpl implements AdminService{
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
     public ResponseEntity<?> deleteActivity(AdminDeleteActivityRequest request) {
         final String id = request.id().trim();
-        int[] cnts = {
-                adminMapper.deleteActivityImage(id),
-                adminMapper.delete_activity(id)
-        };
-        if (Arrays.stream(cnts).allMatch(cnt -> cnt > 0)) {
-            adminMapper.delete_seat_by_activity(id);
+        if (adminMapper.lockActivity(id) == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "活動不存在或已被刪除"));
+        }
+        if (adminMapper.activityHasSessions(id)) {
+            String reason = "活動 " + id + " 已建立場次，無法刪除。請保留活動及相關訂單資料。";
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            String email = authentication.getPrincipal() instanceof LoginUser user
+                    ? user.email() : authentication.getName();
+            NotificationMessage notification = new NotificationMessage(
+                    email,
+                    "無法刪除活動", reason);
+            notification.setId(UUID.randomUUID().toString());
+            notification.setType("warning");
+            try {
+                notifierConsumer.sendNotification(notification);
+            } catch (org.springframework.messaging.MessagingException ex) {
+                org.slf4j.LoggerFactory.getLogger(AdminServiceImpl.class)
+                        .warn("刪除活動警告推播失敗，改由 API 回應通知", ex);
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", reason, "notification", notification));
+        }
+        adminMapper.deleteActivityImage(id);
+        adminMapper.delete_seat_by_activity(id);
+        if (adminMapper.delete_activity(id) != 1) {
+            throw new IllegalStateException("活動刪除失敗，請重新整理後再試");
         }
         List<Map<String, Object>> data = adminMapper.selectAllActivities();
         HttpStatus status = HttpStatus.OK;
@@ -253,6 +280,14 @@ public class AdminServiceImpl implements AdminService{
         final String salesdate = request.salesdate().trim();
         final String salestime = request.salestime().trim();
         final String statusSession = request.status().trim();
+        Map<String, Object> configured = null;
+        if (!id.isBlank()) {
+            adminMapper.lockSession(id);
+            configured = adminMapper.configuredSession(id);
+            if (configured != null && !configured.isEmpty() && !activity_id.equals(configured.get("activity_id"))) {
+                throw new FieldValidationException("activity_id", "已設定分區的場次不能更換活動");
+            }
+        }
         Session session = new Session();
         session.setId(id);
         session.setActivity_id(activity_id);
@@ -267,7 +302,8 @@ public class AdminServiceImpl implements AdminService{
             int seatsPerRow = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
             capacity = BigDecimal.valueOf((long) rows * seatsPerRow);
         }
-        session.setCapacity(capacity);
+        session.setCapacity(configured != null && !configured.isEmpty()
+                ? new BigDecimal(configured.get("capacity").toString()) : capacity);
         session.setStatus(statusSession);
         adminMapper.create_session(session);
         List<Map<String, Object>> data = adminMapper.selectAllSessions();

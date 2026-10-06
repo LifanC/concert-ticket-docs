@@ -10,7 +10,7 @@
 2. 實作 10 分鐘付款期限、訂單到期排程與定期補償掃描，處理付款、取消及逾期狀態轉換，並補償服務重啟後遺留的逾期訂單。
 3. 整合 Spring Security、JWT Access Token／Refresh Token 與 Redis，實作會員及管理員權限、Token 更新與登出失效機制；使用 STOMP WebSocket 推送個人訂單通知。
 4. 以 Docker Compose 整合前端、後端、PostgreSQL 與 Redis，並由 Java 定時執行 Python，匯出各場次已付款訂單數與金額的 CSV 報表。
-5. 建立訂單狀態轉換、Spring 啟動與角色權限、Playwright 瀏覽器流程及 Python 報表測試；GitHub Actions 已設定後端測試、前端建置與 Python 測試。
+5. 後端保留基本 Spring 啟動測試，前端保留原有 Playwright 瀏覽器流程，Python 保留報表測試；GitHub Actions 已設定後端測試、前端建置與 Python 測試，業務功能測試之後再補。
 
 目前付款為系統內訂單狀態操作；外部金流、退款及完整高併發驗收仍待完成，詳見[測試與建置](#測試與建置)與[功能規劃](FEATURES_ROADMAP.md)。
 
@@ -20,32 +20,66 @@
 
 ### 活動瀏覽
 
-可搜尋活動、查看票價與售票狀態，並開啟活動詳情。
+可搜尋活動名稱、場地或編號，依活動類型與售票狀態篩選，查看活動圖片並前往訂票；一般會員可收藏活動及只看收藏。
 
 ![活動列表畫面](docs/images/Activity_1.jpg)
 
 ### 選位與訂單
 
-選擇場次與座位後建立訂單，並在「我的票券」查看訂單狀態。
+選擇日期與場次後，可選票種、篩選分區、查看會員剩餘限購額度及可用座位；選位後顯示實際票價，再確認建立訂單。
 
-![選位與建立訂單畫面](docs/images/booking_1.jpg)
+![票種、分區、限購額度與選位畫面](docs/images/booking_1.jpg)
 
-![我的票券與待付款訂單畫面](docs/images/booking_2.jpg)
+「我的票券」列出訂單、場次與座位，顯示已付款、取消及逾期等狀態。
+
+![我的票券與訂單狀態畫面](docs/images/booking_2.jpg)
 
 ### 管理後台
 
-管理員可維護活動圖片與資料，並建立場次。
+管理員可查看銷售儀表板、維護活動圖片與資料、建立場次，並設定分區票價、票種與會員限購。
 
-![管理員修改活動畫面](docs/images/admin_2.jpg)
+#### 銷售儀表板
 
-[查看活動管理列表](docs/images/admin_1.jpg) · [查看建立場次畫面](docs/images/admin_3.jpg) · [查看會員登入畫面](docs/images/user.jpg)
+查看累計營收、整體售票率、可售庫存、訂單狀態及各場次銷售資料。
+
+![管理後台銷售儀表板](docs/images/admin_1.jpg)
+
+#### 活動管理
+
+搜尋與管理活動，查看圖片、類型、場地及票價，並進行新增、修改或刪除。
+
+![管理後台活動管理列表](docs/images/admin_2.jpg)
+
+#### 建立場次
+
+選擇活動並設定開演、開賣時間與售票狀態，查看已建立場次並進行延期或狀態修改。
+
+![管理後台建立場次與場次列表](docs/images/admin_3.jpg)
+
+#### 分區與限購
+
+設定每會員限購張數、座位分區、票價與票種比例，預覽座位配置並儲存或匯出設定。
+
+![管理後台分區定價、票種與限購設定](docs/images/admin_4.jpg)
+
+#### 查看訂單
+
+查看訂單編號、活動、金額與付款或取消狀態。
+
+![管理後台訂單列表](docs/images/admin_5.jpg)
+
+### 會員中心
+
+提供會員登入、註冊與修改會員資料。
+
+![會員中心登入畫面](docs/images/user.jpg)
 
 ## 功能概覽
 
 - 會員：註冊、登入、修改會員資料、登出。
 - 活動：查看活動列表、活動圖片與詳情，搜尋篩選、加入／取消收藏及只看收藏。
 - 訂票：查詢活動與場次、選擇可用座位、建立訂單、付款、查看票券、取消訂單。
-- 管理後台：查看活動／場次／售票資料，新增、修改、刪除活動及建立場次；可上傳並預覽活動 JPG 圖片。
+- 管理後台：銷售儀表板、活動／場次／售票資料、活動圖片維護、建立場次，以及分區定價、票種與限購管理。
 - 銷售分析：Java 啟動後自動執行 Python，預設每次完成後等待 30 分鐘，產生各場次已付款訂單數與金額的 CSV 報表。
 
 ## 功能解析
@@ -64,10 +98,12 @@
 ### 管理後台
 
 - 查詢活動、場次及票券。
-- 新增、修改或刪除活動。
+- 新增、修改活動；只有尚未建立場次的活動可刪除。已有場次時保留資料並顯示 WebSocket 警告，API 回傳 HTTP 409。
 - 新增活動時先選活動類型，再選 A 排起的最後一排；音樂演唱會最多 50 排（AX）、舞台劇 100 排（CV）、展覽特展 150 排（ET），每排 1～10 席。修改活動時可重新設定座位配置。
 - 活動圖片可選填；編輯時不選新圖片會保留原圖，刪除活動時一併刪除圖片。
-- 建立活動場次。
+- 各活動可分別建立多個場次；新增時由後端產生新編號，延期或狀態修改則更新原場次。
+- 銷售儀表板顯示已付款營收、售票率、可售庫存與訂單狀態。
+- 分區設定涵蓋全部座位，各票種以分區基準價的百分比計價；限購包含已付款與有效待付款訂單。
 - 管理 API 僅允許具 `ADMIN_ITEM_IMPLEMENT` 權限的使用者存取。
 
 ### 驗證與授權
@@ -95,6 +131,7 @@
 - 透過 `convertAndSendToUser` 發送至 `/user/queue/notifications` 類型的個人佇列。
 - 前端使用 `@stomp/stompjs` 與 SockJS 建立連線並訂閱個人通知。
 - STOMP `CONNECT` 標頭攜帶 `Authorization: Bearer <accessToken>`，後端驗證後設定使用者身分。
+- 管理員刪除已有場次的活動時，只向操作管理員推送警告。API 同時提供提示作為斷線備援；前端依通知編號避免重複顯示。
 
 ### 資料與部署
 
@@ -117,7 +154,9 @@
 | Booking | 查詢活動／場次／票券、`saveTicket`、`cancelOrder`、`dopayprice` | 會員訂票流程 |
 | Booking.Seats | `GET /v1/booking/selectOnlySeats`、`GET /v1/booking/selectOnlyUnavailableSeats` | 場次座位與不可用座位查詢 |
 | Admin | 查詢活動／場次／票券、`saveActivity`、`deleteActivity`、`createSession` | 後台管理 |
-| Admin.Image | `POST /v1/admin/saveActivity`、`GET /v1/admin/activityImage/{activityId}` | 隨活動儲存可選的 JPEG；管理員讀取圖片 |
+| Admin.Image | `POST /v1/admin/saveActivity`、`GET /v1/admin/selectAllActivities` | 隨活動儲存可選的 JPEG；管理員活動列表含 Base64 圖片資料 |
+| Admin.SalesSettings | `GET /v1/admin/sessions/{sessionId}/sales-settings`、`PUT /v1/admin/sessions/{sessionId}/sales-settings` | 查詢與儲存場次分區、票種及限購 |
+| Booking.SalesSettings | `GET /v1/booking/sessions/{sessionId}/sales-settings` | 會員查詢票價、分區與剩餘限購額度 |
 
 ### 架構流程
 
@@ -255,8 +294,8 @@ Docker Compose 將報表掛載至本機 `concert-ticket-analytics/reports/`，�
 
 | 工具 | 專案中的用途 | 設定與程式位置 |
 | --- | --- | --- |
-| JUnit | 驗證訂單狀態轉換、Spring 啟動、API 權限、活動圖片處理及不同活動類型的座位排數上限。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[BookingOrderServiceTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/BookingOrderServiceTests.java)、[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)、[AdminActivityImageTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/AdminActivityImageTests.java)。 |
-| Mockito | 模擬 Mapper、Service、JWT 與 Redis 等依賴，透過 `mock()`、`when()`、`verify()` 與 `@MockitoBean` 設定回傳結果並確認呼叫行為，例如訂單不可重複扣減或釋放庫存、未授權請求不可進入業務服務。 | 與 JUnit 搭配使用，位於上述 Java 測試檔；由 [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test` 引入。 |
+| JUnit | 目前只保留載入 Spring 應用程式環境的基本啟動案例，業務功能測試之後再加入。 | 依賴設定：[pom.xml](concert-ticket-backend/pom.xml)；測試：[TicketApplicationTests.java](concert-ticket-backend/src/test/java/com/demo/ticket/TicketApplicationTests.java)。 |
+| Mockito | 由 Spring Boot 測試依賴提供；目前未保留使用 mock Mapper 的業務測試案例。 | [pom.xml](concert-ticket-backend/pom.xml) 的 `spring-boot-starter-test`。 |
 | Playwright（Microsoft Edge） | 使用 Edge 自動操作網頁，檢查活動載入、搜尋與收藏、未登入導向登入頁、會員登入與票券查詢、管理員後台及訂票流程；包含真實 API 與模擬 API 回應的案例。 | 依賴與指令：[package.json](concert-ticket-frontend/package.json)；瀏覽器設定：[playwright.config.js](concert-ticket-frontend/playwright.config.js)，指定 `channel: 'msedge'`；測試：[tests/e2e](concert-ticket-frontend/tests/e2e)。 |
 | Python unittest | 驗證銷售統計只計入已付款訂單、缺少付款金額時報錯、零銷售與免費票處理，以及 CSV 金額精度、Excel 編碼、公式字首防護與避免覆寫既有報表。 | Python 內建測試框架，搭配 `unittest.mock`；測試：[test_analyze.py](concert-ticket-analytics/test_analyze.py)；受測程式：[analyze.py](concert-ticket-analytics/analyze.py)。 |
 
@@ -316,11 +355,13 @@ Python 測試需先完成分析虛擬環境安裝，再於 `concert-ticket-analy
 
 目前 CI 未執行 Playwright，也未設定 Pull Request 觸發。是否通過應以該次 Actions 執行結果或本機測試報告為準；後端本機報告位於 `concert-ticket-backend/target/surefire-reports/`。
 
-Java 訂單與座位配置測試使用 mock Mapper，Python 聚合測試使用 SQLite；這些測試不代表已驗證真實 PostgreSQL 併發、交易回滾或完整付款流程。新版座位圖的快速跳排、捲動、手機版，以及修改已有訂單活動的座位配置，仍需依[功能規劃](FEATURES_ROADMAP.md)補齊驗證。
+目前後端只保留基本 `TicketApplicationTests.contextLoads()`；前端保留活動、會員、訂票及管理員的原有 Playwright 案例，Python 保留報表測試。訂單、活動圖片、銷售設定、權限與刪除通知的業務測試已移除，預計之後再加入。
+
+`TicketApplicationTests` 載入 Spring 應用程式環境，Python 聚合測試使用 SQLite。上述案例不代表已驗證目前所有功能、真實 PostgreSQL 併發、交易回滾或完整付款流程；新功能驗收依[功能規劃](FEATURES_ROADMAP.md)追蹤。
 
 ## 後續規劃
 
-待完成項目包含完整購票與付款 E2E、真實資料庫交易／併發與重啟補償驗證、版本化 migration、將 Playwright 納入 CI、後台銷售儀表板、主辦方權限、QR Code 驗票、外部金流與退款，以及負載／壓力測試。詳細規劃見 [FEATURES_ROADMAP.md](FEATURES_ROADMAP.md)；功能實作與驗收完成應分開判讀。
+待完成項目包含完整購票與付款 E2E、真實資料庫交易／併發與重啟補償驗證、版本化 migration、將 Playwright 納入 CI、主辦方權限、QR Code 驗票、外部金流與退款，以及負載／壓力測試。詳細規劃見 [FEATURES_ROADMAP.md](FEATURES_ROADMAP.md)；功能實作與驗收完成應分開判讀。
 
 ## 常用 Docker 指令
 
@@ -371,3 +412,5 @@ docker exec -it redis-container redis-cli -a <password>
 - [前端說明](concert-ticket-frontend/README.md)
 - [資料庫初始化與訂票一致性](db-init/README.md)
 - [Python 銷售分析：Java 啟動後自動產生 CSV 報表](concert-ticket-analytics/README.md)
+
+

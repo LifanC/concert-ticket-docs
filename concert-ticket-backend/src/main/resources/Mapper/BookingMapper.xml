@@ -28,7 +28,7 @@
     <select id="selectOnlySession" resultType="java.util.Map">
         select distinct
             "session".id,
-            "session"."time" as "value",
+            TO_CHAR("session"."time"::time, 'HH24:MI') as "value",
             "session"."time" || ' ' ||
             CASE
                 WHEN "session"."time"::time BETWEEN '06:00'::time AND '11:59:59'::time THEN '早晨場'
@@ -57,6 +57,10 @@
             ELSE '星空場'
         END AS timename,
             ticket.status,
+            ticket.price,
+            ticket.payprice,
+            ticket.zone_name,
+            ticket.ticket_type_name,
             ticket.seat
         FROM "interviewworks_ticket".ticket ticket
 		         INNER JOIN "interviewworks_ticket"."session" "session"
@@ -125,6 +129,10 @@
            seat,
            quantity,
            price,
+           zone_id,
+           ticket_type_id,
+           zone_name,
+           ticket_type_name,
            expires_at,
            paid_at,
            cancelled_at
@@ -140,6 +148,10 @@
             #{seat},
             1,
             #{price},
+            #{zoneId},
+            #{ticketTypeId},
+            #{zoneName},
+            #{ticketTypeName},
             #{expires_at},
             #{paid_at},
             #{cancelled_at}
@@ -249,7 +261,7 @@
         from "interviewworks_ticket"."session" "session"
         where "session".activity_id = #{activityId}
           and "session"."date" = #{selectedDate}
-          and "session"."time" = #{selectedSession}
+          and "session"."time"::time = #{selectedSession}::time
     </select>
 
 </mapper>
