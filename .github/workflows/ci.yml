@@ -40,14 +40,44 @@
       runs-on: ubuntu-latest
       timeout-minutes: 15
 
+      services:
+        postgres:
+          image: postgres:16
+          env:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: '1234'
+            POSTGRES_DB: interviewworks
+          ports:
+            - 5432:5432
+          options: >-
+            --health-cmd "pg_isready -U postgres -d interviewworks"
+            --health-interval 5s
+            --health-timeout 5s
+            --health-retries 10
+        redis:
+          image: redis:7
+          ports:
+            - 6379:6379
+          options: >-
+            --health-cmd "redis-cli ping"
+            --health-interval 5s
+            --health-timeout 5s
+            --health-retries 10
+
       defaults:
         run:
           working-directory: concert-ticket-backend
 
       env:
-        POSTGRES_PASSWORD: ci-test-password
-        REDIS_PASSWORD: ci-test-password
+        POSTGRES_PASSWORD: '1234'
+        REDIS_PASSWORD: '1234'
         ANALYTICS_ENABLED: 'false'
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/interviewworks?currentSchema=interviewworks_ticket
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: '1234'
+        SPRING_DATA_REDIS_HOST: localhost
+        SPRING_DATA_REDIS_PORT: '6379'
+        SPRING_DATA_REDIS_PASSWORD: '1234'
 
       steps:
         - name: 下載程式碼
@@ -60,6 +90,11 @@
             java-version: '21'
             cache: maven
             cache-dependency-path: concert-ticket-backend/pom.xml
+
+        - name: 初始化測試資料庫與 Redis
+          run: |
+            docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d interviewworks -v ON_ERROR_STOP=1 < ../db-init/init.sql
+            docker exec "${{ job.services.redis.id }}" redis-cli CONFIG SET requirepass "$REDIS_PASSWORD"
 
         - name: 執行後端測試
           run: bash mvnw --batch-mode clean test
