@@ -1,13 +1,16 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { adminApi } from '@/services/api'
+import { computed, toRefs } from 'vue'
 
-const sessions = ref([])
-const orders = ref([])
-const loading = ref(false)
-const error = ref('')
-const updatedAt = ref('')
-const loaded = ref(false)
+const props = defineProps({
+  sessions: { type: Array, required: true },
+  orders: { type: Array, required: true },
+  loading: { type: Boolean, required: true },
+  error: { type: String, required: true },
+  updatedAt: { type: String, required: true },
+  loaded: { type: Boolean, required: true },
+})
+const emit = defineEmits(['refresh'])
+const { sessions, orders } = toRefs(props)
 const number = (value) => Number(value ?? 0)
 const integerFormat = new Intl.NumberFormat('zh-TW')
 const moneyFormat = new Intl.NumberFormat('zh-TW', {
@@ -49,31 +52,6 @@ const rows = computed(() => sessions.value.map((session) => {
   return { ...session, capacity, sold, reserved, available: capacity - sold - reserved }
 }))
 
-async function loadDashboard() {
-  if (loading.value) return
-  loading.value = true
-  error.value = ''
-  try {
-    const [sessionResponse, orderResponse] = await Promise.all([
-      adminApi({ method: 'get', url: '/selectAllSessions' }),
-      adminApi({ method: 'get', url: '/selectAllticket' }),
-    ])
-    if (!Array.isArray(sessionResponse.data) || !Array.isArray(orderResponse.data)) {
-      throw new Error('Invalid dashboard response')
-    }
-    sessions.value = sessionResponse.data
-    orders.value = orderResponse.data
-    loaded.value = true
-    updatedAt.value = new Intl.DateTimeFormat('zh-TW', {
-      timeZone: 'Asia/Taipei', dateStyle: 'short', timeStyle: 'medium',
-    }).format(new Date())
-  } catch {
-    error.value = loaded.value ? '更新失敗，目前顯示上次成功載入的資料，請重新整理。' : '無法載入銷售資料，請重新整理。'
-  } finally {
-    loading.value = false
-  }
-}
-onMounted(loadDashboard)
 </script>
 
 <template>
@@ -85,7 +63,7 @@ onMounted(loadDashboard)
       </div>
       <div class="refresh-controls">
         <span v-if="updatedAt">更新時間：{{ updatedAt }}（台北）</span>
-        <el-button :loading="loading" @click="loadDashboard">重新整理</el-button>
+        <el-button :loading="loading" @click="emit('refresh')">重新整理</el-button>
       </div>
     </div>
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />

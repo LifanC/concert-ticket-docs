@@ -26,9 +26,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String REQUEST_ID_ATTRIBUTE =
+            JwtAuthenticationFilter.class.getName() + ".REQUEST_ID";
 
     private final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
@@ -64,8 +68,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         // 不需要 JWT 的路徑
         boolean skip = PUBLIC_PATH_PREFIX.stream().anyMatch(path::startsWith);
-        logger.info("JWT path = {}", path);
-        logger.info("skip filter = {}", skip);
+        Object requestId = request.getAttribute(REQUEST_ID_ATTRIBUTE);
+        if (requestId == null) {
+            requestId = UUID.randomUUID().toString();
+            request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
+        }
+        logger.info("JWT requestId={} method={} uri={} dispatcher={} alreadyFiltered={} skip={}",
+                requestId,
+                request.getMethod(),
+                path,
+                request.getDispatcherType(),
+                request.getAttribute(getAlreadyFilteredAttributeName()) != null,
+                skip);
         return skip;
     }
 

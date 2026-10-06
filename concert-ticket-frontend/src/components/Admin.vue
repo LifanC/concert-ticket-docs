@@ -14,10 +14,40 @@ const activities = ref([])
 const activityImageUrls = ref({})
 const sessions = ref([])
 const orders = ref([])
+const loading = ref(false)
+const error = ref('')
+const updatedAt = ref('')
+const loaded = ref(false)
 onMounted(() => connectWebSocket())
 let activityImageLoadVersion = 0
 
+loadDashboard()
 executeFirst()
+async function loadDashboard() {
+  if (loading.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const [sessionResponse, orderResponse] = await Promise.all([
+      adminApi({ method: 'get', url: '/selectAllSessions' }),
+      adminApi({ method: 'get', url: '/selectAllticket' }),
+    ])
+    if (!Array.isArray(sessionResponse.data) || !Array.isArray(orderResponse.data)) {
+      throw new Error('Invalid dashboard response')
+    }
+    sessions.value = sessionResponse.data
+    orders.value = orderResponse.data
+    loaded.value = true
+    updatedAt.value = new Intl.DateTimeFormat('zh-TW', {
+      timeZone: 'Asia/Taipei', dateStyle: 'short', timeStyle: 'medium',
+    }).format(new Date())
+  } catch {
+    error.value = loaded.value ? '更新失敗，目前顯示上次成功載入的資料，請重新整理。' : '無法載入銷售資料，請重新整理。'
+  } finally {
+    loading.value = false
+  }
+}
+
 async function executeFirst() {
   const response_selectAllActivities = await adminApi({
     method: 'get',
@@ -40,16 +70,7 @@ async function executeFirst() {
     URL.revokeObjectURL(url)
   })
   activityImageUrls.value = nextUrls
-  const response_selectAllSessions = await adminApi({
-    method: 'get',
-    url: '/selectAllSessions',
-  });
-  sessions.value = response_selectAllSessions.data
-  const response_selectAllticket = await adminApi({
-    method: 'get',
-    url: '/selectAllticket',
-  });
-  orders.value = response_selectAllticket.data
+
 }
 
 const activityForm = reactive(
@@ -446,7 +467,9 @@ const statusType = (status) => (
     <el-main class="admin-main">
       <el-tabs v-model="activeTab" class="admin-tabs">
         <el-tab-pane label="銷售儀表板" name="dashboard">
-          <AdminDashboard v-if="activeTab === 'dashboard'" />
+          <AdminDashboard v-if="activeTab === 'dashboard'"
+            :sessions="sessions" :orders="orders" :loading="loading" :error="error"
+            :updated-at="updatedAt" :loaded="loaded" @refresh="loadDashboard" />
         </el-tab-pane>
         <el-tab-pane label="活動管理" name="activities">
           <el-card shadow="never" class="filter-card">
