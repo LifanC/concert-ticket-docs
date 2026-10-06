@@ -45,7 +45,7 @@
           image: postgres:16
           env:
             POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: ci-test-password
+            POSTGRES_PASSWORD: '1234'
             POSTGRES_DB: interviewworks
           ports:
             - 5432:5432
@@ -69,12 +69,12 @@
           working-directory: concert-ticket-backend
 
       env:
-        POSTGRES_PASSWORD: ci-test-password
+        POSTGRES_PASSWORD: '1234'
         REDIS_PASSWORD: ci-test-password
         ANALYTICS_ENABLED: 'false'
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/interviewworks?currentSchema=interviewworks_ticket
         SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: ci-test-password
+        SPRING_DATASOURCE_PASSWORD: '1234'
         SPRING_DATA_REDIS_HOST: localhost
         SPRING_DATA_REDIS_PORT: '6379'
 
