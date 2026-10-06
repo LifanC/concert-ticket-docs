@@ -1,6 +1,7 @@
 package com.demo.ticket.Controller;
 
 import com.demo.ticket.Dto.Booking.*;
+import com.demo.ticket.Service.Admin.SalesSettingsService;
 import com.demo.ticket.Service.Booking.BookingService;
 import com.demo.ticket.security.LoginUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,11 +22,14 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final SalesSettingsService salesSettingsService;
 
     public BookingController(
-            BookingService bookingService
+            BookingService bookingService,
+            SalesSettingsService salesSettingsService
     ){
         this.bookingService = bookingService;
+        this.salesSettingsService = salesSettingsService;
     }
 
     @Operation(summary = "1.活動資料", description = "活動資料")
@@ -124,6 +128,14 @@ public class BookingController {
             BookingSelectOnlyUnavailableSeatsRequest request,
             @AuthenticationPrincipal LoginUser user) {
         return bookingService.selectOnlyUnavailableSeats(request, user);
+    }
+
+    @Operation(summary = "9.查詢訂票銷售設定", description = "會員查詢票價與剩餘可購張數")
+    @GetMapping("/sessions/{sessionId}/sales-settings")
+    public Map<String, Object> readBooking(
+            @PathVariable String sessionId,
+            @AuthenticationPrincipal LoginUser user) {
+        return salesSettingsService.readBooking(sessionId, user.email());
     }
 
 }

@@ -4,6 +4,19 @@ import { activityApi, bookingApi } from '@/services/api'
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
 const router = useRouter()
+const canUseFavorites = ref(hasUserAuthority())
+const showFavoriteControls = computed(() => canUseFavorites.value || !toFindCookie('accessToken'))
+function hasUserAuthority() {
+  const token = toFindCookie('accessToken')
+  if (!token) return false
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const claims = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')))
+    return Array.isArray(claims.authorities) && claims.authorities.includes('USER_ITEM_IMPLEMENT')
+  } catch {
+    return false
+  }
+}
 const keyword = ref('')
 const selectedCategory = ref('全部')
 const selectedStatus = ref('全部')
@@ -11,6 +24,7 @@ const myTicketsVisible = ref(false)
 const paypriceDialogVisible = ref(false)
 const tickets = ref([])
 const favoriteActivityIds = ref(new Set())
+const pendingFavoriteIds = ref(new Set())
 const showFavoritesOnly = ref(false)
 const activities = ref([])
 const activityImageUrls = ref({})
@@ -51,16 +65,15 @@ async function executeFirst() {
   const response = await activityApi.get('/selectAllActivities')
   activities.value = response.data
   void loadActivityImages()
-  if (toFindCookie('accessToken')) {
-    const favoriteResponse = await activityApi.get(
-      '/selectOnlyFavoriteActivities'
-    )
-
-    favoriteActivityIds.value = new Set(
-      favoriteResponse.data.map(item =>
-        `${item.activity_id}`
+  if (canUseFavorites.value) {
+    try {
+      const favoriteResponse = await activityApi.get('/selectOnlyFavoriteActivities')
+      favoriteActivityIds.value = new Set(
+        favoriteResponse.data.map(item => String(item.activity_id))
       )
-    )
+    } catch (error) {
+      ElMessage.error('無法載入收藏，請重新整理後再試')
+    }
   }
 }
 
@@ -117,28 +130,35 @@ const toggleFavorite = async (activity) => {
   }
 
   const favoriteKey = getFavoriteKey(activity)
-  const next = new Set(favoriteActivityIds.value)
-  if (next.has(favoriteKey)) {
-    await activityApi.delete('/deleteFavoriteActivity', {
-      data: {
-        activity_id: activity.id,
-        session_id: activity.sessionid
-      }
-    })
-    next.delete(favoriteKey)
-    ElMessage({ type: 'success', message: '已取消收藏' })
-  } else {
-    await activityApi.post('/saveFavoriteActivity', {
-      activity_id: activity.id,
-      session_id: activity.sessionid
-    })
-    next.add(favoriteKey)
-    ElMessage({ type: 'success', message: '已加入收藏' })
+  if (!hasUserAuthority()) {
+    ElMessage.info('收藏功能僅供一般會員使用')
+    return
   }
-  favoriteActivityIds.value = next
+  if (pendingFavoriteIds.value.has(favoriteKey)) return
+  pendingFavoriteIds.value.add(favoriteKey)
+  const removing = favoriteActivityIds.value.has(favoriteKey)
+  try {
+    if (removing) {
+      await activityApi.delete('/deleteFavoriteActivity', {
+        data: { activity_id: activity.id }
+      })
+    } else {
+      await activityApi.post('/saveFavoriteActivity', { activity_id: activity.id })
+    }
+    const next = new Set(favoriteActivityIds.value)
+    if (removing) next.delete(favoriteKey)
+    else next.add(favoriteKey)
+    favoriteActivityIds.value = next
+    ElMessage.success(removing ? '已取消收藏' : '已加入收藏')
+  } catch (error) {
+    const data = error.response?.data
+    ElMessage.error(data?.message ?? data?.data?.[1]?.error?.activity_id ?? '收藏操作失敗，請稍後再試')
+  } finally {
+    pendingFavoriteIds.value.delete(favoriteKey)
+  }
 }
 const getFavoriteKey = (activity) => {
-  return `${activity.id}_${activity.sessionid}`
+  return String(activity.id)
 }
 const isFavorite = (activity) => {
   return favoriteActivityIds.value.has(getFavoriteKey(activity))
@@ -330,7 +350,7 @@ const myTicketsVisibleDialog = async () => {
               <el-option v-for="status in statuses" :key="status.value" :label="status.label" :value="status.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label=" ">
+          <el-form-item v-if="showFavoriteControls" label=" ">
             <el-checkbox v-model="showFavoritesOnly" border>只看收藏</el-checkbox>
           </el-form-item>
           <el-form-item label=" ">
@@ -371,7 +391,8 @@ const myTicketsVisibleDialog = async () => {
           </el-table-column>
           <el-table-column label="操作" width="210" fixed="right">
             <template #default="scope">
-              <el-button plain :type="isFavorite(scope.row) ? 'warning' : 'default'" @click="toggleFavorite(scope.row)">
+              <el-button v-if="showFavoriteControls" plain :type="isFavorite(scope.row) ? 'warning' : 'default'"
+                :loading="pendingFavoriteIds.has(getFavoriteKey(scope.row))" @click="toggleFavorite(scope.row)">
                 {{ isFavorite(scope.row) ? '已收藏' : '收藏' }}
               </el-button>
               <el-button type="primary" @click="goBooking(scope.row)">查看詳情</el-button>
@@ -387,6 +408,11 @@ const myTicketsVisibleDialog = async () => {
       <el-table-column prop="session_id" label="編號" min-width="150" />
       <el-table-column prop="activity_id" label="活動編號" min-width="150" />
       <el-table-column prop="seat" label="座位號碼" min-width="100" />
+      <el-table-column prop="zone_name" label="分區" min-width="100" />
+      <el-table-column prop="ticket_type_name" label="票種" min-width="100" />
+      <el-table-column label="票價" min-width="110">
+        <template #default="{ row }">{{ new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' }).format(row.price ?? 0) }}</template>
+      </el-table-column>
       <el-table-column prop="name" label="活動" min-width="150" />
       <el-table-column prop="date" label="場次" min-width="100" />
       <el-table-column prop="time" label="時間" min-width="100" />

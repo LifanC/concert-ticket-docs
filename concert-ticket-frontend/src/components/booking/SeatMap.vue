@@ -2,6 +2,9 @@
 import { bookingApi } from '@/services/api'
 
 const props = defineProps({
+  seatLayout: { type: Array, default: null },
+  rowZones: { type: Object, default: () => ({}) },
+  filteredSeats: { type: Set, default: () => new Set() },
   modelValue: {
     type: Array,
     default: () => []
@@ -40,19 +43,25 @@ const seatRows = computed(() => {
 })
 const availableCount = computed(() => seats.value.filter((seat) => !isUnavailable(seat.id)).length)
 
-watch(() => props.activityId, loadSeats, { immediate: true })
+watch(() => [props.activityId, props.seatLayout], () => loadSeats(props.activityId), { immediate: true })
 async function loadSeats(activityId) {
   seats.value = []
   seatsPerRow.value = 0
   selectedRow.value = ''
   loadError.value = false
+  if (props.seatLayout !== null) {
+    seats.value = props.seatLayout
+    seatsPerRow.value = Number(props.seatLayout[0]?.seats_per_row ?? 0)
+    loading.value = false
+    return
+  }
   if (!activityId) return
   loading.value = true
   try {
     const response = await bookingApi.get('/selectOnlySeats', {
       params: { activity_id: activityId }
     })
-    if (props.activityId !== activityId) return
+    if (props.activityId !== activityId || props.seatLayout !== null) return
     seats.value = response.data
     seatsPerRow.value = Number(response.data[0]?.seats_per_row ?? 0)
   } catch {
@@ -63,7 +72,7 @@ async function loadSeats(activityId) {
 }
 
 const isSelected = (seatId) => props.modelValue.includes(seatId)
-const isUnavailable = (seatId) => props.unavailableSeats.has(seatId)
+const isUnavailable = (seatId) => props.unavailableSeats.has(seatId) || props.filteredSeats.has(seatId)
 const jumpToRow = () => {
   const row = seatScroll.value?.querySelector(`[data-row="${selectedRow.value}"]`)
   row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -116,7 +125,8 @@ const selectSeat = (seatId) => {
           <button v-for="seat in row.seats" :key="seat.id" type="button" class="seat" :class="{
             selected: isSelected(seat.id),
             unavailable: isUnavailable(seat.id)
-          }" :disabled="isUnavailable(seat.id)"
+          }" :disabled="isUnavailable(seat.id)" :style="{ '--zone-color': rowZones[row.label]?.color }"
+            :title="rowZones[row.label]?.name"
             :aria-label="`${row.label} 排 ${seat.number} 號${isUnavailable(seat.id) ? '，不可選' : ''}`"
             :aria-pressed="isSelected(seat.id)" @click="selectSeat(seat.id)">
             {{ seat.number }}
@@ -245,10 +255,10 @@ const selectSeat = (seatId) => {
   width: 42px;
   height: 40px;
   padding: 0;
-  border: 1px solid var(--el-color-primary-light-5);
+  border: 1px solid var(--zone-color, var(--el-color-primary-light-5));
   border-radius: 9px 9px 11px 11px;
   background: var(--el-bg-color);
-  color: var(--el-color-primary);
+  color: var(--zone-color, var(--el-color-primary));
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;

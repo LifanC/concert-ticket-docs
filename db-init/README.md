@@ -29,11 +29,19 @@
 | `activity_image` | 每個活動最多一張 JPEG，依 `activity_uuid` 關聯活動 |
 | `ticket` | 票券訂單、金額與狀態 |
 | `seat`、`session_seat` | 座位配置與場次座位狀態 |
+| `session_sales_settings` | 場次限購、版本及座位配置快照 |
+| `session_zone`、`session_ticket_type` | 分區基準票價與票種價格比例 |
 | `booking_idempotency` | 訂位重試與首次成功結果 |
 | `activity_sequence`、`session_sequence`、`ticket_sequence` | 活動、場次與票券編號 |
 
 ## 活動圖片
 
-`activity_image.activity_uuid` 是主鍵，也是指向 `activity.activity_uuid` 的外鍵，因此每個活動最多對應一筆圖片資料。資料列記錄檔名、`image/jpeg`、實際寬高與 `bytea` 圖片內容；資料庫限制寬高各為 1～1920 px，非空圖片內容不得超過 1,048,576 bytes。管理員上傳時，後端會縮放並壓縮至更小的儲存限制；未選圖片時不新增圖片列。刪除活動時，服務會先刪除關聯圖片列。
+`activity_image.activity_uuid` 是主鍵，也是指向 `activity.activity_uuid` 的外鍵，因此每個活動最多對應一筆圖片資料。資料列記錄檔名、`image/jpeg`、實際寬高與 `bytea` 圖片內容；資料庫限制寬高各為 1～1920 px，非空圖片內容不得超過 1,048,576 bytes。管理員上傳時，後端會縮放並壓縮至更小的儲存限制；未選圖片時不新增圖片列。
+
+刪除活動時，Service 在交易內鎖定活動並檢查關聯場次。已有場次時拒絕刪除，保留全部資料；沒有場次時依序刪除圖片、座位及活動。即使活動沒有圖片，也會刪除其座位資料。此次 WebSocket 通知與刪除流程調整不新增資料表或欄位。
 
 既有 PostgreSQL 資料卷不會因修改 `init.sql` 而自動更新資料表；需另行執行遷移，或在確認不需要舊資料後重新初始化。
+
+## 分區、票種與限購
+
+`init.sql` 使用完整的 `CREATE TABLE` 定義建立設定、分區與票種資料表、座位分區外鍵、訂單快照欄位及限購查詢索引，不使用 `ALTER TABLE`。請在全新空白資料庫執行；它不會替既有資料表新增欄位。Docker 初始化僅會在新的資料卷執行。操作方式與 API 規格見 [後端 README](../concert-ticket-backend/README.md#銷售設定)。

@@ -5,8 +5,7 @@ public enum bookingOrderStatus {
     PAID,
     CANCELLED,
     EXPIRED,
-    REFUNDED
-    ;
+    REFUNDED;
 
     public boolean canTransitionTo(bookingOrderStatus target) {
         return this == PENDING_PAYMENT &&

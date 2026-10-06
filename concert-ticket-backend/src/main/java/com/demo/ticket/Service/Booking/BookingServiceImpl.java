@@ -1,6 +1,7 @@
 package com.demo.ticket.Service.Booking;
 
 import com.demo.ticket.Common.RedisKey;
+import com.demo.ticket.Dto.Admin.Quote;
 import com.demo.ticket.Exception.BookingException;
 import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
@@ -8,6 +9,7 @@ import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Dto.Booking.*;
 import com.demo.ticket.Mapper.BookingCoreMapper;
 import com.demo.ticket.Mapper.BookingMapper;
+import com.demo.ticket.Service.Admin.SalesSettingsService;
 import com.demo.ticket.security.LoginUser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +39,7 @@ public class BookingServiceImpl implements BookingService {
     private final BookingPaymentScheduler bookingPaymentScheduler;
     private final BookingCoreMapper bookingCoreMapper;
     private final BookingOrderService bookingOrderService;
+    private final SalesSettingsService salesSettingsService;
 
     public BookingServiceImpl(
             BookingMapper bookingMapper,
@@ -44,7 +47,8 @@ public class BookingServiceImpl implements BookingService {
             NotifierConsumer notifierConsumer,
             BookingPaymentScheduler bookingPaymentScheduler,
             BookingCoreMapper bookingCoreMapper,
-            BookingOrderService bookingOrderService
+            BookingOrderService bookingOrderService,
+            SalesSettingsService salesSettingsService
     ) {
         this.bookingMapper = bookingMapper;
         this.stringRedisTemplate = stringRedisTemplate;
@@ -52,6 +56,7 @@ public class BookingServiceImpl implements BookingService {
         this.bookingPaymentScheduler = bookingPaymentScheduler;
         this.bookingCoreMapper = bookingCoreMapper;
         this.bookingOrderService = bookingOrderService;
+        this.salesSettingsService = salesSettingsService;
     }
 
     @Override
@@ -102,7 +107,6 @@ public class BookingServiceImpl implements BookingService {
             throw new BookingException("INVALID_IDEMPOTENCY_KEY", "請提供有效的 Idempotency-Key", HttpStatus.BAD_REQUEST);
         }
         final String seat = request.seat().trim();
-        final String name = request.name().trim();
         final String date = request.date().trim();
         final String time = request.time().trim();
         Map<String, Object> sessionMap =
@@ -111,7 +115,8 @@ public class BookingServiceImpl implements BookingService {
             throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次編號", HttpStatus.NOT_FOUND);
         }
         final String session_id = sessionMap.get("session_id").toString();
-        final String hash = requestHash(session_id, activity_id, seat);
+        final String ticketTypeId = request.ticketTypeId() == null ? "" : request.ticketTypeId().trim();
+        final String hash = requestHash(session_id, activity_id, seat, ticketTypeId);
         BookingCoreKey bookingCoreKey = new BookingCoreKey();
         bookingCoreKey.setEmail(user.email());
         bookingCoreKey.setIdempotencyKey(idempotencyKey);
@@ -131,10 +136,15 @@ public class BookingServiceImpl implements BookingService {
         if (snapshot == null || !activity_id.equals(snapshot.get("activity_id"))) {
             throw new BookingException("SESSION_NOT_FOUND", "找不到活動場次", HttpStatus.NOT_FOUND);
         }
-        if (snapshot.get("price") == null || new BigDecimal(snapshot.get("price").toString()).signum() < 0) {
-            throw new BookingException("INVALID_TICKET_PRICE", "活動票價設定無效", HttpStatus.UNPROCESSABLE_CONTENT);
+        Object activityPrice = snapshot.get("price");
+        BigDecimal defaultPrice = activityPrice == null ? null
+                : activityPrice instanceof BigDecimal price ? price : new BigDecimal(activityPrice.toString());
+        Quote quote = salesSettingsService.quote(session_id, seat, ticketTypeId, user.email(), defaultPrice);
+        // Configured seats were materialized when the administrator saved the layout.
+        // 管理員儲存佈局後，配置的座位即生效。
+        if (quote.zoneId() == null) {
+            bookingCoreMapper.ensureSeat(session_id, seat);
         }
-        bookingCoreMapper.ensureSeat(session_id, seat);
         List<Map<String, Object>> data;
         final String accessJwt = user.email();
         BookingSession bookingSession = new BookingSession();
@@ -146,10 +156,14 @@ public class BookingServiceImpl implements BookingService {
             // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001" SQL處理
             bookingSaveTicket.setSession_id(session_id);
             bookingSaveTicket.setEmail(accessJwt);
-            bookingSaveTicket.setName(name);
-            bookingSaveTicket.setDate(date);
-            bookingSaveTicket.setTime(time);
-            BigDecimal price = new BigDecimal(snapshot.get("price").toString());
+            bookingSaveTicket.setName(snapshot.get("name").toString());
+            bookingSaveTicket.setDate(snapshot.get("date").toString());
+            bookingSaveTicket.setTime(snapshot.get("time").toString());
+            BigDecimal price = quote.price();
+            bookingSaveTicket.setZoneId(quote.zoneId());
+            bookingSaveTicket.setTicketTypeId(quote.ticketTypeId());
+            bookingSaveTicket.setZoneName(quote.zoneName());
+            bookingSaveTicket.setTicketTypeName(quote.ticketTypeName());
             bookingSaveTicket.setStatus(bookingOrderStatus.PENDING_PAYMENT.name());
             bookingSaveTicket.setSeat(seat);
             bookingSaveTicket.setPrice(price);
@@ -217,10 +231,10 @@ public class BookingServiceImpl implements BookingService {
         return sdf.format(date);
     }
 
-    private String requestHash(String session, String activity, String seat) {
+    private String requestHash(String session, String activity, String seat, String ticketTypeId) {
         try {
             byte[] content = new ObjectMapper().writeValueAsBytes(
-                    List.of(session, activity, seat)
+                    ticketTypeId.isEmpty() ? List.of(session, activity, seat) : List.of(session, activity, seat, ticketTypeId)
             );
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(content);
             return HexFormat.of().formatHex(digest);

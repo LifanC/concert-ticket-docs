@@ -192,6 +192,36 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.activity_favorite (
         ON DELETE CASCADE
 );
 
+-- 場次分區、票種及限購設定。
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_sales_settings (
+    session_id varchar PRIMARY KEY REFERENCES interviewworks_ticket.session(id),
+    max_tickets_per_member integer NOT NULL CHECK (max_tickets_per_member > 0),
+    version bigint NOT NULL CHECK (version > 0),
+    seat_rows text NOT NULL,
+    seats_per_row integer NOT NULL CHECK (seats_per_row BETWEEN 1 AND 99)
+);
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_zone (
+    id varchar PRIMARY KEY,
+    session_id varchar NOT NULL REFERENCES interviewworks_ticket.session_sales_settings(session_id),
+    name varchar(40) NOT NULL CHECK (length(trim(name)) > 0),
+    color varchar(7) NOT NULL CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
+    row_start varchar(2) NOT NULL,
+    row_end varchar(2) NOT NULL,
+    price numeric(12,2) NOT NULL CHECK (price >= 0),
+    sort_order integer NOT NULL,
+    UNIQUE (session_id, name),
+    UNIQUE (session_id, id)
+);
+CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_ticket_type (
+    id varchar PRIMARY KEY,
+    session_id varchar NOT NULL REFERENCES interviewworks_ticket.session_sales_settings(session_id),
+    name varchar(40) NOT NULL CHECK (length(trim(name)) > 0),
+    price_percent numeric(5,2) NOT NULL CHECK (price_percent > 0 AND price_percent <= 100),
+    eligibility varchar(200) NOT NULL DEFAULT '',
+    sort_order integer NOT NULL,
+    UNIQUE (session_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                                               orderno varchar NOT NULL UNIQUE,
@@ -205,6 +235,10 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.ticket (
 											  quantity int8 NULL DEFAULT 0,
                                               price numeric(12,2) NULL DEFAULT 0,
                                               payprice numeric(12,2) NULL DEFAULT 0,
+                                              zone_id varchar,
+                                              ticket_type_id varchar,
+                                              zone_name varchar(40),
+                                              ticket_type_name varchar(40),
 											  expires_at timestamptz NULL,
 											  paid_at timestamptz NULL,
 											  cancelled_at timestamptz NULL,
@@ -267,8 +301,11 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.session_seat (
     status varchar NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'RESERVED', 'SOLD', 'BLOCKED')),
     reserved_by_order varchar REFERENCES interviewworks_ticket.ticket(orderno),
     reserved_until timestamptz,
+    zone_id varchar,
     version bigint NOT NULL DEFAULT 0,
     PRIMARY KEY (session_id, seat_id),
+    CONSTRAINT session_seat_zone_fk FOREIGN KEY (session_id, zone_id)
+        REFERENCES interviewworks_ticket.session_zone(session_id, id),
     CHECK ((status = 'RESERVED' AND reserved_by_order IS NOT NULL AND reserved_until IS NOT NULL)
         OR (status = 'SOLD' AND reserved_by_order IS NOT NULL AND reserved_until IS NULL)
         OR (status IN ('AVAILABLE', 'BLOCKED') AND reserved_by_order IS NULL AND reserved_until IS NULL))
@@ -282,5 +319,7 @@ CREATE TABLE IF NOT EXISTS interviewworks_ticket.booking_idempotency (
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (email, idempotency_key)
 );
+
+CREATE INDEX IF NOT EXISTS ticket_member_session_idx ON interviewworks_ticket.ticket(session_id, email, status);
 
 COMMIT;

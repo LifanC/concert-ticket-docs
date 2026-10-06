@@ -1,167 +1,173 @@
 <script setup>
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { bookingApi } from '@/services/api'
 import SeatMap from '@/components/booking/SeatMap.vue'
 
-
 const route = useRoute()
-const nextStep_disabled = ref(false)
-const selectedActivityName = computed(() => {
-  let activity_id = route.query.activity_id
-  let activity_name = route.query.activity_name
-  if (activity_id === undefined) {
-    nextStep_disabled.value = true
-  } else {
-    nextStep_disabled.value = false
-    activityId.value = route.query.activity_id
-    selectOnlyActivities()
-  }
-  return activity_name
-})
-const selectOnlyActivities = async () => {
-  const response_selectOnlyActivities = await bookingApi({
-    method: 'get',
-    url: '/selectOnlyActivities',
-    params: {
-      activity_id: route.query.activity_id
-    },
-  });
-  dates.value = response_selectOnlyActivities.data
-}
-const handleDateChange = async () => {
-  const response_selectOnlySession = await bookingApi({
-    method: 'get',
-    url: '/selectOnlySession',
-    params: {
-      date: selectedDate.value,
-      activity_id: route.query.activity_id
-    },
-  });
-  sessions.value = response_selectOnlySession.data
-  const responsePrice = await bookingApi({
-    method: 'get',
-    url: '/selectOnlyActivitiesPrice',
-    params: {
-      activity_id: route.query.activity_id
-    },
-  });
-  selectedPrice.value = responsePrice.data.price
-}
-
-const selectOnlyUnavailableSeats = async () => {
-  const response = await bookingApi({
-    method: 'get',
-    url: '/selectOnlyUnavailableSeats',
-    params: {
-      activity_id: route.query.activity_id,
-      selected_date: selectedDate.value,
-      selected_session: selectedSession.value,
-    },
-  });
-  unavailableSeats.value = new Set(response.data)
-}
-
+const activityId = computed(() => String(route.query.activity_id ?? ''))
+const selectedActivityName = computed(() => String(route.query.activity_name ?? ''))
+const nextStep_disabled = computed(() => !activityId.value || loading.value)
 const step = ref(0)
 const ticketDialogVisible = ref(false)
-const activityId = ref()
-const sessionId = ref()
-const selectedDate = ref()
-const selectedSession = ref()
-const selectedPrice = ref(0)
+const selectedDate = ref('')
+const selectedSession = ref('')
 const selectedSeats = ref([])
 const unavailableSeats = ref(new Set())
-
-const bookingSteps = ['選日期', '選場次', '建立訂單']
 const dates = ref([])
 const sessions = ref([])
-
-const ticketForm = reactive(
-  {
-    name: '',
-    date: '',
-    status: 'PENDING_PAYMENT',
-    price: 0,
-    seat: ''
-  }
-)
-
-const tickets = ref([])
-
-const nextStep = () => {
-  if (step.value < bookingSteps.length - 1) {
-    step.value += 1
-  }
-  if (step.value === 1) {
-    if (selectedDate.value === undefined) {
-      step.value = 0
-    } else {
-      handleDateChange()
-    }
-  } else if (step.value === 2) {
-    if (selectedSession.value === undefined) {
-      step.value = 1
-    } else {
-      selectOnlyUnavailableSeats()
-    }
-  }
-}
-
-const previousStep = () => {
-  if (step.value > 0) {
-    step.value -= 1
-  }
-}
-
-const pendingBooking = ref(null)
+const salesSettings = ref(null)
+const selectedTicketType = ref('')
+const selectedZoneFilter = ref('')
+const loading = ref(false)
+const loadError = ref('')
 const submittingBooking = ref(false)
-const createOrder = async () => {
-  if (submittingBooking.value) return
-  if (selectedSeats.value.length != 1) {
-    ElMessage({
-      type: 'error',
-      message: `${'請選擇座位'}`,
-    })
-    return
+const pendingBooking = ref(null)
+const bookingSteps = ['選日期', '選場次', '建立訂單']
+const sessionId = computed(() => sessions.value.find((item) => item.value === selectedSession.value)?.id ?? '')
+const selectedZone = computed(() => zoneForSeat(selectedSeats.value[0]))
+const selectedType = computed(() => salesSettings.value?.ticketTypes.find((type) => type.id === selectedTicketType.value))
+const selectedPrice = computed(() => {
+  if (!salesSettings.value) return null
+  if (!salesSettings.value.configured) return Number(salesSettings.value.defaultPrice ?? 0)
+  return selectedZone.value?.prices?.[selectedTicketType.value] ?? null
+})
+const canBook = computed(() => !loading.value && !loadError.value && !!salesSettings.value
+  && selectedSeats.value.length === 1 && selectedPrice.value !== null
+  && (!salesSettings.value.configured || (selectedTicketType.value && salesSettings.value.remainingAllowance > 0)))
+const moneyFormat = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+const money = (value) => value === null ? '請先選擇票種與座位' : moneyFormat.format(value)
+function errorMessage(error, fallback) {
+  return error.response?.data?.message ?? error.response?.data?.data?.find((item) => item.remark)?.remark ?? fallback
+}
+function zoneForSeat(seatId) {
+  if (!seatId || !salesSettings.value?.configured) return null
+  const row = seatId.split('-')[0]
+  const labels = salesSettings.value.rowLabels
+  const index = labels.indexOf(row)
+  return salesSettings.value.zones.find((zone) => index >= 0
+    && index >= labels.indexOf(zone.rowStart) && index <= labels.indexOf(zone.rowEnd))
+}
+const seatZones = computed(() => {
+  const result = {}
+  for (const row of salesSettings.value?.rowLabels ?? []) {
+    const zone = zoneForSeat(`${row}-01`)
+    if (zone) result[row] = zone
   }
-  Object.assign(
-    ticketForm,
-    {
-      activity_id: route.query.activity_id,
-      name: selectedActivityName.value,
-      date: selectedDate.value,
-      time: selectedSession.value,
-      price: selectedPrice.value,
-      status: 'PENDING_PAYMENT',
-      seat: selectedSeats.value[0]
+  return result
+})
+const filteredSeats = computed(() => {
+  const result = new Set()
+  if (!selectedZoneFilter.value) return result
+  for (const [row, zone] of Object.entries(seatZones.value)) {
+    if (zone.id !== selectedZoneFilter.value) {
+      for (let i = 1; i <= salesSettings.value.seatsPerRow; i++) result.add(`${row}-${String(i).padStart(2, '0')}`)
     }
-  )
-  const fingerprint = JSON.stringify([ticketForm.session_id, ticketForm.activity_id, ticketForm.seat])
-  if (pendingBooking.value?.fingerprint !== fingerprint) {
-    pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
   }
-  submittingBooking.value = true
+  return result
+})
+const seatLayout = computed(() => !salesSettings.value ? null : salesSettings.value.rowLabels.flatMap((row) =>
+  Array.from({ length: salesSettings.value.seatsPerRow }, (_, index) => ({
+    id: `${row}-${String(index + 1).padStart(2, '0')}`, row, number: index + 1, seats_per_row: salesSettings.value.seatsPerRow,
+  }))))
+
+watch(activityId, async (id, _, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  step.value = 0
+  selectedDate.value = ''
+  dates.value = []
+  loadError.value = ''
+  if (!id) return
+  loading.value = true
   try {
-    const response = await bookingApi({
-      method: 'post',
-      url: '/saveTicket',
-      headers: {
-        // 冪等鍵（Idempotency Key）
-        'Idempotency-Key': pendingBooking.value.key
-      },
-      data: ticketForm,
-    });
-    ticketDialogVisible.value = false
-    step.value = 0
-    tickets.value = response.data.data
-    pendingBooking.value = null
+    const response = await bookingApi.get('/selectOnlyActivities', { params: { activity_id: id } })
+    if (active) dates.value = response.data
   } catch (error) {
-    ticketDialogVisible.value = true
-    if (error.response?.status === 409) {
-      await selectOnlyUnavailableSeats()
-    }
+    if (active) loadError.value = errorMessage(error, '無法載入活動日期。')
   } finally {
-    submittingBooking.value = false
+    if (active) loading.value = false
   }
+}, { immediate: true })
+watch(selectedDate, () => { selectedSession.value = ''; sessions.value = []; selectedSeats.value = []; salesSettings.value = null })
+watch(selectedSession, () => { selectedSeats.value = []; salesSettings.value = null; selectedTicketType.value = ''; selectedZoneFilter.value = '' })
+watch(selectedZoneFilter, () => { selectedSeats.value = [] })
+
+async function loadBookingDetails() {
+  const id = sessionId.value
+  if (!id) throw new Error('Missing session')
+  const [unavailable, settings] = await Promise.all([
+    bookingApi.get('/selectOnlyUnavailableSeats', {
+      params: {
+        activity_id: activityId.value, selected_date: selectedDate.value, selected_session: selectedSession.value,
+      }
+    }),
+    bookingApi.get(`/sessions/${encodeURIComponent(id)}/sales-settings`),
+  ])
+  if (sessionId.value !== id) return
+  unavailableSeats.value = new Set(unavailable.data)
+  salesSettings.value = settings.data
+  if (!settings.data.ticketTypes.some((type) => type.id === selectedTicketType.value)) {
+    selectedTicketType.value = settings.data.ticketTypes[0]?.id ?? ''
+  }
+  selectedSeats.value = selectedSeats.value.filter((seat) => !unavailableSeats.value.has(seat))
+}
+async function nextStep() {
+  if (loading.value) return
+  if ((step.value === 0 && !selectedDate.value) || (step.value === 1 && !selectedSession.value)) return
+  loading.value = true
+  loadError.value = ''
+  try {
+    if (step.value === 0) {
+      const response = await bookingApi.get('/selectOnlySession', { params: { date: selectedDate.value, activity_id: activityId.value } })
+      sessions.value = response.data
+      step.value = 1
+    } else if (step.value === 1) {
+      await loadBookingDetails()
+      step.value = 2
+    }
+  } catch (error) {
+    loadError.value = errorMessage(error, '無法載入場次售票資料，請重試。')
+  } finally {
+    loading.value = false
+  }
+}
+function previousStep() { if (step.value > 0 && !loading.value && !submittingBooking.value) { step.value--; loadError.value = '' } }
+async function refreshBooking() {
+  loading.value = true
+  loadError.value = ''
+  try { await loadBookingDetails() } catch (error) { loadError.value = errorMessage(error, '無法更新售票資料，請重試。') }
+  finally { loading.value = false }
+}
+async function createOrder() {
+  if (submittingBooking.value || !canBook.value) return
+  const data = {
+    activity_id: activityId.value, name: selectedActivityName.value,
+    date: selectedDate.value, time: selectedSession.value,
+    status: 'PENDING_PAYMENT', seat: selectedSeats.value[0], ticketTypeId: selectedTicketType.value || null,
+  }
+  const fingerprint = JSON.stringify([sessionId.value, data.activity_id, data.seat, data.ticketTypeId])
+  if (pendingBooking.value?.fingerprint !== fingerprint) pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
+  submittingBooking.value = true
+  loadError.value = ''
+  try {
+    await bookingApi.post('/saveTicket', data, { headers: { 'Idempotency-Key': pendingBooking.value.key } })
+    ticketDialogVisible.value = false
+    pendingBooking.value = null
+    selectedSeats.value = []
+    ElMessage.success('訂單已建立，請至我的票券完成付款')
+    await refreshBooking()
+  } catch (error) {
+    loadError.value = errorMessage(error, '建立訂單失敗，請重試。')
+    if ([400, 409].includes(error.response?.status)) {
+      pendingBooking.value = null
+      try {
+        await loadBookingDetails()
+      } catch {
+        /* Keep the original order error visible. */
+      }
+    }
+  } finally { submittingBooking.value = false }
 }
 </script>
 
@@ -181,7 +187,7 @@ const createOrder = async () => {
         </el-steps>
       </el-card>
 
-      <el-card shadow="never" class="content-card">
+      <el-card v-loading="loading" shadow="never" class="content-card">
         <template #header>
           <div class="card-title">
             <span>{{ bookingSteps[step] }}</span>
@@ -189,10 +195,11 @@ const createOrder = async () => {
           </div>
         </template>
 
+        <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon />
         <section v-if="step === 0">
           <el-text type="info">請選擇想參加的演出日期。</el-text>
           <el-radio-group v-model="selectedDate" class="selection-list">
-            <el-radio v-for="date in dates" :key="date.value" :label="date.value" border>
+            <el-radio v-for="date in dates" :key="date.value" :value="date.value" border>
               <strong>{{ date.label }}</strong>
               <span>{{ selectedActivityName }} 場次</span>
             </el-radio>
@@ -202,7 +209,8 @@ const createOrder = async () => {
         <section v-else-if="step === 1">
           <el-text type="info">{{ selectedDate }} 尚有以下可售場次。</el-text>
           <el-radio-group v-model="selectedSession" class="selection-list">
-            <el-radio v-for="session in sessions" :key="session.value" :label="session.value" border>
+            <el-radio v-for="session in sessions" :key="session.id" :value="session.value"
+              :disabled="session.available <= 0" border>
               <strong>{{ session.label }}</strong>
               <span>剩餘 {{ session.available }} 張</span>
             </el-radio>
@@ -215,32 +223,58 @@ const createOrder = async () => {
             <el-descriptions-item label="活動">{{ selectedActivityName }}</el-descriptions-item>
             <el-descriptions-item label="日期">{{ selectedDate }}</el-descriptions-item>
             <el-descriptions-item label="場次">{{ selectedSession }}</el-descriptions-item>
-            <el-descriptions-item label="票價">NT$ {{ selectedPrice }}</el-descriptions-item>
+            <el-descriptions-item label="票價">{{ money(selectedPrice) }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedZone" label="分區">{{ selectedZone.name }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedType" label="票種">{{ selectedType.name }}</el-descriptions-item>
             <el-descriptions-item label="座位">
               {{ selectedSeats.length ? selectedSeats.join('、') : '尚未選擇' }}
             </el-descriptions-item>
           </el-descriptions>
 
+          <div v-if="salesSettings?.configured" class="sales-options">
+            <el-alert :type="salesSettings.remainingAllowance > 0 ? 'info' : 'warning'" :closable="false"
+              :title="`每會員限購 ${salesSettings.maxTicketsPerMember} 張，已購／有效待付款 ${salesSettings.memberTicketQuantity} 張，還可購買 ${salesSettings.remainingAllowance} 張。`" />
+            <el-form label-position="top">
+              <el-form-item label="票種">
+                <el-select v-model="selectedTicketType" aria-label="票種">
+                  <el-option v-for="type in salesSettings.ticketTypes" :key="type.id" :value="type.id"
+                    :label="type.name" />
+                </el-select>
+              </el-form-item>
+              <el-text v-if="selectedType?.eligibility" type="warning">{{ selectedType.eligibility }}</el-text>
+              <el-form-item label="分區">
+                <el-select v-model="selectedZoneFilter" aria-label="分區" placeholder="所有分區">
+                  <el-option label="所有分區" value="" />
+                  <el-option v-for="zone in salesSettings.zones" :key="zone.id" :value="zone.id"
+                    :label="`${zone.name} · ${money(zone.prices[selectedTicketType] ?? null)} · 剩餘 ${zone.available} 席`" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </div>
+
           <div class="seat-section">
             <div class="seat-section__heading">
               <div>
                 <h3>選擇座位</h3>
-                <el-text type="info">目前可選擇一個座位；既有訂單送出流程維持不變。</el-text>
+                <el-text type="info">每次訂單可選一個座位；選位後顯示實際票價。</el-text>
               </div>
               <el-tag v-if="selectedSeats.length" type="success" effect="light">
                 已選 {{ selectedSeats[0] }}
               </el-tag>
             </div>
             <SeatMap v-model="selectedSeats" :max-selection="1" :unavailable-seats="unavailableSeats"
-              :activity-id="activityId" />
+              :activity-id="activityId" :seat-layout="seatLayout" :row-zones="seatZones"
+              :filtered-seats="filteredSeats" />
+            <el-button :disabled="loading || submittingBooking" @click="refreshBooking">更新剩餘座位與額度</el-button>
           </div>
         </section>
 
         <div class="form-actions">
-          <el-button :disabled="step === 0" @click="previousStep">上一步</el-button>
+          <el-button :disabled="step === 0 || loading || submittingBooking" @click="previousStep">上一步</el-button>
           <el-button :disabled="nextStep_disabled" v-if="step < bookingSteps.length - 1" type="primary"
             @click="nextStep">下一步</el-button>
-          <el-button v-else type="primary" @click="ticketDialogVisible = true">建立訂單</el-button>
+          <el-button v-else type="primary" :disabled="!canBook || submittingBooking"
+            @click="ticketDialogVisible = true">建立訂單</el-button>
         </div>
       </el-card>
     </el-main>
@@ -248,16 +282,28 @@ const createOrder = async () => {
 
   <el-dialog v-model="ticketDialogVisible" title="確認建立訂單" width="min(520px, 92vw)">
     <el-alert title="建立訂單後，請於期限內完成付款。" type="warning" :closable="false" show-icon />
+    <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" />
     <p v-if="selectedSeats.length" class="confirm-seat">座位：{{ selectedSeats.join('、') }}</p>
-    <p class="confirm-seat">NT$ {{ selectedPrice }}</p>
+    <p v-if="selectedZone" class="confirm-seat">{{ selectedZone.name }} · {{ selectedType?.name }}</p>
+    <p class="confirm-seat">{{ money(selectedPrice) }}</p>
     <template #footer>
-      <el-button @click="ticketDialogVisible = false">返回修改</el-button>
-      <el-button type="primary" @click="createOrder">確認建立</el-button>
+      <el-button :disabled="submittingBooking" @click="ticketDialogVisible = false">返回修改</el-button>
+      <el-button type="primary" :loading="submittingBooking" :disabled="!canBook" @click="createOrder">確認建立</el-button>
     </template>
   </el-dialog>
 </template>
 
 <style scoped>
+.sales-options {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.sales-options .el-select {
+  width: min(100%, 480px);
+}
+
 .booking-page {
   min-height: 100%;
   background: #f7f8fa;

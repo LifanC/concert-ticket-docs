@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.demo.ticket.Mapper.AdminMapper">
+    <select id="lockSession" resultType="java.lang.String">
+        SELECT id FROM interviewworks_ticket.session WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="configuredSession" resultType="java.util.Map" flushCache="true">
+        SELECT s.activity_id, s.capacity FROM interviewworks_ticket.session s
+        JOIN interviewworks_ticket.session_sales_settings ss ON ss.session_id = s.id WHERE s.id = #{id}
+    </select>
 
     <select id="selectAllActivities" resultType="java.util.Map">
         select
@@ -72,12 +79,20 @@
     <select id="selectAllticket" resultType="java.util.Map">
         select
             ticket.orderno,
+            ticket.session_id,
+            ticket.zone_name,
+            ticket.ticket_type_name,
             ticket."name",
-            ticket."time",
             ticket."date",
             ticket."time",
             ticket.status,
-            ticket.price
+            ticket.seat,
+            ticket.quantity,
+            ticket.price,
+            ticket.payprice,
+            ticket.expires_at,
+            ticket.paid_at,
+            ticket.cancelled_at
         from
             "interviewworks_ticket".ticket ticket
         order by ticket.created_date, ticket.updated_date
@@ -190,6 +205,14 @@
             seat_rows = EXCLUDED.seat_rows,
             seats_per_row = EXCLUDED.seats_per_row
     </insert>
+
+    <select id="lockActivity" resultType="java.lang.String">
+        SELECT id FROM interviewworks_ticket.activity WHERE id = #{id} FOR UPDATE
+    </select>
+
+    <select id="activityHasSessions" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM interviewworks_ticket.session WHERE activity_id = #{id})
+    </select>
 
     <delete id="delete_activity">
         DELETE FROM "interviewworks_ticket".activity activity
