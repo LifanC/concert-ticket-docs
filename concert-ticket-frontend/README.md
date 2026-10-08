@@ -7,6 +7,7 @@
 - Vue 3
 - Vue Router
 - Element Plus 2.14.3
+- Chart.js 4.5.1
 - Axios
 - SockJS 與 `@stomp/stompjs`
 
@@ -58,9 +59,38 @@ WebSocket 透過 STOMP `CONNECT` 的 Authorization 標頭驗證，訂閱 `/user/
 
 同次訂位重試保留 `Idempotency-Key`，成功後清除；重整頁面不保留 key。付款目前為訂單狀態操作，尚未串接外部金流。
 
-Python 銷售分析由 Java 後端自動排程，輸出 CSV。
+銷售儀表板使用 Chart.js 顯示各場次票況的水平堆疊長條圖，以及訂單狀態圓環圖。滑鼠提示顯示票數或訂單筆數與比例，點擊圖例可切換資料顯示；重新整理 API 資料後，圖表同步更新。
 
-新版座位圖已通過前端建置；尚未以瀏覽器自動化驗證快速跳排、捲動與不同排數的畫面。
+Python 銷售分析由 Java 後端自動排程，輸出 CSV；儀表板直接使用 Java API 資料，未串接 Python 報表。
+
+## 手機排版與共用列表
+
+活動列表、管理後台的活動／場次／訂單列表，以及銷售儀表板的庫存列表，統一使用 `src/components/ResponsiveRecordList.vue`。螢幕寬度不超過 767px 時顯示直式卡片，其餘顯示表格，視窗尺寸改變時自動切換。
+
+每個列表只定義一份 `fields`：`key` 對應資料欄位、`label` 為欄位名稱、`format` 處理顯示格式，`role` 指定標題、圖片、狀態或操作區。欄位設定與具名插槽同時供桌面與手機使用，新增欄位、修改按鈕或圖片內容只需改一次。
+
+- `Activity.vue`：維護公開活動列表的 `activityFields` 與收藏、查看詳情按鈕。
+- `Admin.vue`：維護 `activityFields`、`sessionFields`、`orderFields` 與管理操作按鈕。
+- `AdminDashboard.vue`：維護 `inventoryFields`、圖表與統計資料。
+- `ResponsiveRecordList.vue`：統一管理表格／卡片結構、空資料提示及手機卡片間距。
+
+會員中心標題區與銷售概況工具列在手機保留左右 16px 內距；表單、購票摘要與導覽列支援換行。分區設定與購票座位區保留區域內的橫向捲動。
+
+`booking/SeatMap.vue` 在寬度不超過 600px 時將座位加大為 48 × 48px，座位間距為 12px，並增加排間距；快速找排獨立排列，座位圖可橫向捲動。座位大小由 `--seat-size` 統一控制按鈕寬度與網格欄寬。
+
+## WebSocket 通知顯示時間
+
+個人通知由 `src/services/websocket.js` 的 `showNotification()` 顯示，全部提供手動關閉按鈕。
+
+| 通知 | 顯示時間 |
+| --- | --- |
+| `saveTicket` 建立訂單後的付款期限提示（標題以「新通知：請在 」開頭） | 30 秒 |
+| `BookingPaymentScheduler` 的「付款即將到期」 | 30 秒 |
+| `BookingPaymentScheduler` 的「付款期限已到」 | 30 秒 |
+| 其他 `warning` 通知 | 8 秒 |
+| 其他一般通知 | 5 秒 |
+
+前端以通知標題辨識付款提醒；後端變更上述標題時，需同步更新前端判斷。這些時間只控制畫面提示的停留時間，不改變訂單付款期限或後端排程。帶有相同通知編號的訊息會去重，避免重複顯示。
 
 ## 活動圖片
 
@@ -77,29 +107,6 @@ npm run preview
 ```
 
 產物位於 `dist/`；preview 用於本機檢查建置結果。
-
-## Playwright 網頁自動化測試（Microsoft Edge）
-
-Playwright 會自動操作 Microsoft Edge，測試活動搜尋、收藏、登入、票券查詢與訂票等網頁流程。測試程式放在 [tests/e2e](tests/e2e)。
-
-[playwright.config.js](playwright.config.js) 是測試設定檔，執行下列指令時會自動讀取，不需要直接執行它。
-
-執行前請安裝 Microsoft Edge，並先啟動前後端服務（方式見[根目錄 README](../README.md#本機開發)）。前端預設網址為 `http://localhost:5173`；測試指令不會自動啟動服務。
-
-另開終端機，切換至 `concert-ticket-frontend` 目錄後執行：
-
-```powershell
-# 首次使用時安裝依賴；已安裝可略過
-npm ci
-
-# 執行測試，不顯示瀏覽器視窗
-npm run test:e2e
-
-# 想看到 Edge 自動操作畫面時，改用這個指令
-npm run test:e2e:headed
-```
-
-完成後可查看 `playwright-report/index.html` 測試報告。`headed` 只是顯示瀏覽器視窗，執行的測試相同。
 
 ## Docker
 

@@ -1,5 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import ResponsiveRecordList from './ResponsiveRecordList.vue'
 import { activityApi, bookingApi } from '@/services/api'
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
@@ -313,6 +314,15 @@ const myTicketsVisibleDialog = async () => {
   });
   tickets.value = response.data
 }
+const activityFields = [
+  { key: 'image', label: '圖片', role: 'image', width: 208 },
+  { key: 'name', label: '活動名稱', role: 'title', minWidth: 220 },
+  { key: 'id', label: '活動編號', minWidth: 140 },
+  { key: 'category', label: '活動類型', format: row => categoryMap[row.category], minWidth: 110 },
+  { key: 'venue', label: '活動場地', minWidth: 150 },
+  { key: 'status', label: '狀態', role: 'status', width: 120 },
+  { key: 'actions', label: '操作', role: 'actions', width: 230, fixed: 'right' },
+]
 </script>
 
 <template>
@@ -372,46 +382,28 @@ const myTicketsVisibleDialog = async () => {
             <span>活動列表</span><el-text type="info">點選查看活動詳細資訊與售票狀態。</el-text>
           </div>
         </template>
-        <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到符合篩選條件的活動">
-          <el-table-column label="圖片" width="208">
-            <template #default="scope">
-              <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
-                :preview-src-list="[activityImageUrls[scope.row.id]]" :alt="`${scope.row.name}圖片`" fit="contain"
-                class="activity-table-image" preview-teleported>
-                <template #error><span class="activity-table-no-image">圖片載入失敗</span></template>
-              </el-image>
-              <span v-else class="activity-table-no-image" :aria-busy="activityImageStatus[scope.row.id] === 'loading'">
-                {{ activityImageStatus[scope.row.id] === 'loading' ? '圖片載入中…'
-                  : activityImageStatus[scope.row.id] === 'error' ? '圖片載入失敗' : '無圖片' }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="活動名稱" min-width="220">
-            <template #default="scope">
-              <div class="activity-name">
-                {{ scope.row.name }}
-              </div>
-              <el-text size="small" type="info">
-                {{ scope.row.id }} · {{ categoryMap[scope.row.category] }}
-              </el-text>
-            </template>
-          </el-table-column>
-          <el-table-column prop="venue" label="活動場地" min-width="150" />
-          <el-table-column label="狀態" width="120">
-            <template #default="scope">
-              <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="210" fixed="right">
-            <template #default="scope">
-              <el-button v-if="showFavoriteControls" plain :type="isFavorite(scope.row) ? 'warning' : 'default'"
-                :loading="pendingFavoriteIds.has(getFavoriteKey(scope.row))" @click="toggleFavorite(scope.row)">
-                {{ isFavorite(scope.row) ? '已收藏' : '收藏' }}
-              </el-button>
-              <el-button type="primary" @click="goBooking(scope.row)">查看詳情</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <ResponsiveRecordList :records="filteredActivities" :fields="activityFields" empty-text="找不到符合篩選條件的活動">
+          <template #image="{ record }">
+            <el-image v-if="activityImageUrls[record.id]" :src="activityImageUrls[record.id]"
+              :preview-src-list="[activityImageUrls[record.id]]" :alt="`${record.name}圖片`" fit="contain"
+              class="activity-record-image" preview-teleported>
+              <template #error><span class="activity-table-no-image">圖片載入失敗</span></template>
+            </el-image>
+            <span v-else class="activity-table-no-image" :aria-busy="activityImageStatus[record.id] === 'loading'">
+              {{ activityImageStatus[record.id] === 'loading' ? '圖片載入中…'
+                : activityImageStatus[record.id] === 'error' ? '圖片載入失敗' : '無圖片' }}
+            </span>
+          </template>
+          <template #status="{ record }"><el-tag :type="statusType(record.status)" effect="light">{{
+            statusMap[record.status] }}</el-tag></template>
+          <template #actions="{ record }">
+            <el-button v-if="showFavoriteControls" plain :type="isFavorite(record) ? 'warning' : 'default'"
+              :loading="pendingFavoriteIds.has(getFavoriteKey(record))" @click="toggleFavorite(record)">
+              {{ isFavorite(record) ? '已收藏' : '收藏' }}
+            </el-button>
+            <el-button type="primary" @click="goBooking(record)">查看詳情</el-button>
+          </template>
+        </ResponsiveRecordList>
       </el-card>
     </el-main>
   </el-container>
@@ -448,9 +440,18 @@ const myTicketsVisibleDialog = async () => {
         <details class="ticket-extra">
           <summary>詳細資訊</summary>
           <dl class="ticket-details">
-            <div><dt>訂單編號</dt><dd>{{ ticket.orderno }}</dd></div>
-            <div><dt>場次編號</dt><dd>{{ ticket.session_id }}</dd></div>
-            <div><dt>活動編號</dt><dd>{{ ticket.activity_id }}</dd></div>
+            <div>
+              <dt>訂單編號</dt>
+              <dd>{{ ticket.orderno }}</dd>
+            </div>
+            <div>
+              <dt>場次編號</dt>
+              <dd>{{ ticket.session_id }}</dd>
+            </div>
+            <div>
+              <dt>活動編號</dt>
+              <dd>{{ ticket.activity_id }}</dd>
+            </div>
           </dl>
         </details>
         <div class="ticket-actions">
@@ -570,6 +571,7 @@ const myTicketsVisibleDialog = async () => {
   min-height: 100%;
   background: transparent;
 }
+
 
 .experience-hero {
   position: relative;
@@ -764,7 +766,7 @@ const myTicketsVisibleDialog = async () => {
   color: var(--el-text-color-primary);
 }
 
-.activity-table-image {
+.activity-record-image {
   display: block;
   width: 180px;
   height: 102px;
@@ -800,6 +802,23 @@ const myTicketsVisibleDialog = async () => {
 }
 
 @media (max-width: 767px) {
+  .activity-page>.el-main {
+    padding: 12px 0;
+    min-width: 0;
+  }
+
+  .filter-card :deep(.el-card__body),
+  .activity-card :deep(.el-card__body),
+  .activity-card :deep(.el-card__header) {
+    padding: 16px;
+  }
+
+  .activity-record-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
   .experience-hero {
     grid-template-columns: 1fr;
   }

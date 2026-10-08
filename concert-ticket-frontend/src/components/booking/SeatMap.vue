@@ -121,7 +121,7 @@ const selectSeat = (seatId) => {
     <div v-else ref="seatScroll" class="seat-scroll" role="region" aria-label="座位排列" tabindex="0">
       <div v-for="row in seatRows" :key="row.label" class="seat-row" :data-row="row.label">
         <span class="row-label">{{ row.label }} 排</span>
-        <div class="row-seats" :style="{ gridTemplateColumns: `repeat(${seatsPerRow}, 42px)` }">
+        <div class="row-seats" :style="{ gridTemplateColumns: `repeat(${seatsPerRow}, var(--seat-size))` }">
           <button v-for="seat in row.seats" :key="seat.id" type="button" class="seat" :class="{
             selected: isSelected(seat.id),
             unavailable: isUnavailable(seat.id)
@@ -149,6 +149,7 @@ const selectSeat = (seatId) => {
 
 <style scoped>
 .seat-map {
+  --seat-size: 42px;
   margin-top: 20px;
   border: 1px solid var(--el-border-color-light);
   border-radius: 18px;
@@ -230,7 +231,7 @@ const selectSeat = (seatId) => {
   padding: 5px 0;
 }
 
-.seat-row + .seat-row {
+.seat-row+.seat-row {
   border-top: 1px dashed var(--el-border-color-extra-light);
 }
 
@@ -252,7 +253,7 @@ const selectSeat = (seatId) => {
 }
 
 .seat {
-  width: 42px;
+  width: var(--seat-size);
   height: 40px;
   padding: 0;
   border: 1px solid var(--zone-color, var(--el-color-primary-light-5));
@@ -354,6 +355,45 @@ const selectSeat = (seatId) => {
 }
 
 @media (max-width: 600px) {
+  .seat-map {
+    --seat-size: 48px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .row-jump {
+    width: 100%;
+  }
+
+  .row-jump select {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .seat {
+    height: 48px;
+    font-size: 14px;
+  }
+
+  .row-seats {
+    gap: 12px;
+  }
+
+  .seat-row {
+    grid-template-columns: 40px max-content;
+    justify-content: start;
+    gap: 14px;
+    padding-block: 10px;
+  }
+
+  .row-label--end {
+    display: none;
+  }
+
+  .selection-summary {
+    overflow-wrap: anywhere;
+  }
+
   .map-header {
     align-items: flex-start;
     flex-direction: column;

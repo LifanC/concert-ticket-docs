@@ -229,7 +229,7 @@ function exportDraft() {
             </el-button>
           </div>
         </template>
-        <div v-for="zone in draft.zones" :key="zone.id" class="editor-row">
+        <div v-for="(zone, index) in draft.zones" :key="zone.id" class="editor-row">
           <el-form label-position="top" class="zone-fields" :disabled="locked">
             <el-form-item label="分區名稱">
               <el-input v-model="zone.name" placeholder="例如 A 區" maxlength="40" /></el-form-item>
@@ -422,6 +422,54 @@ p,
 }
 
 @media (max-width: 600px) {
+  .settings {
+    min-width: 0;
+  }
+
+  .settings>* {
+    min-width: 0;
+  }
+
+  .settings :deep(.el-card__body),
+  .settings :deep(.el-card__header) {
+    padding: 16px;
+  }
+
+  .settings :deep(.el-form-item__content) {
+    min-width: 0;
+  }
+
+  .settings :deep(.el-input-number),
+  .settings :deep(.el-select) {
+    width: 100%;
+  }
+
+  .settings :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .session-select+.el-button {
+    margin-top: 12px;
+    margin-left: 0;
+    width: 100%;
+    white-space: normal;
+  }
+
+  .heading>div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .heading>div .el-button {
+    flex: 1;
+    margin-left: 0;
+  }
+
+  .seat-preview {
+    max-width: 100%;
+  }
 
   .zone-fields,
   .type-fields {

@@ -3,6 +3,7 @@ import { adminApi } from '@/services/api'
 import { connectWebSocket, showNotification } from '@/services/websocket'
 import AdminDashboard from './AdminDashboard.vue'
 import AdminSalesSettings from './AdminSalesSettings.vue'
+import ResponsiveRecordList from './ResponsiveRecordList.vue'
 import { onBeforeUnmount } from 'vue'
 
 const activeTab = ref('dashboard')
@@ -459,6 +460,37 @@ const statusType = (status) => (
     'REFUNDED': 'info',
   }[status] || 'info'
 )
+
+// 同一份欄位設定同時產生桌面表格與手機卡片。
+const activityFields = [
+  { key: 'image', label: '圖片', role: 'image', width: 208 },
+  { key: 'id', label: '活動編號', minWidth: 140 },
+  { key: 'name', label: '活動名稱', role: 'title', minWidth: 190 },
+  { key: 'category', label: '活動類型', format: row => categoryMap[row.category], minWidth: 110 },
+  { key: 'venue', label: '場地', minWidth: 160 },
+  { key: 'price', label: '票價', format: row => `NT$ ${Number(row.price ?? 0).toLocaleString()}`, minWidth: 160 },
+  { key: 'actions', label: '操作', role: 'actions', width: 230, fixed: 'right' },
+]
+const sessionFields = [
+  { key: 'id', label: '場次編號', minWidth: 140 },
+  { key: 'activity_id', label: '活動編號', minWidth: 140 },
+  { key: 'name', label: '活動', role: 'title', minWidth: 180 },
+  { key: 'status', label: '狀態', role: 'status', width: 110 },
+  { key: 'date', label: '開演日期', minWidth: 130 },
+  { key: 'time', label: '開演時間', minWidth: 100 },
+  { key: 'salesdate', label: '開賣日期', minWidth: 130 },
+  { key: 'salestime', label: '開賣時間', minWidth: 100 },
+  { key: 'capacity', label: '座位數', minWidth: 100 },
+  { key: 'reserved', label: '未付款數量', minWidth: 100 },
+  { key: 'sold', label: '已售', minWidth: 100 },
+  { key: 'actions', label: '操作', role: 'actions', width: 230, fixed: 'right' },
+]
+const orderFields = [
+  { key: 'orderno', label: '訂單編號', minWidth: 150 },
+  { key: 'name', label: '活動', role: 'title', minWidth: 180 },
+  { key: 'price', label: '金額', format: row => `NT$ ${Number(row.price ?? 0).toLocaleString()}`, minWidth: 120 },
+  { key: 'status', label: '狀態', role: 'status', width: 150 },
+]
 </script>
 
 <template>
@@ -493,35 +525,18 @@ const statusType = (status) => (
                 <el-text type="info">共 {{ filteredActivities.length }} 個活動</el-text>
               </div>
             </template>
-            <el-table :data="filteredActivities" stripe style="width: 100%" empty-text="找不到活動">
-              <el-table-column label="圖片" width="208">
-                <template #default="scope">
-                  <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
-                    :preview-src-list="[activityImageUrls[scope.row.id]]" :alt="`${scope.row.name}圖片`" fit="contain"
-                    class="activity-table-image" preview-teleported />
-                  <span v-else class="activity-table-no-image">無圖片</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="id" label="活動編號" width="140" />
-              <el-table-column prop="name" label="活動名稱" min-width="190" />
-              <el-table-column label="活動類型" width="110">
-                <template #default="scope">{{ categoryMap[scope.row.category] }}</template>
-              </el-table-column>
-              <el-table-column prop="venue" label="場地" min-width="160" />
-              <el-table-column label="票價" width="160">
-                <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>
-              </el-table-column>
-              <el-table-column label="操作" width="150" fixed="right">
-                <template #default="scope">
-                  <el-form-item>
-                    <el-button text type="primary" @click="openEdit(scope.row)">修改活動</el-button>
-                  </el-form-item>
-                  <el-form-item>
-                    <el-button text type="danger" @click="deleteActivity(scope.row)">刪除活動</el-button>
-                  </el-form-item>
-                </template>
-              </el-table-column>
-            </el-table>
+            <ResponsiveRecordList :records="filteredActivities" empty-text="找不到活動" :fields="activityFields">
+              <template #image="{ record }">
+                <el-image v-if="activityImageUrls[record.id]" class="record-image" :src="activityImageUrls[record.id]"
+                  :preview-src-list="[activityImageUrls[record.id]]" :alt="`${record.name}圖片`" fit="contain"
+                  preview-teleported />
+                <span v-else class="activity-table-no-image">無圖片</span>
+              </template>
+              <template #actions="{ record }">
+                <el-button plain type="primary" @click="openEdit(record)">修改活動</el-button>
+                <el-button plain type="danger" @click="deleteActivity(record)">刪除活動</el-button>
+              </template>
+            </ResponsiveRecordList>
           </el-card>
         </el-tab-pane>
 
@@ -592,37 +607,16 @@ const statusType = (status) => (
                 <span>已建立場次</span>
               </div>
             </template>
-            <el-table :data="sessions" stripe style="width: 100%" empty-text="找不到場次">
-              <el-table-column prop="id" label="場次編號" width="140" />
-              <el-table-column prop="activity_id" label="活動編號" width="140" />
-              <el-table-column prop="name" label="活動" min-width="180" />
-              <el-table-column label="狀態" width="110">
-                <template #default="scope">
-                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="date" label="開演日期" width="130" />
-              <el-table-column prop="time" label="開演時間" width="100" />
-              <el-table-column prop="salesdate" label="開賣日期" width="130" />
-              <el-table-column prop="salestime" label="開賣時間" width="100" />
-              <el-table-column prop="capacity" label="座位數" width="100" />
-              <el-table-column prop="reserved" label="未付款數量" width="100" />
-              <el-table-column prop="sold" label="已售" width="100" />
-              <el-table-column label="操作" width="150" fixed="right">
-                <template #default="scope">
-                  <el-form-item>
-                    <el-button text :type="statusType(scope.row.status)" :disabled="scope.row.status === 'TICKETS_ARE_ON_SALE' ||
-                      scope.row.status === 'SOLD_OUT' ||
-                      scope.row.status === 'ENDED'
-                      " @click="openSessionsEdit(scope.row)">活動延後
-                    </el-button>
-                  </el-form-item>
-                  <el-form-item>
-                    <el-button text type="primary" @click="openSessionsStatusEdit(scope.row)">更改狀態</el-button>
-                  </el-form-item>
-                </template>
-              </el-table-column>
-            </el-table>
+            <ResponsiveRecordList :records="sessions" empty-text="找不到場次" :fields="sessionFields">
+              <template #status="{ record }"><el-tag :type="statusType(record.status)">{{ statusMap[record.status]
+              }}</el-tag></template>
+              <template #actions="{ record }">
+                <el-button plain :type="statusType(record.status)"
+                  :disabled="['TICKETS_ARE_ON_SALE', 'SOLD_OUT', 'ENDED'].includes(record.status)"
+                  @click="openSessionsEdit(record)">活動延後</el-button>
+                <el-button plain type="primary" @click="openSessionsStatusEdit(record)">更改狀態</el-button>
+              </template>
+            </ResponsiveRecordList>
           </el-card>
         </el-tab-pane>
 
@@ -638,18 +632,10 @@ const statusType = (status) => (
                 <el-text type="info">最近訂單</el-text>
               </div>
             </template>
-            <el-table :data="orders" stripe style="width: 100%" empty-text="找不到訂單">
-              <el-table-column prop="orderno" label="訂單編號" min-width="150" />
-              <el-table-column prop="name" label="活動" min-width="180" />
-              <el-table-column label="金額" width="120">
-                <template #default="scope">NT$ {{ scope.row.price.toLocaleString() }}</template>
-              </el-table-column>
-              <el-table-column label="狀態" width="150">
-                <template #default="scope">
-                  <el-tag :type="statusType(scope.row.status)" effect="light">{{ statusMap[scope.row.status] }}</el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
+            <ResponsiveRecordList :records="orders" id-key="orderno" empty-text="找不到訂單" :fields="orderFields">
+              <template #status="{ record }"><el-tag :type="statusType(record.status)">{{ statusMap[record.status]
+              }}</el-tag></template>
+            </ResponsiveRecordList>
           </el-card>
         </el-tab-pane>
       </el-tabs>
@@ -981,7 +967,7 @@ const statusType = (status) => (
   gap: 12px;
 }
 
-.activity-table-image {
+.record-image {
   display: block;
   width: 180px;
   height: 102px;
@@ -1030,6 +1016,67 @@ const statusType = (status) => (
 }
 
 @media (max-width: 767px) {
+  .admin-page>.admin-main {
+    padding: 12px 0;
+    min-width: 0;
+  }
+
+  .page-header {
+    padding: 16px;
+  }
+
+  .record-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .admin-tabs :deep(.el-tabs__item) {
+    padding-inline: 12px;
+  }
+
+  .filter-card {
+    display: block;
+  }
+
+  .filter-card :deep(.el-card__body) {
+    width: 100%;
+  }
+
+  .filter-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .filter-form :deep(.el-form-item) {
+    margin: 0;
+    width: 100%;
+  }
+
+  .session-form :deep(.el-col-12) {
+    max-width: 100%;
+    flex-basis: 100%;
+  }
+
+  .card-title {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .table-card :deep(.el-card__body),
+  .form-card :deep(.el-card__body) {
+    padding: 16px;
+  }
+
+  .dialog-footer {
+    flex-wrap: wrap;
+  }
+
+  .dialog-footer .el-button {
+    min-height: 44px;
+    margin-left: 0;
+  }
+
   .page-header {
     align-items: flex-start;
     flex-direction: column;
