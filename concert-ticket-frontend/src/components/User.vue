@@ -1,5 +1,6 @@
 <script setup>
 import { loginApi } from '@/services/api'
+import { syncAuth, resetAuth } from '@/services/auth'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie.js";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
@@ -60,6 +61,7 @@ function executeFirst() {
   } else {
     clearCookie('accessName')
     clearCookie('accessToken')
+    resetAuth()
     disconnectWebSocket()
   }
 }
@@ -96,6 +98,7 @@ const submitLogin = async () => {
             isLoggedIn_ = true
             addCookie('accessName', data.name)
             addCookie('accessToken', data.accessToken)
+            syncAuth()
             Object.assign(
               profileForm,
               {
@@ -313,6 +316,7 @@ const logout = async () => {
   if (!isLoggedIn_) {
     clearCookie('accessName')
     clearCookie('accessToken')
+    resetAuth()
     disconnectWebSocket()
   } else {
     connectWebSocket()

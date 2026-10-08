@@ -1,6 +1,9 @@
 <script setup>
 import {dateConversionYMDhms} from "@/components/componentsJs/ConvertPadding";
 import '@/styles/theme.css'
+import { isAdmin, syncAuth } from '@/services/auth'
+
+syncAuth()
 
 const date = ref(dateConversionYMDhms(true))
 
@@ -21,7 +24,7 @@ onUnmounted(() => clearInterval(clockInterval))
       <nav class="site-nav" aria-label="主要導覽">
         <router-link to="/" exact-active-class="is-active">活動</router-link>
         <router-link to="/user" active-class="is-active">會員</router-link>
-        <router-link to="/admin" active-class="is-active">管理後台</router-link>
+        <router-link v-if="isAdmin" to="/admin" active-class="is-active">管理後台</router-link>
       </nav>
       <time class="site-clock">{{ date }}</time>
     </header>

@@ -28,31 +28,36 @@ const pendingFavoriteIds = ref(new Set())
 const showFavoritesOnly = ref(false)
 const activities = ref([])
 const activityImageUrls = ref({})
+const activityImageStatus = ref({})
 let imageRequestsCancelled = false
+let activityImageLoadVersion = 0
 
 async function loadActivityImages() {
+  if (imageRequestsCancelled) return
+  const version = ++activityImageLoadVersion
   const ids = [...new Set(activities.value.map((activity) => activity.id))]
-  const images = await Promise.all(ids.map(async (id) => {
+  Object.values(activityImageUrls.value).forEach(url => URL.revokeObjectURL(url))
+  activityImageUrls.value = {}
+  activityImageStatus.value = Object.fromEntries(ids.map(id => [id, 'loading']))
+  const isCurrent = () => !imageRequestsCancelled && version === activityImageLoadVersion
+  await Promise.all(ids.map(async (id) => {
     try {
       const response = await activityApi.get(`/activityImage/${encodeURIComponent(id)}`, {
         responseType: 'blob',
       })
-      return [id, response.data]
+      if (!isCurrent()) return
+      const oldUrl = activityImageUrls.value[id]
+      activityImageUrls.value[id] = URL.createObjectURL(response.data)
+      activityImageStatus.value[id] = 'loaded'
+      if (oldUrl) URL.revokeObjectURL(oldUrl)
     } catch (error) {
+      if (!isCurrent()) return
+      activityImageStatus.value[id] = error.response?.status === 404 ? 'missing' : 'error'
       if (error.response?.status !== 404) {
         console.error(`無法載入活動 ${id} 的圖片`, error)
       }
-      return [id, null]
     }
   }))
-  if (imageRequestsCancelled) return
-
-  const nextUrls = {}
-  for (const [id, blob] of images) {
-    if (blob) nextUrls[id] = URL.createObjectURL(blob)
-  }
-  Object.values(activityImageUrls.value).forEach((url) => URL.revokeObjectURL(url))
-  activityImageUrls.value = nextUrls
 }
 
 onUnmounted(() => {
@@ -63,6 +68,7 @@ onUnmounted(() => {
 executeFirst()
 async function executeFirst() {
   const response = await activityApi.get('/selectAllActivities')
+  if (imageRequestsCancelled) return
   activities.value = response.data
   void loadActivityImages()
   if (canUseFavorites.value) {
@@ -318,7 +324,9 @@ const myTicketsVisibleDialog = async () => {
       <a href="#discover" class="discover-link">探索活動 <span aria-hidden="true">↗</span></a>
     </div>
     <div class="hero-art" aria-hidden="true">
-      <div class="art-arch"><div class="vinyl-record"><span>LIVE<br><i>the moment</i></span></div></div>
+      <div class="art-arch">
+        <div class="vinyl-record"><span>LIVE<br><i>the moment</i></span></div>
+      </div>
       <span class="art-caption">A LITTLE MUSIC. A BEAUTIFUL LIFE.</span>
       <span class="art-star">✳</span>
     </div>
@@ -369,8 +377,13 @@ const myTicketsVisibleDialog = async () => {
             <template #default="scope">
               <el-image v-if="activityImageUrls[scope.row.id]" :src="activityImageUrls[scope.row.id]"
                 :preview-src-list="[activityImageUrls[scope.row.id]]" :alt="`${scope.row.name}圖片`" fit="contain"
-                class="activity-table-image" preview-teleported />
-              <span v-else class="activity-table-no-image">無圖片</span>
+                class="activity-table-image" preview-teleported>
+                <template #error><span class="activity-table-no-image">圖片載入失敗</span></template>
+              </el-image>
+              <span v-else class="activity-table-no-image" :aria-busy="activityImageStatus[scope.row.id] === 'loading'">
+                {{ activityImageStatus[scope.row.id] === 'loading' ? '圖片載入中…'
+                  : activityImageStatus[scope.row.id] === 'error' ? '圖片載入失敗' : '無圖片' }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column prop="name" label="活動名稱" min-width="220">
@@ -402,49 +415,52 @@ const myTicketsVisibleDialog = async () => {
       </el-card>
     </el-main>
   </el-container>
-  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1350px, 94vw)">
-    <el-table :data="tickets" stripe empty-text="目前沒有票券">
-      <el-table-column prop="orderno" label="訂單編號" min-width="150" />
-      <el-table-column prop="session_id" label="編號" min-width="150" />
-      <el-table-column prop="activity_id" label="活動編號" min-width="150" />
-      <el-table-column prop="seat" label="座位號碼" min-width="100" />
-      <el-table-column prop="zone_name" label="分區" min-width="100" />
-      <el-table-column prop="ticket_type_name" label="票種" min-width="100" />
-      <el-table-column label="票價" min-width="110">
-        <template #default="{ row }">{{ new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' }).format(row.price ?? 0) }}</template>
-      </el-table-column>
-      <el-table-column prop="name" label="活動" min-width="150" />
-      <el-table-column prop="date" label="場次" min-width="100" />
-      <el-table-column prop="time" label="時間" min-width="100" />
-      <el-table-column prop="timename" label="" min-width="70" />
-      <el-table-column label="狀態" width="100" fixed="right">
-        <template #default="scope">
-          <el-tag :type="statusType(scope.row.status)" effect="light">{{ ticketsMap[scope.row.status] }}</el-tag>
+  <el-dialog v-model="myTicketsVisible" title="我的票券" width="min(1100px, 94vw)">
+    <el-empty v-if="tickets.length === 0" description="目前沒有票券" />
+    <div v-else class="ticket-grid">
+      <el-card v-for="ticket in tickets" :key="ticket.orderno" class="ticket-card" shadow="never">
+        <template #header>
+          <div class="ticket-header">
+            <strong>{{ ticket.name }}</strong>
+            <el-tag :type="statusType(ticket.status)" effect="light">{{ ticketsMap[ticket.status] }}</el-tag>
+          </div>
         </template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
-        <template #default="scope">
-          <el-button text type="danger" :disabled="scope.row.status === 'PAID' ||
-            scope.row.status === 'CANCELLED' ||
-            scope.row.status === 'EXPIRED' ||
-            scope.row.status === 'REFUNDED'
-            " @click="cancelOrder(scope.row)">取消訂單
-          </el-button>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
-        <template #default="scope">
-          <el-button text :type="statusType(scope.row.status)"
-            :disabled="
-            scope.row.status === 'PAID' ||
-            scope.row.status === 'CANCELLED' ||
-            scope.row.status === 'EXPIRED' ||
-            scope.row.status === 'REFUNDED'
-            "@click="payprice(scope.row)">付款
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <p class="ticket-session">{{ ticket.date }} {{ ticket.time }} {{ ticket.timename }}</p>
+        <dl class="ticket-details">
+          <div>
+            <dt>座位</dt>
+            <dd>{{ ticket.seat }}</dd>
+          </div>
+          <div>
+            <dt>分區</dt>
+            <dd>{{ ticket.zone_name || '—' }}</dd>
+          </div>
+          <div>
+            <dt>票種</dt>
+            <dd>{{ ticket.ticket_type_name || '—' }}</dd>
+          </div>
+          <div>
+            <dt>票價</dt>
+            <dd>{{ new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' }).format(ticket.price ?? 0) }}
+            </dd>
+          </div>
+        </dl>
+        <details class="ticket-extra">
+          <summary>詳細資訊</summary>
+          <dl class="ticket-details">
+            <div><dt>訂單編號</dt><dd>{{ ticket.orderno }}</dd></div>
+            <div><dt>場次編號</dt><dd>{{ ticket.session_id }}</dd></div>
+            <div><dt>活動編號</dt><dd>{{ ticket.activity_id }}</dd></div>
+          </dl>
+        </details>
+        <div class="ticket-actions">
+          <el-button type="danger" plain :disabled="ticket.status !== 'PENDING_PAYMENT'"
+            @click="cancelOrder(ticket)">取消訂單</el-button>
+          <el-button type="primary" :disabled="ticket.status !== 'PENDING_PAYMENT'"
+            @click="payprice(ticket)">付款</el-button>
+        </div>
+      </el-card>
+    </div>
   </el-dialog>
   <el-dialog v-model="paypriceDialogVisible" title="付款" width="min(520px, 92vw)">
     <el-alert title="請完成付款。" type="warning" :closable="false" show-icon />
@@ -464,29 +480,245 @@ const myTicketsVisibleDialog = async () => {
 </template>
 
 <style scoped>
+.ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.ticket-card {
+  min-width: 0;
+}
+
+.ticket-extra {
+  margin-top: 16px;
+  border-top: 1px solid var(--el-border-color-light);
+  padding-top: 12px;
+}
+
+.ticket-extra summary {
+  cursor: pointer;
+  color: var(--el-color-primary);
+}
+
+.ticket-extra[open] summary {
+  margin-bottom: 12px;
+}
+
+.ticket-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ticket-header strong {
+  overflow-wrap: anywhere;
+}
+
+.ticket-header .el-tag {
+  flex-shrink: 0;
+}
+
+.ticket-session {
+  margin: 0 0 16px;
+  color: var(--el-text-color-secondary);
+}
+
+.ticket-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.ticket-details>div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.ticket-details dt {
+  color: var(--el-text-color-secondary);
+}
+
+.ticket-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ticket-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ticket-actions .el-button+.el-button {
+  margin-left: 0;
+}
+
+@media (max-width: 700px) {
+  .ticket-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .activity-page {
   min-height: 100%;
   background: transparent;
 }
 
-.experience-hero { position: relative; display: grid; grid-template-columns: 1.2fr 1fr; min-height: 430px; background: #f3eee8; overflow: hidden; margin-bottom: 32px; }
-.hero-copy { padding: 60px 52px 64px; position: relative; z-index: 1; }
-.eyebrow { font-size: 10px; letter-spacing: 3px; color: #89664d; margin: 0 0 24px; }
-.hero-copy h2 { font-family: 'Noto Serif TC', 'PMingLiU', serif; font-size: clamp(26px, 3vw, 40px); font-weight: 500; line-height: 1.7; letter-spacing: 3px; margin: 0 0 20px; }
-.hero-description { color: #756b64; font-size: 13px; line-height: 2.1; letter-spacing: 1px; }
-.discover-link { display: inline-flex; align-items: center; gap: 42px; text-decoration: none; border-bottom: 1px solid #a1795c; padding: 14px 0 10px; font-size: 13px; letter-spacing: 2px; }
-.discover-link:hover { color: #89664d; }
-.hero-art { position: relative; display: flex; align-items: center; justify-content: center; background: #d8cec4; min-height: 430px; overflow: hidden; }
-.art-arch { position: relative; width: 68%; height: 340px; border-radius: 180px 180px 0 0; background: #b59b85; border: 1px solid #b19984; transform: translateY(36px); }
-.art-arch::before { content: ''; position: absolute; inset: -18px 18px 18px -18px; border: 1px solid #a1795c; border-radius: inherit; }
-.vinyl-record { position: absolute; width: 290px; max-width: 115%; aspect-ratio: 1; left: 50%; top: 44%; transform: translate(-50%, -50%) rotate(-15deg); border-radius: 50%; background: repeating-radial-gradient(circle, #433a3a 0 2px, #504641 3px 4px); box-shadow: 14px 24px 35px #433a3a30; display: grid; place-items: center; }
-.vinyl-record span { display: grid; align-content: center; text-align: center; width: 110px; height: 110px; border-radius: 50%; background: #e5d6c6; font: 23px Georgia, serif; letter-spacing: 4px; color: #433a3a; }
-.vinyl-record i { font-size: 12px; margin-top: 8px; letter-spacing: 0; }
-.art-caption { position: absolute; bottom: 22px; font-size: 8px; letter-spacing: 2px; }
-.art-star { position: absolute; right: 22px; top: 20px; color: #89664d; font-size: 55px; font-weight: 300; }
-.hero-edition { position: absolute; bottom: 20px; left: 52px; font-size: 8px; letter-spacing: 2px; color: #756b64; }
-.section-eyebrow { margin-bottom: 12px; }
-#discover { scroll-margin-top: 24px; }
+.experience-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  min-height: 430px;
+  background: #f3eee8;
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.hero-copy {
+  padding: 60px 52px 64px;
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #89664d;
+  margin: 0 0 24px;
+}
+
+.hero-copy h2 {
+  font-family: 'Noto Serif TC', 'PMingLiU', serif;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: 3px;
+  margin: 0 0 20px;
+}
+
+.hero-description {
+  color: #756b64;
+  font-size: 13px;
+  line-height: 2.1;
+  letter-spacing: 1px;
+}
+
+.discover-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 42px;
+  text-decoration: none;
+  border-bottom: 1px solid #a1795c;
+  padding: 14px 0 10px;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.discover-link:hover {
+  color: #89664d;
+}
+
+.hero-art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d8cec4;
+  min-height: 430px;
+  overflow: hidden;
+}
+
+.art-arch {
+  position: relative;
+  width: 68%;
+  height: 340px;
+  border-radius: 180px 180px 0 0;
+  background: #b59b85;
+  border: 1px solid #b19984;
+  transform: translateY(36px);
+}
+
+.art-arch::before {
+  content: '';
+  position: absolute;
+  inset: -18px 18px 18px -18px;
+  border: 1px solid #a1795c;
+  border-radius: inherit;
+}
+
+.vinyl-record {
+  position: absolute;
+  width: 290px;
+  max-width: 115%;
+  aspect-ratio: 1;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, #433a3a 0 2px, #504641 3px 4px);
+  box-shadow: 14px 24px 35px #433a3a30;
+  display: grid;
+  place-items: center;
+}
+
+.vinyl-record span {
+  display: grid;
+  align-content: center;
+  text-align: center;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #e5d6c6;
+  font: 23px Georgia, serif;
+  letter-spacing: 4px;
+  color: #433a3a;
+}
+
+.vinyl-record i {
+  font-size: 12px;
+  margin-top: 8px;
+  letter-spacing: 0;
+}
+
+.art-caption {
+  position: absolute;
+  bottom: 22px;
+  font-size: 8px;
+  letter-spacing: 2px;
+}
+
+.art-star {
+  position: absolute;
+  right: 22px;
+  top: 20px;
+  color: #89664d;
+  font-size: 55px;
+  font-weight: 300;
+}
+
+.hero-edition {
+  position: absolute;
+  bottom: 20px;
+  left: 52px;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: #756b64;
+}
+
+.section-eyebrow {
+  margin-bottom: 12px;
+}
+
+#discover {
+  scroll-margin-top: 24px;
+}
 
 .page-header {
   height: auto;
@@ -568,14 +800,46 @@ const myTicketsVisibleDialog = async () => {
 }
 
 @media (max-width: 767px) {
-  .experience-hero { grid-template-columns: 1fr; }
-  .hero-copy { padding: 32px 26px 50px; }
-  .hero-copy h2 { letter-spacing: 1px; }
-  .hero-art { min-height: 300px; }
-  .art-arch { width: 230px; height: 270px; transform: translateY(30px); }
-  .vinyl-record { width: 230px; }
-  .hero-edition { top: 16px; bottom: auto; left: auto; right: 16px; font-size: 7px; }
-  .hero-copy .eyebrow { margin-top: 12px; letter-spacing: 2px; font-size: 9px; }
+  .experience-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-copy {
+    padding: 32px 26px 50px;
+  }
+
+  .hero-copy h2 {
+    letter-spacing: 1px;
+  }
+
+  .hero-art {
+    min-height: 300px;
+  }
+
+  .art-arch {
+    width: 230px;
+    height: 270px;
+    transform: translateY(30px);
+  }
+
+  .vinyl-record {
+    width: 230px;
+  }
+
+  .hero-edition {
+    top: 16px;
+    bottom: auto;
+    left: auto;
+    right: 16px;
+    font-size: 7px;
+  }
+
+  .hero-copy .eyebrow {
+    margin-top: 12px;
+    letter-spacing: 2px;
+    font-size: 9px;
+  }
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;

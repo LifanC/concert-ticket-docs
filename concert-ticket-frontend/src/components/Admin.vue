@@ -3,6 +3,7 @@ import { adminApi } from '@/services/api'
 import { connectWebSocket, showNotification } from '@/services/websocket'
 import AdminDashboard from './AdminDashboard.vue'
 import AdminSalesSettings from './AdminSalesSettings.vue'
+import { onBeforeUnmount } from 'vue'
 
 const activeTab = ref('dashboard')
 const dialogVisible = ref(false)
@@ -70,7 +71,11 @@ async function executeFirst() {
     URL.revokeObjectURL(url)
   })
   activityImageUrls.value = nextUrls
-
+  onBeforeUnmount(() => {
+    Object.values(response_selectAllActivities.data).forEach((url) => {
+      URL.revokeObjectURL(url)
+    })
+  })
 }
 
 const activityForm = reactive(
@@ -467,9 +472,8 @@ const statusType = (status) => (
     <el-main class="admin-main">
       <el-tabs v-model="activeTab" class="admin-tabs">
         <el-tab-pane label="銷售儀表板" name="dashboard">
-          <AdminDashboard v-if="activeTab === 'dashboard'"
-            :sessions="sessions" :orders="orders" :loading="loading" :error="error"
-            :updated-at="updatedAt" :loaded="loaded" @refresh="loadDashboard" />
+          <AdminDashboard v-if="activeTab === 'dashboard'" :sessions="sessions" :orders="orders" :loading="loading"
+            :error="error" :updated-at="updatedAt" :loaded="loaded" @refresh="loadDashboard" />
         </el-tab-pane>
         <el-tab-pane label="活動管理" name="activities">
           <el-card shadow="never" class="filter-card">
@@ -840,7 +844,7 @@ const statusType = (status) => (
   justify-content: space-between;
 }
 
-.admin-page > .admin-main {
+.admin-page>.admin-main {
   padding: 20px 24px;
 }
 
