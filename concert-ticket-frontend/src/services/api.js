@@ -1,5 +1,6 @@
 import router from '@/router'
 import axios from 'axios'
+import { syncAuth, resetAuth } from '@/services/auth'
 
 import {
   addCookie,
@@ -67,6 +68,7 @@ function setupAuthInterceptor(client) {
 
           // 2. 儲存新 access token
           addCookie('accessToken', newToken)
+          syncAuth()
 
           // 3. 原本 request 改成新 token
           originalRequest.headers = originalRequest.headers || {}
@@ -81,6 +83,7 @@ function setupAuthInterceptor(client) {
           // refresh token 也失效 → 登出
           clearCookie('accessName')
           clearCookie('accessToken')
+          resetAuth()
 
           const currentRoute = router.currentRoute.value
 
@@ -108,11 +111,7 @@ function setupAuthInterceptor(client) {
           message: `${'無權限'}`,
         })
         await router.push({
-          name: 'User',
-          query: {
-            isLoggedIn: 'true',
-            redirect: currentRoute.fullPath
-          }
+          name: 'Activity',
         })
       }
 

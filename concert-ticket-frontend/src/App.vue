@@ -1,6 +1,9 @@
 <script setup>
-import {dateConversionYMDhms} from "@/components/componentsJs/ConvertPadding";
+import { dateConversionYMDhms } from "@/components/componentsJs/ConvertPadding";
 import '@/styles/theme.css'
+import { isAdmin, syncAuth } from '@/services/auth'
+
+syncAuth()
 
 const date = ref(dateConversionYMDhms(true))
 
@@ -21,7 +24,7 @@ onUnmounted(() => clearInterval(clockInterval))
       <nav class="site-nav" aria-label="主要導覽">
         <router-link to="/" exact-active-class="is-active">活動</router-link>
         <router-link to="/user" active-class="is-active">會員</router-link>
-        <router-link to="/admin" active-class="is-active">管理後台</router-link>
+        <router-link v-if="isAdmin" to="/admin" active-class="is-active">管理後台</router-link>
       </nav>
       <time class="site-clock">{{ date }}</time>
     </header>
@@ -35,5 +38,49 @@ onUnmounted(() => clearInterval(clockInterval))
 </template>
 
 <style scoped>
+@media (max-width: 767px) {
+  .site-header {
+    padding: 16px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
 
+  .site-clock {
+    display: none;
+  }
+
+  .site-nav {
+    width: 100%;
+    margin: 0;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .site-nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .site-main {
+    padding: 20px 12px 36px;
+    min-width: 0;
+  }
+
+  .site-footer {
+    margin-inline: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .footer-note {
+    margin-left: 0;
+  }
+
+  .site-main :deep(.el-tabs__content),
+  .site-main :deep(.el-tab-pane) {
+    min-width: 0;
+  }
+}
 </style>

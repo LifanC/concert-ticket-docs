@@ -6,6 +6,7 @@ const webSocketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/w
 
 let client = null;
 const displayedNotifications = new Set();
+const paymentDeadlineTitles = new Set(['付款即將到期', '付款期限已到']);
 
 function showNotification(notification) {
     if (notification.id && displayedNotifications.has(notification.id)) return;
@@ -19,7 +20,10 @@ function showNotification(notification) {
         type: ['success', 'warning', 'error', 'info'].includes(notification.type)
             ? notification.type : 'success',
         message: `${notification.title}：${notification.content}`,
-        duration: notification.type === 'warning' ? 8000 : 600000,
+        duration: (paymentDeadlineTitles.has(notification.title)
+            || notification.title?.startsWith('新通知：請在 '))
+            ? 30000
+            : notification.type === 'warning' ? 8000 : 5000,
         showClose: true
     });
 }

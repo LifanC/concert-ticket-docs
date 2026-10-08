@@ -28,13 +28,19 @@ const sessionId = computed(() => sessions.value.find((item) => item.value === se
 const selectedZone = computed(() => zoneForSeat(selectedSeats.value[0]))
 const selectedType = computed(() => salesSettings.value?.ticketTypes.find((type) => type.id === selectedTicketType.value))
 const selectedPrice = computed(() => {
-  if (!salesSettings.value) return null
-  if (!salesSettings.value.configured) return Number(salesSettings.value.defaultPrice ?? 0)
+  if (!salesSettings.value) {
+    return null
+  }
+  if (!salesSettings.value.configured) {
+    return Number(salesSettings.value.defaultPrice ?? 0)
+  }
   return selectedZone.value?.prices?.[selectedTicketType.value] ?? null
 })
-const canBook = computed(() => !loading.value && !loadError.value && !!salesSettings.value
-  && selectedSeats.value.length === 1 && selectedPrice.value !== null
-  && (!salesSettings.value.configured || (selectedTicketType.value && salesSettings.value.remainingAllowance > 0)))
+const canBook = computed(
+  () => !loading.value && !loadError.value && !!salesSettings.value
+    && selectedSeats.value.length === 1 && selectedPrice.value !== null
+    && (!salesSettings.value.configured || (selectedTicketType.value && salesSettings.value.remainingAllowance > 0))
+)
 const moneyFormat = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
 const money = (value) => value === null ? '請先選擇票種與座位' : moneyFormat.format(value)
 function errorMessage(error, fallback) {
@@ -66,10 +72,18 @@ const filteredSeats = computed(() => {
   }
   return result
 })
-const seatLayout = computed(() => !salesSettings.value ? null : salesSettings.value.rowLabels.flatMap((row) =>
-  Array.from({ length: salesSettings.value.seatsPerRow }, (_, index) => ({
-    id: `${row}-${String(index + 1).padStart(2, '0')}`, row, number: index + 1, seats_per_row: salesSettings.value.seatsPerRow,
-  }))))
+const seatLayout = computed(
+  () => !salesSettings.value ? null : salesSettings.value.rowLabels.flatMap(
+    (row) =>
+      Array.from(
+        { length: salesSettings.value.seatsPerRow }, (_, index) => (
+          {
+            id: `${row}-${String(index + 1).padStart(2, '0')}`, row, number: index + 1, seats_per_row: salesSettings.value.seatsPerRow,
+          }
+        )
+      )
+  )
+)
 
 watch(activityId, async (id, _, onCleanup) => {
   let active = true
@@ -89,9 +103,27 @@ watch(activityId, async (id, _, onCleanup) => {
     if (active) loading.value = false
   }
 }, { immediate: true })
-watch(selectedDate, () => { selectedSession.value = ''; sessions.value = []; selectedSeats.value = []; salesSettings.value = null })
-watch(selectedSession, () => { selectedSeats.value = []; salesSettings.value = null; selectedTicketType.value = ''; selectedZoneFilter.value = '' })
-watch(selectedZoneFilter, () => { selectedSeats.value = [] })
+watch(
+  selectedDate, () => {
+    selectedSession.value = '';
+    sessions.value = [];
+    selectedSeats.value = [];
+    salesSettings.value = null
+  }
+)
+watch(
+  selectedSession, () => {
+    selectedSeats.value = [];
+    salesSettings.value = null;
+    selectedTicketType.value = '';
+    selectedZoneFilter.value = ''
+  }
+)
+watch(
+  selectedZoneFilter, () => {
+    selectedSeats.value = []
+  }
+)
 
 async function loadBookingDetails() {
   const id = sessionId.value
@@ -136,7 +168,11 @@ function previousStep() { if (step.value > 0 && !loading.value && !submittingBoo
 async function refreshBooking() {
   loading.value = true
   loadError.value = ''
-  try { await loadBookingDetails() } catch (error) { loadError.value = errorMessage(error, '無法更新售票資料，請重試。') }
+  try {
+    await loadBookingDetails()
+  } catch (error) {
+    loadError.value = errorMessage(error, '無法更新售票資料，請重試。')
+  }
   finally { loading.value = false }
 }
 async function createOrder() {
@@ -147,7 +183,9 @@ async function createOrder() {
     status: 'PENDING_PAYMENT', seat: selectedSeats.value[0], ticketTypeId: selectedTicketType.value || null,
   }
   const fingerprint = JSON.stringify([sessionId.value, data.activity_id, data.seat, data.ticketTypeId])
-  if (pendingBooking.value?.fingerprint !== fingerprint) pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
+  if (pendingBooking.value?.fingerprint !== fingerprint) {
+    pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
+  }
   submittingBooking.value = true
   loadError.value = ''
   try {
@@ -167,7 +205,9 @@ async function createOrder() {
         /* Keep the original order error visible. */
       }
     }
-  } finally { submittingBooking.value = false }
+  } finally {
+    submittingBooking.value = false
+  }
 }
 </script>
 
@@ -394,6 +434,69 @@ async function createOrder() {
 }
 
 @media (max-width: 767px) {
+  .booking-page>.el-main {
+    padding: 12px 0;
+    min-width: 0;
+  }
+
+  .page-header {
+    padding: 16px;
+  }
+
+  .content-card :deep(.el-card__body),
+  .content-card :deep(.el-card__header),
+  .process-card :deep(.el-card__body) {
+    padding: 16px;
+  }
+
+  .card-title {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .card-title .el-tag {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    line-height: 1.6;
+  }
+
+  .selection-list :deep(.el-radio__label) {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .form-actions .el-button {
+    flex: 1;
+    margin-left: 0;
+    min-height: 44px;
+  }
+
+  .order-summary :deep(.el-descriptions__table) {
+    table-layout: fixed;
+  }
+
+  .order-summary :deep(.el-descriptions__label) {
+    width: 64px;
+  }
+
+  .order-summary :deep(.el-descriptions__content) {
+    overflow-wrap: anywhere;
+  }
+
+  .process-card :deep(.el-step__title) {
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+
+  .seat-section>.el-button {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 12px;
+  }
+
   .page-header {
     align-items: flex-start;
     gap: 14px;

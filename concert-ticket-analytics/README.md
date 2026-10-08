@@ -35,9 +35,4 @@ Java 會檢查 Python 的執行結果，成功時記錄報表目錄，失敗時�
 | 已付款訂單數 | 該場次目前狀態為 PAID 的訂單數量 |
 | 已付款訂單金額 | 該場次已付款訂單的 payprice 加總 |
 
-目前提供 CSV 報表，尚未包含 Vue 管理後台的統計頁面或圖表。
-
-## 測試
-
-在此目錄執行 `.\.venv\Scripts\python.exe -m unittest -v test_analyze`。
-6 項測試涵蓋排除非 PAID 訂單、零營收／免費票、缺漏金額拒絕匯出、Decimal 精度、Excel BOM／公式字元與空報表。SQL 聚合規則使用記憶體 SQLite 固定資料；此測試不取代真實 PostgreSQL 連線與排程驗證。
+Python 分析提供 CSV 報表；Vue 管理後台的圖表使用 Java API 資料，未串接此報表。

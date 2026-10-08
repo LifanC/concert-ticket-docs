@@ -102,7 +102,8 @@
 - 新增活動時先選活動類型，再選 A 排起的最後一排；音樂演唱會最多 50 排（AX）、舞台劇 100 排（CV）、展覽特展 150 排（ET），每排 1～10 席。修改活動時可重新設定座位配置。
 - 活動圖片可選填；編輯時不選新圖片會保留原圖，刪除活動時一併刪除圖片。
 - 各活動可分別建立多個場次；新增時由後端產生新編號，延期或狀態修改則更新原場次。
-- 銷售儀表板顯示已付款營收、售票率、可售庫存與訂單狀態。
+- 銷售儀表板顯示已付款營收、售票率、可售庫存與訂單狀態，使用 Chart.js 呈現場次票況堆疊長條圖與訂單狀態圓環圖。
+- 活動、後台管理與庫存列表使用共用 `ResponsiveRecordList.vue`，手機顯示卡片、桌面顯示表格；欄位、圖片與按鈕各自只維護一份定義。會員、購票、導覽與座位圖也提供手機排版，詳見[前端說明](concert-ticket-frontend/README.md#手機排版與共用列表)。
 - 分區設定涵蓋全部座位，各票種以分區基準價的百分比計價；限購包含已付款與有效待付款訂單。
 - 管理 API 僅允許具 `ADMIN_ITEM_IMPLEMENT` 權限的使用者存取。
 
@@ -130,6 +131,7 @@
 - 後端採用 Spring WebSocket 與 STOMP。
 - 透過 `convertAndSendToUser` 發送至 `/user/queue/notifications` 類型的個人佇列。
 - 前端使用 `@stomp/stompjs` 與 SockJS 建立連線並訂閱個人通知。
+- 建立訂單的付款提示、付款即將到期與付款期限已到通知停留 30 秒；其他警告 8 秒、一般通知 5 秒，全部可手動關閉。顯示時間不影響訂單付款期限。
 - STOMP `CONNECT` 標頭攜帶 `Authorization: Bearer <accessToken>`，後端驗證後設定使用者身分。
 - 管理員刪除已有場次的活動時，只向操作管理員推送警告。API 同時提供提示作為斷線備援；前端依通知編號避免重複顯示。
 
@@ -192,7 +194,7 @@ Python 與 Java 共用資料庫連線設定；Docker 中的 Python 位於後端�
 
 | 類別 | 技術 |
 | --- | --- |
-| 前端 | Vue 3、Vite 7、Element Plus 2.14.3、Axios |
+| 前端 | Vue 3、Vite 7、Element Plus 2.14.3、Chart.js 4.5.1、Axios |
 | 後端 | Java 21、Spring Boot 4.1.0、Spring Security、MyBatis |
 | 銷售分析 | Python、pg8000、python-dotenv |
 | 資料儲存 | PostgreSQL 16、Redis 7 |

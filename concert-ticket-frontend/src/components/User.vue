@@ -1,5 +1,6 @@
 <script setup>
 import { loginApi } from '@/services/api'
+import { syncAuth, resetAuth } from '@/services/auth'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie.js";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
@@ -60,6 +61,7 @@ function executeFirst() {
   } else {
     clearCookie('accessName')
     clearCookie('accessToken')
+    resetAuth()
     disconnectWebSocket()
   }
 }
@@ -96,6 +98,7 @@ const submitLogin = async () => {
             isLoggedIn_ = true
             addCookie('accessName', data.name)
             addCookie('accessToken', data.accessToken)
+            syncAuth()
             Object.assign(
               profileForm,
               {
@@ -313,6 +316,7 @@ const logout = async () => {
   if (!isLoggedIn_) {
     clearCookie('accessName')
     clearCookie('accessToken')
+    resetAuth()
     disconnectWebSocket()
   } else {
     connectWebSocket()
@@ -485,6 +489,33 @@ const logout = async () => {
 }
 
 @media (max-width: 767px) {
+  .user-page>.el-main {
+    padding: 12px 0;
+    min-width: 0;
+  }
+
+  .page-header {
+    padding: 16px;
+  }
+
+  .account-card :deep(.el-card__body) {
+    padding: 16px;
+  }
+
+  .submit-button {
+    min-height: 44px;
+  }
+
+  .profile-actions {
+    flex-wrap: wrap;
+  }
+
+  .profile-actions .el-button {
+    flex: 1;
+    min-height: 44px;
+    margin-left: 0;
+  }
+
   .page-header {
     align-items: flex-start;
     gap: 12px;
@@ -492,7 +523,7 @@ const logout = async () => {
   }
 
   .account-card {
-    margin: 0 -8px;
+    margin: 0;
   }
 
   .account-tabs {
