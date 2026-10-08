@@ -497,7 +497,8 @@ const orderFields = [
   <el-container class="admin-page">
     <el-header class="page-header">
       <div>
-        <h1>管理員後台</h1><el-text type="info">管理活動、場次與訂單資料。</el-text>
+        <h1>管理員後台</h1>
+        <el-text type="info">管理活動、場次與訂單資料。</el-text>
       </div>
       <el-tag type="warning" effect="light">管理員權限</el-tag>
     </el-header>
@@ -608,8 +609,9 @@ const orderFields = [
               </div>
             </template>
             <ResponsiveRecordList :records="sessions" empty-text="找不到場次" :fields="sessionFields">
-              <template #status="{ record }"><el-tag :type="statusType(record.status)">{{ statusMap[record.status]
-              }}</el-tag></template>
+              <template #status="{ record }">
+                <el-tag :type="statusType(record.status)">{{ statusMap[record.status] }}</el-tag>
+              </template>
               <template #actions="{ record }">
                 <el-button plain :type="statusType(record.status)"
                   :disabled="['TICKETS_ARE_ON_SALE', 'SOLD_OUT', 'ENDED'].includes(record.status)"
@@ -633,8 +635,9 @@ const orderFields = [
               </div>
             </template>
             <ResponsiveRecordList :records="orders" id-key="orderno" empty-text="找不到訂單" :fields="orderFields">
-              <template #status="{ record }"><el-tag :type="statusType(record.status)">{{ statusMap[record.status]
-              }}</el-tag></template>
+              <template #status="{ record }">
+                <el-tag :type="statusType(record.status)">{{ statusMap[record.status] }}</el-tag>
+              </template>
             </ResponsiveRecordList>
           </el-card>
         </el-tab-pane>

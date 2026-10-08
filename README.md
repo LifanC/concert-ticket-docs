@@ -18,11 +18,22 @@
 
 ## 系統畫面
 
+以下依功能展示桌面版畫面；各區塊可展開查看手機版，點擊手機截圖可開啟原圖。手機版將列表改為卡片，並依螢幕寬度調整表單、按鈕與圖表排列。
+
 ### 活動瀏覽
 
 可搜尋活動名稱、場地或編號，依活動類型與售票狀態篩選，查看活動圖片並前往訂票；一般會員可收藏活動及只看收藏。
 
 ![活動列表畫面](docs/images/Activity_1.jpg)
+
+<details>
+<summary>展開手機版畫面：活動瀏覽</summary>
+
+<p align="center">
+  <a href="docs/images/Activity_phone_1.jpg"><img src="docs/images/Activity_phone_1.jpg" alt="手機版活動首頁、搜尋篩選與活動卡片列表" width="320"></a>
+</p>
+
+</details>
 
 ### 選位與訂單
 
@@ -30,9 +41,27 @@
 
 ![票種、分區、限購額度與選位畫面](docs/images/booking_1.jpg)
 
+<details>
+<summary>展開手機版畫面：選位與建立訂單</summary>
+
+<p align="center">
+  <a href="docs/images/booking_phone_1.jpg"><img src="docs/images/booking_phone_1.jpg" alt="手機版票種、分區、會員限購額度與座位選擇" width="320"></a>
+</p>
+
+</details>
+
 「我的票券」列出訂單、場次與座位，顯示已付款、取消及逾期等狀態。
 
 ![我的票券與訂單狀態畫面](docs/images/booking_2.jpg)
+
+<details>
+<summary>展開手機版畫面：我的票券</summary>
+
+<p align="center">
+  <a href="docs/images/booking_phone_2.jpg"><img src="docs/images/booking_phone_2.jpg" alt="手機版我的票券、座位資訊與訂單狀態" width="320"></a>
+</p>
+
+</details>
 
 ### 管理後台
 
@@ -44,11 +73,29 @@
 
 ![管理後台銷售儀表板](docs/images/admin_1.jpg)
 
+<details>
+<summary>展開手機版畫面：銷售儀表板</summary>
+
+<p align="center">
+  <a href="docs/images/admin_phone_1.jpg"><img src="docs/images/admin_phone_1.jpg" alt="手機版銷售摘要、場次票況圖表、訂單狀態與庫存卡片" width="320"></a>
+</p>
+
+</details>
+
 #### 活動管理
 
 搜尋與管理活動，查看圖片、類型、場地及票價，並進行新增、修改或刪除。
 
 ![管理後台活動管理列表](docs/images/admin_2.jpg)
+
+<details>
+<summary>展開手機版畫面：活動管理</summary>
+
+<p align="center">
+  <a href="docs/images/admin_phone_2.jpg"><img src="docs/images/admin_phone_2.jpg" alt="手機版活動搜尋、活動管理卡片與修改刪除按鈕" width="320"></a>
+</p>
+
+</details>
 
 #### 建立場次
 
@@ -56,11 +103,29 @@
 
 ![管理後台建立場次與場次列表](docs/images/admin_3.jpg)
 
+<details>
+<summary>展開手機版畫面：建立場次</summary>
+
+<p align="center">
+  <a href="docs/images/admin_phone_3.jpg"><img src="docs/images/admin_phone_3.jpg" alt="手機版建立場次表單與已建立場次卡片" width="320"></a>
+</p>
+
+</details>
+
 #### 分區與限購
 
 設定每會員限購張數、座位分區、票價與票種比例，預覽座位配置並儲存或匯出設定。
 
 ![管理後台分區定價、票種與限購設定](docs/images/admin_4.jpg)
+
+<details>
+<summary>展開手機版畫面：分區與限購</summary>
+
+<p align="center">
+  <a href="docs/images/admin_phone_4.jpg"><img src="docs/images/admin_phone_4.jpg" alt="手機版會員限購、分區定價、票種設定與座位分區預覽" width="320"></a>
+</p>
+
+</details>
 
 #### 查看訂單
 
@@ -68,11 +133,29 @@
 
 ![管理後台訂單列表](docs/images/admin_5.jpg)
 
+<details>
+<summary>展開手機版畫面：查看訂單</summary>
+
+<p align="center">
+  <a href="docs/images/admin_phone_5.jpg"><img src="docs/images/admin_phone_5.jpg" alt="手機版訂單卡片、金額與付款取消狀態" width="320"></a>
+</p>
+
+</details>
+
 ### 會員中心
 
 提供會員登入、註冊與修改會員資料。
 
 ![會員中心登入畫面](docs/images/user.jpg)
+
+<details>
+<summary>展開手機版畫面：會員中心</summary>
+
+<p align="center">
+  <a href="docs/images/user_phone.jpg"><img src="docs/images/user_phone.jpg" alt="手機版會員中心頁籤與登入表單" width="320"></a>
+</p>
+
+</details>
 
 ## 功能概覽
 
