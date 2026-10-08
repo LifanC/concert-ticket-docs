@@ -312,7 +312,8 @@ function exportDraft() {
           <li v-for="issue in issues" :key="issue">{{ issue }}</li>
         </ul>
       </el-alert>
-      <div class="heading"><span>修改後須儲存才會套用</span>
+      <div class="heading save-actions">
+        <span>修改後須儲存才會套用</span>
         <div>
           <el-button :disabled="locked || issues.length > 0" @click="exportDraft">匯出設定</el-button>
           <el-button type="primary" :loading="saving" :disabled="locked || issues.length > 0"
@@ -465,6 +466,16 @@ p,
   .heading>div .el-button {
     flex: 1;
     margin-left: 0;
+  }
+
+  .save-actions {
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .save-actions>span {
+    width: 100%;
+    text-align: center;
   }
 
   .seat-preview {
