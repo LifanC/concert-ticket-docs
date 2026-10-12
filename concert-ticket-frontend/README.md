@@ -1,6 +1,8 @@
 # 演唱會訂票系統前端
 
-前端為以 Vue 3 建置，提供會員、活動、訂票與管理員操作介面。
+前端以 Vue 3 建置，提供會員、活動、訂票與管理員操作介面。
+
+線上網站：[演唱會訂票系統](https://concert-ticket-frontend.onrender.com/)
 
 ## 技術
 
@@ -41,7 +43,9 @@ VITE_API_BASE_URL=http://localhost:8080/api
 VITE_WS_URL=http://localhost:8080/api/ws
 ```
 
-API base URL 包含 `/api`，不需附加 `/v1`。修改後重啟開發伺服器；建置版本需重新 build。後端 REST CORS 目前只允許 `http://localhost:5173`，更換前端來源時需同步調整後端 `SecurityConfig`。
+API base URL 包含 `/api`，不需附加 `/v1`。修改後重啟開發伺服器；建置版本需重新 build。Render 部署時，在前端服務的 **Environment** 設定 `VITE_API_BASE_URL` 與 `VITE_WS_URL`，填入實際的後端 HTTPS 網址，並重新建置部署。
+
+後端 REST CORS 在 `SecurityConfig` 中允許 `http://localhost:5173` 與 `https://concert-ticket-frontend.onrender.com`。若更換前端網域，需同步更新允許的來源並重新部署後端。
 
 Axios 使用 `withCredentials` 並附帶 `Authorization: Bearer <accessToken>`。Refresh Token 由後端儲存於 HttpOnly Cookie；遇到 401 時呼叫 `/v1/login/validate` 更新 Access Token 並重試一次，更新失敗則返回會員頁。
 

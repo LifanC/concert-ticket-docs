@@ -4,6 +4,8 @@
 
 **線上演唱會售票系統｜全端個人專案**
 
+線上網站：[演唱會訂票系統](https://concert-ticket-frontend.onrender.com/)
+
 使用 Vue 3 與 Spring Boot 開發演唱會售票系統，整合會員驗證、活動瀏覽、場次選座、訂單管理與管理員後台，並提供自動化測試及 Python 銷售報表。
 
 1. 使用 MyBatis 與 PostgreSQL 交易、列鎖及唯一約束保護座位占用，同步處理訂單、座位與庫存異動；建立訂單支援 `Idempotency-Key`，讓相同訂位請求可安全重試。
