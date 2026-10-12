@@ -23,6 +23,6 @@ spring:
 
   # Datasource 使用 Docker 環境變數
   datasource:
-    url: jdbc:postgresql://db:5432/interviewworks?currentSchema=interviewworks_ticket
-    username: postgres
-    password: ${POSTGRES_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://db:5432/interviewworks?currentSchema=interviewworks_ticket}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:}}
