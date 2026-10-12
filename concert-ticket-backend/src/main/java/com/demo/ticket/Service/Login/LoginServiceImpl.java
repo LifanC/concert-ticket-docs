@@ -33,6 +33,9 @@ public class LoginServiceImpl implements LoginService {
     @Value("${auth.cookie.secure:false}")
     private boolean refreshCookieSecure;
 
+    @Value("${auth.cookie.sameSite:Lax}")
+    private String refreshCookieSameSite;
+
     // ? redis 到期時間 Seconds
     @Value("${jwt.refreshExpirationSeconds}")
     private long refreshExpirationSeconds;
@@ -187,7 +190,7 @@ public class LoginServiceImpl implements LoginService {
             ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                     .httpOnly(true)
                     .secure(refreshCookieSecure)
-                    .sameSite("Lax")
+                    .sameSite(refreshCookieSameSite)
                     .path("/api/v1/login")
                     .maxAge(refreshTokenMaxAge)
                     .build();

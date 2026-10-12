@@ -6,7 +6,6 @@ jwt:
   accessExpirationSeconds: 1800
 
 analytics:
-  enabled: ${ANALYTICS_ENABLED:true}
   directory: ${ANALYTICS_DIRECTORY:}
   python: ${ANALYTICS_PYTHON:}
   delay-ms: ${ANALYTICS_DELAY_MS:1800000}
@@ -15,6 +14,7 @@ analytics:
 auth:
   cookie:
     secure: ${REFRESH_COOKIE_SECURE:false}
+    sameSite: ${REFRESH_COOKIE_SAME_SITE:Lax}
 
 # -----------------------------
 # Server 設定
