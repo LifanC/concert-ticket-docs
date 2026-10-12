@@ -139,7 +139,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://concert-ticket-docs.onrender.com"
+                        "https://concert-ticket-frontend.onrender.com"
                 )
         );
         configuration.setAllowedMethods(
