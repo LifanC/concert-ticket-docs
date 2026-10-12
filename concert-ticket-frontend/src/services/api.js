@@ -122,6 +122,34 @@ function setupAuthInterceptor(client) {
   return client
 }
 
+export async function restoreSession() {
+  const token = toFindCookie('accessToken')
+
+  if (token) {
+    syncAuth()
+    return true
+  }
+
+  try {
+    const response = await refreshClient.post('/validate')
+
+    const newToken = response.data?.data?.[0]?.accessToken
+
+    if (!newToken) {
+      return false
+    }
+
+    addCookie('accessToken', newToken)
+    syncAuth()
+
+    return true
+  } catch (error) {
+    console.warn('恢復登入狀態失敗:', error)
+    resetAuth()
+    return false
+  }
+}
+
 export const activityApi = setupAuthInterceptor(createApi('activity'))
 export const adminApi = setupAuthInterceptor(createApi('admin'))
 export const bookingApi = setupAuthInterceptor(createApi('booking'))
