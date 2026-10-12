@@ -36,6 +36,9 @@ export default defineConfig({
       autoInstall: true,
     }),
   ],
+  build: {
+    chunkSizeWarningLimit: 1000,
+  },
   define: {
     global: 'globalThis'
   },
