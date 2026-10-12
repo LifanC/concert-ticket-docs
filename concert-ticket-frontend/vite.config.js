@@ -36,6 +36,7 @@ export default defineConfig({
       autoInstall: true,
     }),
   ],
+  base: '/',
   build: {
     chunkSizeWarningLimit: 1000,
   },
