@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 import AutoImport from 'unplugin-auto-import/vite'
@@ -12,7 +12,20 @@ import IconsResolver from 'unplugin-icons/resolver'
 
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const proxyTarget = env.API_PROXY_TARGET || 'http://localhost:8080'
+
+  return {
+  server: {
+    proxy: {
+      '/api': {
+        target: proxyTarget,
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
   plugins: [
     vue(),
     AutoImport({
@@ -47,5 +60,6 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  }
   }
 })
