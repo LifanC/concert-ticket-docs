@@ -468,6 +468,7 @@ const orderFields = [
   <el-container class="admin-page">
     <el-header class="page-header">
       <div>
+        <p class="eyebrow">ADMINISTRATION</p>
         <h1>管理員後台</h1>
         <el-text type="info">管理活動、場次與訂單資料。</el-text>
       </div>
@@ -483,7 +484,7 @@ const orderFields = [
           <el-card shadow="never" class="filter-card">
             <el-form :inline="true" label-position="top" class="filter-form">
               <el-form-item>
-                <el-input v-model="keyword" clearable placeholder="搜尋活動名稱、編號或場地" style="max-width: 330px" />
+                <el-input v-model="keyword" clearable placeholder="搜尋活動名稱、編號或場地" aria-label="搜尋活動" />
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="openAdd">新增活動</el-button>
@@ -793,24 +794,69 @@ const orderFields = [
 <style scoped>
 .admin-page {
   min-height: 100%;
-  background: #f7f8fa;
+  min-width: 0;
 }
 
 .page-header {
   height: auto;
-  padding: 24px;
+  padding: 8px 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
 }
 
 .admin-page>.admin-main {
-  padding: 20px 24px;
+  padding: 0;
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #89664d;
 }
 
 .page-header h1 {
-  margin: 0 0 8px;
-  font-size: 26px;
+  margin: 0 0 10px;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 3px;
+}
+
+.page-header .el-text {
+  line-height: 1.8;
+}
+
+.admin-page :deep(.el-card) {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #433a3a06;
+}
+
+.admin-page :deep(.el-card__header) {
+  padding: 20px 24px;
+  background: #f8f4ee;
+}
+
+.admin-page :deep(.el-card__body) {
+  padding: 24px;
+}
+
+.admin-page :deep(.el-input__wrapper),
+.admin-page :deep(.el-select__wrapper) {
+  min-height: 42px;
+  border-radius: 6px;
+}
+
+.admin-tabs :deep(.el-tabs__item) {
+  height: 52px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.admin-tabs :deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
 }
 
 .admin-tabs :deep(.el-tabs__header) {
@@ -818,11 +864,29 @@ const orderFields = [
 }
 
 .filter-card {
+  margin-bottom: 20px;
+}
+
+.filter-form {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.filter-form :deep(.el-form-item) {
+  margin: 0;
+}
+
+.filter-form :deep(.el-form-item:first-child) {
+  flex: 1;
+  max-width: 480px;
+  min-width: 0;
+}
+
+.filter-form :deep(.el-button) {
+  min-height: 42px;
+  border-radius: 6px;
 }
 
 .table-card,
@@ -834,10 +898,17 @@ const orderFields = [
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  font-weight: 500;
 }
 
 .session-form {
-  max-width: 620px;
+  max-width: 760px;
+  margin: 8px auto;
+}
+
+.session-form :deep(.el-form-item) {
+  margin-bottom: 24px;
 }
 
 .session-info-card {
@@ -996,7 +1067,32 @@ const orderFields = [
   }
 
   .page-header {
+    padding: 8px 4px 24px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .admin-page :deep(.el-card__header),
+  .admin-page :deep(.el-card__body) {
     padding: 16px;
+  }
+
+  .admin-page :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .admin-tabs :deep(.el-tabs__item) {
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .admin-page :deep(.record-card) {
+    padding: 16px;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 10px;
+    background: #f8f5f1;
   }
 
   .record-image {
@@ -1024,6 +1120,11 @@ const orderFields = [
 
   .filter-form :deep(.el-form-item) {
     margin: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .filter-form :deep(.el-button) {
     width: 100%;
   }
 

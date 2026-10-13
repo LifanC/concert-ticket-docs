@@ -1,12 +1,13 @@
 <script setup>
+import { useRouter } from 'vue-router'
 import { loginApi } from '@/services/api'
 import { syncAuth, resetAuth } from '@/services/auth'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie.js";
 import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 
+const router = useRouter()
 const activeTab = ref('login')
 const isLoggedIn = ref(false)
-const accessName = ref('')
 const loginForm = reactive(
   {
     account: '',
@@ -56,9 +57,7 @@ const registerFormNotOk = ref(
 executeFirst()
 function executeFirst() {
   isLoggedIn.value = !!toFindCookie('accessToken')
-  if (isLoggedIn.value) {
-    accessName.value = toFindCookie('accessName') ?? ''
-  } else {
+  if (!isLoggedIn.value) {
     clearCookie('accessName')
     clearCookie('accessToken')
     resetAuth()
@@ -108,7 +107,6 @@ const submitLogin = async () => {
                 birthday: data.birthday
               }
             )
-            accessName.value = toFindCookie('accessName') ?? ''
             ElMessage({
               type: 'success',
               message: `${'登入成功'}`,
@@ -146,6 +144,7 @@ const submitLogin = async () => {
     disconnectWebSocket()
   } else {
     connectWebSocket()
+    await router.push({ name: 'Activity' })
   }
 }
 
@@ -328,13 +327,24 @@ const logout = async () => {
   <el-container class="user-page">
     <el-header class="page-header">
       <div>
+        <p class="eyebrow">MY ACCOUNT</p>
         <h1>會員中心</h1>
         <el-text type="info">管理帳戶資料，讓訂票與票券服務更順暢。</el-text>
       </div>
-      <el-tag :type="isLoggedIn ? 'success' : 'info'" effect="light">{{ isLoggedIn ? `已登入・${accessName}` : '尚未登入'
-      }}</el-tag>
+      <el-button v-if="isLoggedIn" plain @click="logout">登出</el-button>
     </el-header>
-    <el-main>
+    <el-main class="member-layout">
+      <aside class="member-intro">
+        <p class="eyebrow">LIVE IN THE MOMENT</p>
+        <h2>下一場精彩，<br>從這裡開始。</h2>
+        <p class="intro-description">把期待留給現場，<br>把訂票與帳戶管理交給我們。</p>
+        <div class="member-benefits">
+          <div><span class="benefit-number">01</span><div><h3>探索喜愛的活動</h3><p>找到值得親臨現場的精彩演出。</p></div></div>
+          <div><span class="benefit-number">02</span><div><h3>管理電子票券</h3><p>登入後查看屬於你的演出票券。</p></div></div>
+          <div><span class="benefit-number">03</span><div><h3>更新聯絡資訊</h3><p>讓訂單與活動通知順利送達。</p></div></div>
+        </div>
+        <router-link class="explore-link" to="/">探索活動 <span aria-hidden="true">↗</span></router-link>
+      </aside>
       <el-card shadow="never" class="account-card">
         <el-tabs v-model="activeTab" class="account-tabs" stretch>
           <el-tab-pane label="登入" name="login">
@@ -355,14 +365,13 @@ const logout = async () => {
             </el-form>
             <p class="switch-text">還沒有帳戶？
               <el-button text type="primary" @click="activeTab = 'register'">立即註冊</el-button>
-              <el-button v-if="isLoggedIn" text type="danger" plain @click="logout">登出</el-button>
             </p>
           </el-tab-pane>
           <el-tab-pane label="註冊" name="register">
             <div class="form-heading">
               <h2>建立新帳戶</h2><el-text type="info">請填寫基本資料，完成後即可開始訂票。</el-text>
             </div>
-            <el-form :model="registerForm" label-position="top" class="account-form" @submit.prevent="submitRegister">
+            <el-form :model="registerForm" label-position="top" class="account-form details-form" @submit.prevent="submitRegister">
               <el-form-item label="帳號" required
                 :error="registerFormNotOk.account !== '' ? registerFormNotOk.account : ''">
                 <el-input v-model="registerForm.account" placeholder="請輸入帳號" />
@@ -397,11 +406,10 @@ const logout = async () => {
                 <h2>會員資料</h2>
                 <el-text type="info">保持聯絡資訊正確，以接收訂單與活動通知。</el-text>
               </div>
-              <el-tag v-if="isLoggedIn" type="success" effect="light">已登入</el-tag>
             </div>
             <el-alert v-if="!isLoggedIn" title="請先登入後再修改會員資料。" type="warning" :closable="false" show-icon
               class="login-alert" />
-            <el-form :model="profileForm" label-position="top" class="account-form" :disabled="!isLoggedIn"
+            <el-form :model="profileForm" label-position="top" class="account-form details-form" :disabled="!isLoggedIn"
               @submit.prevent="saveProfile">
               <el-form-item label="姓名">
                 <el-input v-model="profileForm.name" :disabled="true" />
@@ -430,104 +438,284 @@ const logout = async () => {
 <style scoped>
 .user-page {
   min-height: 100%;
-  background: #f7f8fa;
+  max-width: 1120px;
+  margin: 0 auto;
 }
 
 .page-header {
   height: auto;
-  padding: 24px;
+  padding: 8px 0 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #89664d;
 }
 
 .page-header h1 {
-  margin: 0 0 8px;
-  font-size: 26px;
+  margin: 0 0 10px;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 3px;
 }
 
-.account-card {
-  max-width: 720px;
+.page-header .el-text {
+  line-height: 1.8;
 }
 
-.account-tabs {
-  padding: 0 8px;
+.member-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.3fr);
+  padding: 0;
+  gap: 28px;
+  align-items: start;
+  overflow: visible;
+}
+
+.member-intro {
+  padding: 40px 32px;
+  border: 1px solid #cfc7be;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #eee5da, #e1d5c8);
+}
+
+.member-intro h2 {
+  margin: 22px 0 16px;
+  font-family: 'Noto Serif TC', 'PMingLiU', serif;
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 2px;
+}
+
+.intro-description {
+  margin: 0;
+  color: #756b64;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.member-benefits {
+  display: grid;
+  gap: 24px;
+  padding: 28px 0;
+  margin-top: 28px;
+  border-top: 1px solid #c7b7a7;
+}
+
+.member-benefits > div {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.benefit-number {
+  color: #89664d;
+  font-family: Georgia, serif;
+  font-size: 13px;
+}
+
+.member-benefits h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.member-benefits p {
+  margin: 0;
+  color: #756b64;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.explore-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  border-top: 1px solid #c7b7a7;
+  padding-top: 18px;
+  font-size: 13px;
+  color: #6d503c;
+  text-decoration: none;
+}
+
+.explore-link:hover {
+  text-decoration: underline;
+}
+
+.user-page .account-card {
+  min-width: 0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px #433a3a08;
+}
+
+.account-card :deep(.el-card__body) {
+  padding: 28px 32px 32px;
+}
+
+.account-tabs :deep(.el-tabs__item) {
+  height: 48px;
+  font-size: 14px;
+}
+
+.account-tabs :deep(.el-tabs__nav-wrap::after) {
+  height: 1px;
 }
 
 .form-heading {
-  margin: 26px 0 20px;
+  margin: 24px 0 28px;
 }
 
 .form-heading h2 {
-  margin: 0 0 7px;
-  font-size: 20px;
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 500;
 }
 
-.account-form {
-  max-width: 460px;
+.form-heading .el-text {
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.account-form :deep(.el-form-item) {
+  margin-bottom: 24px;
+  min-width: 0;
+}
+
+.account-form :deep(.el-form-item__label) {
+  font-size: 13px;
+  padding-bottom: 8px;
+  line-height: 1.5;
+}
+
+.account-form :deep(.el-input__wrapper) {
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.details-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+}
+
+.submit-button,
+.profile-actions {
+  grid-column: 1 / -1;
 }
 
 .submit-button {
   width: 100%;
-  margin-top: 6px;
+  min-height: 46px;
+  margin-top: 8px;
+  border-radius: 6px;
+  letter-spacing: 2px;
 }
 
 .switch-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   color: var(--el-text-color-secondary);
-  margin: 18px 0 12px;
+  font-size: 13px;
+  margin: 24px 0 0;
 }
 
 .login-alert {
-  margin: 20px 0;
+  margin: 20px 0 28px;
 }
 
 .profile-actions {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
   margin-top: 8px;
 }
 
-@media (max-width: 767px) {
-  .user-page>.el-main {
-    padding: 12px 0;
-    min-width: 0;
+.profile-actions .el-button {
+  min-height: 44px;
+  min-width: 140px;
+  border-radius: 6px;
+}
+
+@media (max-width: 960px) {
+  .member-layout {
+    grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.3fr);
+    gap: 20px;
   }
 
-  .page-header {
-    padding: 16px;
+  .member-intro {
+    padding: 32px 24px;
   }
 
   .account-card :deep(.el-card__body) {
-    padding: 16px;
+    padding: 24px;
   }
 
-  .submit-button {
-    min-height: 44px;
+  .details-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    padding: 8px 4px 24px;
   }
 
-  .profile-actions {
-    flex-wrap: wrap;
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .member-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .member-intro {
+    padding: 24px;
+  }
+
+  .member-intro .eyebrow {
+    margin-bottom: 8px;
+  }
+
+  .member-intro h2 {
+    margin: 8px 0 12px;
+    font-size: 26px;
+  }
+
+  .member-intro h2 br,
+  .intro-description br {
+    display: none;
+  }
+
+  .member-benefits {
+    display: none;
+  }
+
+  .explore-link {
+    margin-top: 20px;
+  }
+
+  .account-card :deep(.el-card__body) {
+    padding: 20px;
+  }
+
+  .account-tabs :deep(.el-tabs__item) {
+    font-size: 13px;
+    padding: 0 10px;
   }
 
   .profile-actions .el-button {
-    flex: 1;
-    min-height: 44px;
-    margin-left: 0;
-  }
-
-  .page-header {
-    align-items: flex-start;
-    gap: 12px;
-    flex-direction: column;
-  }
-
-  .account-card {
-    margin: 0;
-  }
-
-  .account-tabs {
-    padding: 0;
+    width: 100%;
   }
 }
 </style>

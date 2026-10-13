@@ -3,11 +3,17 @@ import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
 const admin = ref(false)
 export const isAdmin = readonly(admin)
+const loggedIn = ref(false)
+const name = ref('')
+export const isLoggedIn = readonly(loggedIn)
+export const accessName = readonly(name)
 
 // Decoding only controls navigation; the API verifies the token and permissions.
 export function syncAuth() {
   let nextAdmin = false
   const token = toFindCookie('accessToken')
+  loggedIn.value = !!token
+  name.value = token ? (toFindCookie('accessName') ?? '') : ''
   try {
     const parts = typeof token === 'string' ? token.split('.') : []
     if (parts.length === 3) {
@@ -25,4 +31,6 @@ export function syncAuth() {
 
 export function resetAuth() {
   admin.value = false
+  loggedIn.value = false
+  name.value = ''
 }

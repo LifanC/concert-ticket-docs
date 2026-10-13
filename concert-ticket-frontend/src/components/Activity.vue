@@ -351,30 +351,32 @@ const activityFields = [
         <p class="eyebrow section-eyebrow">DISCOVER YOUR NEXT MOMENT</p>
         <h1>活動資訊</h1><el-text type="info">探索最新活動，找到屬於你的精彩體驗。</el-text>
       </div>
-      <el-tag type="primary" effect="light">{{ filteredActivities.length }} 個活動</el-tag>
-      <el-button plain type="primary" @click="myTicketsVisibleDialog">查看我的票券</el-button>
+      <div class="page-actions">
+        <el-tag type="primary" effect="light">{{ filteredActivities.length }} 個活動</el-tag>
+        <el-button plain type="primary" @click="myTicketsVisibleDialog">查看我的票券</el-button>
+      </div>
     </el-header>
     <el-main>
       <el-card shadow="never" class="filter-card">
         <el-form :inline="true" label-position="top" class="filter-form">
-          <el-form-item label="搜尋活動">
-            <el-input v-model="keyword" clearable placeholder="活動名稱、場地或活動編號" style="width: 280px" />
+          <el-form-item label="搜尋活動" class="search-field">
+            <el-input v-model="keyword" clearable placeholder="活動名稱、場地或活動編號" />
           </el-form-item>
           <el-form-item label="活動類型">
-            <el-select v-model="selectedCategory" style="width: 140px">
+            <el-select v-model="selectedCategory">
               <el-option v-for="category in categories" :key="category.value" :label="category.label"
                 :value="category.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="售票狀態">
-            <el-select v-model="selectedStatus" style="width: 140px">
+            <el-select v-model="selectedStatus">
               <el-option v-for="status in statuses" :key="status.value" :label="status.label" :value="status.value" />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="showFavoriteControls" label=" ">
+          <el-form-item v-if="showFavoriteControls" label=" " class="favorite-field">
             <el-checkbox v-model="showFavoritesOnly" border>只看收藏</el-checkbox>
           </el-form-item>
-          <el-form-item label=" ">
+          <el-form-item label=" " class="reset-field">
             <el-button plain type="warning" @click="resetFilters">重設篩選</el-button>
           </el-form-item>
         </el-form>
@@ -494,6 +496,16 @@ const activityFields = [
 
 .ticket-card {
   min-width: 0;
+  border-radius: 12px;
+}
+
+.ticket-card :deep(.el-card__header) {
+  background: #f8f4ee;
+}
+
+.ticket-actions .el-button {
+  min-height: 44px;
+  border-radius: 6px;
 }
 
 .ticket-extra {
@@ -572,9 +584,43 @@ const activityFields = [
 
 .activity-page {
   min-height: 100%;
+  min-width: 0;
   background: transparent;
 }
 
+.activity-page > .el-main {
+  padding: 0;
+  min-width: 0;
+}
+
+.activity-page :deep(.el-card) {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #433a3a06;
+}
+
+.activity-page :deep(.el-card__body) {
+  padding: 24px;
+}
+
+.activity-page :deep(.el-card__header) {
+  padding: 20px 24px;
+  background: #f8f4ee;
+}
+
+.activity-page :deep(.el-input__wrapper),
+.activity-page :deep(.el-select__wrapper) {
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.activity-page :deep(.el-button) {
+  min-height: 42px;
+  border-radius: 6px;
+}
+
+.activity-card :deep(.el-table__cell) {
+  padding-block: 16px;
+}
 
 .experience-hero {
   position: relative;
@@ -584,6 +630,8 @@ const activityFields = [
   background: #f3eee8;
   overflow: hidden;
   margin-bottom: 32px;
+  border: 1px solid #cfc7be;
+  border-radius: 12px;
 }
 
 .hero-copy {
@@ -731,11 +779,25 @@ const activityFields = [
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 24px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-header .el-text {
+  line-height: 1.8;
 }
 
 .page-header h1 {
   margin: 0 0 8px;
-  font-size: 26px;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 3px;
 }
 
 .filter-card,
@@ -744,15 +806,30 @@ const activityFields = [
 }
 
 .filter-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) repeat(2, minmax(120px, 1fr)) auto auto;
+  align-items: end;
+  gap: 16px;
 }
 
 .filter-form :deep(.el-form-item) {
   margin-right: 0;
   margin-bottom: 0;
+  min-width: 0;
+}
+
+.filter-form :deep(.el-select) {
+  width: 100%;
+}
+
+.filter-form :deep(.el-checkbox) {
+  min-height: 44px;
+  margin-right: 0;
+  border-radius: 6px;
+}
+
+.filter-form :deep(.el-button) {
+  min-height: 44px;
 }
 
 .card-title,
@@ -774,7 +851,7 @@ const activityFields = [
   width: 180px;
   height: 102px;
   background: var(--el-fill-color-light);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .activity-table-no-image {
@@ -804,6 +881,21 @@ const activityFields = [
   width: 130px;
 }
 
+@media (max-width: 1100px) {
+  .filter-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .filter-form :deep(.el-button),
+  .filter-form :deep(.el-checkbox) {
+    width: 100%;
+  }
+}
+
 @media (max-width: 767px) {
   .activity-page>.el-main {
     padding: 12px 0;
@@ -824,10 +916,12 @@ const activityFields = [
 
   .experience-hero {
     grid-template-columns: 1fr;
+    min-height: 0;
+    margin-bottom: 24px;
   }
 
   .hero-copy {
-    padding: 32px 26px 50px;
+    padding: 28px 24px 32px;
   }
 
   .hero-copy h2 {
@@ -835,7 +929,7 @@ const activityFields = [
   }
 
   .hero-art {
-    min-height: 300px;
+    display: none;
   }
 
   .art-arch {
@@ -849,11 +943,7 @@ const activityFields = [
   }
 
   .hero-edition {
-    top: 16px;
-    bottom: auto;
-    left: auto;
-    right: 16px;
-    font-size: 7px;
+    display: none;
   }
 
   .hero-copy .eyebrow {
@@ -866,6 +956,30 @@ const activityFields = [
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .page-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .activity-page :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .activity-card :deep(.record-card) {
+    padding: 16px;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 10px;
+    background: #f8f5f1;
+  }
+
+  .ticket-actions .el-button {
+    flex: 1;
   }
 
   .filter-form {
@@ -887,6 +1001,12 @@ const activityFields = [
 
   .detail-list :deep(.el-descriptions__label) {
     width: 100px;
+  }
+}
+
+@media (max-width: 380px) {
+  .filter-form {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
