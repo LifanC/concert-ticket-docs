@@ -34,18 +34,28 @@ npm run dev
 
 ## 後端連線設定
 
-REST API 由 `src/services/api.js` 統一管理，WebSocket 由 `src/services/websocket.js` 管理。在本目錄建立 `.env.local` 可覆寫預設值：
+本機開發時，先啟動後端（`http://localhost:8080`），再執行 `npm run dev`。前端會自動把 API 與 WebSocket 請求轉送到後端，**不用在 `.env` 加入連線設定**。
 
-範本已集中至根目錄 [`.env.example`](../.env.example)，前端只需將其中的 `VITE_*` 放入 `concert-ticket-frontend/.env` 或 `.env.local`。根目錄 `.env` 不會自動套用到 Vue；同名設定以 `.env.local` 優先於 `.env`。
+只有後端網址或埠號不同時，才需要在 `concert-ticket-frontend/.env` 加入設定。例如後端改用 8081：
+
+```properties
+API_PROXY_TARGET=http://localhost:8081
+```
+
+網址不要加 `/api`，改完後重啟 `npm run dev`。也可以使用 `.env.local`；若兩個檔案都有同名設定，以 `.env.local` 為準。專案根目錄的 `.env` 不會自動套用到前端。
+
+Docker Compose 已設定前端連到 `http://app:8080`，通常不用修改。Render 部署的 API 與 WebSocket 由 `nginx.conf` 轉送到後端；部署後端網址改變時，需修改該檔案並重新建置部署。
+
+若需要讓瀏覽器直接連到後端，可在前端 `.env` 設定以下兩項（一般本機開發不用加）：
 
 ```properties
 VITE_API_BASE_URL=http://localhost:8080/api
 VITE_WS_URL=http://localhost:8080/api/ws
 ```
 
-API base URL 包含 `/api`，不需附加 `/v1`。修改後重啟開發伺服器；建置版本需重新 build。Render 部署時，在前端服務的 **Environment** 設定 `VITE_API_BASE_URL` 與 `VITE_WS_URL`，填入實際的後端 HTTPS 網址，並重新建置部署。
+直接連線的 API 網址需包含 `/api`，WebSocket 網址需包含 `/api/ws`。修改後重啟開發伺服器；已部署的版本需重新建置。
 
-後端 REST CORS 在 `SecurityConfig` 中允許 `http://localhost:5173` 與 `https://concert-ticket-frontend.onrender.com`。若更換前端網域，需同步更新允許的來源並重新部署後端。
+直接連線時，後端 CORS 允許 `http://localhost:5173` 與 `https://concert-ticket-frontend.onrender.com`。若使用其他前端網址，需在 `SecurityConfig.java` 加入允許的來源。
 
 Axios 使用 `withCredentials` 並附帶 `Authorization: Bearer <accessToken>`。Refresh Token 由後端儲存於 HttpOnly Cookie；遇到 401 時呼叫 `/v1/login/validate` 更新 Access Token 並重試一次，更新失敗則返回會員頁。
 

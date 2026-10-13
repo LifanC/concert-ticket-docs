@@ -358,7 +358,7 @@ concert-ticket-docs/
    .\mvnw.cmd spring-boot:run
    ```
 
-3. 在 `concert-ticket-frontend/.env.local` 放入根目錄範本中的兩個 `VITE_*` 參數，另開終端機從專案根目錄切換至前端並啟動：
+3. 後端在本機 8080 埠執行時，前端會自動連線，不用在前端 `.env` 加入連線設定。另開終端機從專案根目錄切換至前端並啟動：
 
    ```powershell
    # 從專案根目錄的另一個終端機執行
@@ -367,7 +367,7 @@ concert-ticket-docs/
    npm run dev
    ```
 
-開啟 http://localhost:5173 即可使用。根目錄 `.env` 不會自動套用至 Vue；前端設定修改後需重啟 Vite。後端 CORS 目前允許 `http://localhost:5173`，更換前端網域或埠號時需同步調整 `SecurityConfig.java`。
+開啟 http://localhost:5173 即可使用。若後端使用其他網址或埠號，請依[前端連線設定](concert-ticket-frontend/README.md#後端連線設定)修改，並重啟 `npm run dev`。
 
 ## 銷售報表與執行紀錄
 
