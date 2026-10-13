@@ -13,7 +13,7 @@ analytics:
 
 auth:
   cookie:
-    secure: ${REFRESH_COOKIE_SECURE:false}
+    secure: ${REFRESH_COOKIE_SECURE:true}
     sameSite: ${REFRESH_COOKIE_SAME_SITE:Lax}
 
 # -----------------------------
