@@ -8,12 +8,16 @@
             activity."name",
             activity.category,
             activity.venue,
-            "session".status
+            "session".status,
+            CASE WHEN activity_image.activity_uuid IS NOT NULL
+                 THEN '/v1/activity/activityImage/' || activity.id END AS image_url
         FROM "interviewworks_ticket"."activity" activity
                  INNER JOIN "interviewworks_ticket"."session" "session"
                             ON activity.id = "session".activity_id
                  LEFT JOIN "interviewworks_ticket".seat seat
                            ON activity.id = seat.activity_id
+                 LEFT JOIN "interviewworks_ticket".activity_image activity_image
+                           ON activity.activity_uuid = activity_image.activity_uuid
         ORDER BY activity.id
     </select>
 

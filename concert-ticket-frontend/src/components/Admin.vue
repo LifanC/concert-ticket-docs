@@ -1,5 +1,5 @@
 <script setup>
-import { adminApi } from '@/services/api'
+import { adminApi, resolveActivityImageUrl } from '@/services/api'
 import { connectWebSocket, showNotification } from '@/services/websocket'
 import AdminDashboard from './AdminDashboard.vue'
 import AdminSalesSettings from './AdminSalesSettings.vue'
@@ -21,7 +21,6 @@ const error = ref('')
 const updatedAt = ref('')
 const loaded = ref(false)
 onMounted(() => connectWebSocket())
-let activityImageLoadVersion = 0
 
 loadDashboard()
 executeFirst()
@@ -56,27 +55,9 @@ async function executeFirst() {
     url: '/selectAllActivities',
   });
   activities.value = response_selectAllActivities.data
-  const version = ++activityImageLoadVersion
-  if (version !== activityImageLoadVersion) return
-  const nextUrls = {}
-  for (const { id, image_data, content_type } of response_selectAllActivities.data) {
-    if (image_data) {
-      const blob = new Blob(
-        [Uint8Array.from(atob(image_data), c => c.charCodeAt(0))],
-        { type: content_type }
-      )
-      nextUrls[id] = URL.createObjectURL(blob)
-    }
-  }
-  Object.values(response_selectAllActivities.data).forEach((url) => {
-    URL.revokeObjectURL(url)
-  })
-  activityImageUrls.value = nextUrls
-  onBeforeUnmount(() => {
-    Object.values(response_selectAllActivities.data).forEach((url) => {
-      URL.revokeObjectURL(url)
-    })
-  })
+  activityImageUrls.value = Object.fromEntries(
+    activities.value.map(activity => [activity.id, resolveActivityImageUrl(activity.image_url)])
+  )
 }
 
 const activityForm = reactive(
@@ -186,7 +167,7 @@ let imageLoadVersion = 0
 
 function clearImageSelection() {
   imageLoadVersion++
-  if (imagePreview.value) {
+  if (imagePreview.value.startsWith('blob:')) {
     URL.revokeObjectURL(imagePreview.value)
   }
   imageFile.value = null
@@ -194,6 +175,9 @@ function clearImageSelection() {
   imageUpload.value?.clearFiles()
   activityFormNotOk.value.image = ''
 }
+onBeforeUnmount(() => {
+  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
+})
 const openAdd = () => {
   clearImageSelection()
   Object.assign(
@@ -221,7 +205,7 @@ const openEdit = async (activity) => {
   dialogMode.value = '修改活動'
   dialogVisible.value = true
   if (imageLoadVersion === loadVersion && dialogVisible.value) {
-    imagePreview.value = `data:${activity.content_type};base64,${activity.image_data}`
+    imagePreview.value = activityImageUrls.value[activity.id] || resolveActivityImageUrl(activity.image_url)
   }
 }
 function onImageChange(uploadFile) {
@@ -231,7 +215,7 @@ function onImageChange(uploadFile) {
     activityFormNotOk.value.image = '請選擇小於 10 MB 的 JPG 圖片'
     return
   }
-  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
   imageLoadVersion++
   imageFile.value = file
   imagePreview.value = URL.createObjectURL(file)
@@ -286,15 +270,10 @@ const saveActivity = async () => {
       activities.value.push(response.data)
       activity = response.data
     }
-    if (activity.image_data) {
-      if (activityImageUrls.value[id]) {
-        URL.revokeObjectURL(activityImageUrls.value[id])
-      }
-      activityImageUrls.value[id] = base64ToUrl(
-        activity.image_data,
-        activity.content_type
-      )
-    }
+    const imageUrl = resolveActivityImageUrl(activity.image_url)
+    // Refresh after uploads even when the image path stays the same.
+    activityImageUrls.value[id] = imageUrl && imageFile.value
+      ? `${imageUrl}?v=${Date.now()}` : imageUrl
     dialogVisible.value = false
   } catch (error) {
     const data = error.response?.data?.data?.[1]?.error ?? {}
@@ -310,13 +289,6 @@ const saveActivity = async () => {
     dialogVisible.value = true
   }
 }
-const base64ToUrl = (data, type) =>
-  URL.createObjectURL(
-    new Blob(
-      [Uint8Array.from(atob(data), c => c.charCodeAt(0))],
-      { type }
-    )
-  )
 const deleteActivity = async (activity) => {
   try {
     const response = await adminApi({
@@ -326,7 +298,6 @@ const deleteActivity = async (activity) => {
     });
     activities.value = response.data.data
     if (activityImageUrls.value[activity.id]) {
-      URL.revokeObjectURL(activityImageUrls.value[activity.id])
       delete activityImageUrls.value[activity.id]
     }
     ElMessage.success('活動已刪除')

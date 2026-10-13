@@ -12,6 +12,10 @@ const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL || '/api'
 ).replace(/\/$/, '');
 
+export function resolveActivityImageUrl(path) {
+  return path ? `${apiBaseUrl}${path}` : ''
+}
+
 // 專門 refresh token，用「乾淨」axios，不掛 auth interceptor
 const refreshClient = axios.create({
   baseURL: `${apiBaseUrl}/v1/login`,

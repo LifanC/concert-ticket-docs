@@ -4,7 +4,7 @@ test('images display independently and distinguish missing and failed images', a
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   const activities = ['fast', 'slow', 'missing', 'failed'].map(id => ({
-    id, name: id, category: 'MUSIC_CONCERT', status: 'COMING_SOON', venue: '測試館',
+    id, image_url: `/v1/activity/activityImage/${id}`, name: id, category: 'MUSIC_CONCERT', status: 'COMING_SOON', venue: '測試館',
   }))
   await page.route('**/v1/activity/selectAllActivities', route => route.fulfill({ json: activities }))
   let releaseSlow

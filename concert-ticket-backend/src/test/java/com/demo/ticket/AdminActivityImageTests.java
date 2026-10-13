@@ -37,6 +37,9 @@ class AdminActivityImageTests {
                 "activity_id", "ACT-20260917-001",
                 "activity_uuid", activityUuid));
         when(mapper.selectAllActivities()).thenReturn(List.of());
+        when(mapper.selectOnlyActivities("ACT-20260917-001")).thenReturn(Map.of(
+                "ACT-20260917-001", Map.of("id", "ACT-20260917-001",
+                        "image_url", "/v1/activity/activityImage/ACT-20260917-001")));
     }
 
     @Test
@@ -47,7 +50,9 @@ class AdminActivityImageTests {
         MockMultipartFile image = new MockMultipartFile(
                 "image", "poster.jpg", "image/jpeg", upload.toByteArray());
 
-        service.saveActivity(request(), image);
+        var result = service.saveActivity(request(), image);
+        assertEquals("/v1/activity/activityImage/ACT-20260917-001", result.get("image_url"));
+        assertFalse(result.containsKey("image_data"));
 
         var width = org.mockito.ArgumentCaptor.forClass(Integer.class);
         var height = org.mockito.ArgumentCaptor.forClass(Integer.class);
