@@ -2,7 +2,7 @@ import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
-const webSocketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/api/ws'
+const webSocketUrl = import.meta.env.VITE_WS_URL || '/api/ws';
 
 let client = null;
 const displayedNotifications = new Set();
@@ -41,10 +41,14 @@ function connectWebSocket() {
 
     client = new Client({
         webSocketFactory: () =>
-            new SockJS(webSocketUrl),
+            new SockJS(new URL(webSocketUrl, window.location.origin).href),
         connectHeaders: {
             Authorization: `Bearer ${accessToken}`
         },
+
+        reconnectDelay: 5000,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
 
         debug: (msg) => {
             console.log(msg);

@@ -9,8 +9,8 @@ import {
 } from '@/components/componentsJs/cookie.js'
 
 const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-).replace(/\/$/, '')
+  import.meta.env.VITE_API_BASE_URL || '/api'
+).replace(/\/$/, '');
 
 // 專門 refresh token，用「乾淨」axios，不掛 auth interceptor
 const refreshClient = axios.create({
