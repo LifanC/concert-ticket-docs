@@ -22,12 +22,13 @@
             split_part(seat.id, '-', 1) AS "column",
             split_part(seat.id, '-', 2) AS "row",
             activity_image.content_type,
-            activity_image.image_data
+            CASE WHEN activity_image.activity_uuid IS NOT NULL
+                 THEN '/v1/activity/activityImage/' || activity.id END AS image_url
         from
             "interviewworks_ticket"."activity" activity
                 LEFT JOIN "interviewworks_ticket".seat seat
                           ON activity.id = seat.activity_id
-                inner JOIN "interviewworks_ticket".activity_image activity_image
+                LEFT JOIN "interviewworks_ticket".activity_image activity_image
                            ON activity_image.activity_uuid = activity.activity_uuid
         order by activity.id
     </select>
@@ -45,12 +46,13 @@
             split_part(seat.id, '-', 1) AS "column",
             split_part(seat.id, '-', 2) AS "row",
             activity_image.content_type,
-            activity_image.image_data
+            CASE WHEN activity_image.activity_uuid IS NOT NULL
+                 THEN '/v1/activity/activityImage/' || activity.id END AS image_url
         from
             "interviewworks_ticket"."activity" activity
                 LEFT JOIN "interviewworks_ticket".seat seat
                           ON activity.id = seat.activity_id
-                inner JOIN "interviewworks_ticket".activity_image activity_image
+                LEFT JOIN "interviewworks_ticket".activity_image activity_image
                            ON activity_image.activity_uuid = activity.activity_uuid
         WHERE activity.id = #{id}
         order by activity.id

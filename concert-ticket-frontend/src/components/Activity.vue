@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import ResponsiveRecordList from './ResponsiveRecordList.vue'
-import { activityApi, bookingApi } from '@/services/api'
+import { activityApi, bookingApi, resolveActivityImageUrl } from '@/services/api'
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
 
 const router = useRouter()
@@ -36,14 +36,17 @@ let activityImageLoadVersion = 0
 async function loadActivityImages() {
   if (imageRequestsCancelled) return
   const version = ++activityImageLoadVersion
-  const ids = [...new Set(activities.value.map((activity) => activity.id))]
+  const imagePaths = new Map(activities.value.map(activity => [activity.id, activity.image_url]))
+  const ids = [...imagePaths.keys()]
   Object.values(activityImageUrls.value).forEach(url => URL.revokeObjectURL(url))
   activityImageUrls.value = {}
-  activityImageStatus.value = Object.fromEntries(ids.map(id => [id, 'loading']))
+  activityImageStatus.value = Object.fromEntries(ids.map(id => [id, imagePaths.get(id) ? 'loading' : 'missing']))
   const isCurrent = () => !imageRequestsCancelled && version === activityImageLoadVersion
   await Promise.all(ids.map(async (id) => {
+    if (!imagePaths.get(id)) return
     try {
-      const response = await activityApi.get(`/activityImage/${encodeURIComponent(id)}`, {
+      const url = new URL(resolveActivityImageUrl(imagePaths.get(id)), window.location.origin).href
+      const response = await activityApi.get(url, {
         responseType: 'blob',
       })
       if (!isCurrent()) return
