@@ -215,9 +215,11 @@ async function createOrder() {
   <el-container class="booking-page">
     <el-header class="page-header">
       <div>
+        <p class="eyebrow">BOOK YOUR NEXT MOMENT</p>
         <h1>線上訂票</h1>
         <el-text type="info">完成日期、場次與座位選擇後，即可建立訂單。</el-text>
       </div>
+      <router-link class="back-link" to="/">返回活動 ↗</router-link>
     </el-header>
 
     <el-main>
@@ -258,38 +260,41 @@ async function createOrder() {
         </section>
 
         <section v-else class="order-summary">
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="編號">{{ sessionId }}</el-descriptions-item>
-            <el-descriptions-item label="活動">{{ selectedActivityName }}</el-descriptions-item>
-            <el-descriptions-item label="日期">{{ selectedDate }}</el-descriptions-item>
-            <el-descriptions-item label="場次">{{ selectedSession }}</el-descriptions-item>
-            <el-descriptions-item label="票價">{{ money(selectedPrice) }}</el-descriptions-item>
-            <el-descriptions-item v-if="selectedZone" label="分區">{{ selectedZone.name }}</el-descriptions-item>
-            <el-descriptions-item v-if="selectedType" label="票種">{{ selectedType.name }}</el-descriptions-item>
-            <el-descriptions-item label="座位">
-              {{ selectedSeats.length ? selectedSeats.join('、') : '尚未選擇' }}
-            </el-descriptions-item>
-          </el-descriptions>
+          <div class="booking-details">
+            <h3 class="summary-title">訂票資訊</h3>
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="編號">{{ sessionId }}</el-descriptions-item>
+              <el-descriptions-item label="活動">{{ selectedActivityName }}</el-descriptions-item>
+              <el-descriptions-item label="日期">{{ selectedDate }}</el-descriptions-item>
+              <el-descriptions-item label="場次">{{ selectedSession }}</el-descriptions-item>
+              <el-descriptions-item label="票價">{{ money(selectedPrice) }}</el-descriptions-item>
+              <el-descriptions-item v-if="selectedZone" label="分區">{{ selectedZone.name }}</el-descriptions-item>
+              <el-descriptions-item v-if="selectedType" label="票種">{{ selectedType.name }}</el-descriptions-item>
+              <el-descriptions-item label="座位">
+                {{ selectedSeats.length ? selectedSeats.join('、') : '尚未選擇' }}
+              </el-descriptions-item>
+            </el-descriptions>
 
-          <div v-if="salesSettings?.configured" class="sales-options">
-            <el-alert :type="salesSettings.remainingAllowance > 0 ? 'info' : 'warning'" :closable="false"
-              :title="`每會員限購 ${salesSettings.maxTicketsPerMember} 張，已購／有效待付款 ${salesSettings.memberTicketQuantity} 張，還可購買 ${salesSettings.remainingAllowance} 張。`" />
-            <el-form label-position="top">
-              <el-form-item label="票種">
-                <el-select v-model="selectedTicketType" aria-label="票種">
-                  <el-option v-for="type in salesSettings.ticketTypes" :key="type.id" :value="type.id"
-                    :label="type.name" />
-                </el-select>
-              </el-form-item>
-              <el-text v-if="selectedType?.eligibility" type="warning">{{ selectedType.eligibility }}</el-text>
-              <el-form-item label="分區">
-                <el-select v-model="selectedZoneFilter" aria-label="分區" placeholder="所有分區">
-                  <el-option label="所有分區" value="" />
-                  <el-option v-for="zone in salesSettings.zones" :key="zone.id" :value="zone.id"
-                    :label="`${zone.name} · ${money(zone.prices[selectedTicketType] ?? null)} · 剩餘 ${zone.available} 席`" />
-                </el-select>
-              </el-form-item>
-            </el-form>
+            <div v-if="salesSettings?.configured" class="sales-options">
+              <el-alert :type="salesSettings.remainingAllowance > 0 ? 'info' : 'warning'" :closable="false"
+                :title="`每會員限購 ${salesSettings.maxTicketsPerMember} 張，已購／有效待付款 ${salesSettings.memberTicketQuantity} 張，還可購買 ${salesSettings.remainingAllowance} 張。`" />
+              <el-form label-position="top">
+                <el-form-item label="票種">
+                  <el-select v-model="selectedTicketType" aria-label="票種">
+                    <el-option v-for="type in salesSettings.ticketTypes" :key="type.id" :value="type.id"
+                      :label="type.name" />
+                  </el-select>
+                </el-form-item>
+                <el-text v-if="selectedType?.eligibility" type="warning">{{ selectedType.eligibility }}</el-text>
+                <el-form-item label="分區">
+                  <el-select v-model="selectedZoneFilter" aria-label="分區" placeholder="所有分區">
+                    <el-option label="所有分區" value="" />
+                    <el-option v-for="zone in salesSettings.zones" :key="zone.id" :value="zone.id"
+                      :label="`${zone.name} · ${money(zone.prices[selectedTicketType] ?? null)} · 剩餘 ${zone.available} 席`" />
+                  </el-select>
+                </el-form-item>
+              </el-form>
+            </div>
           </div>
 
           <div class="seat-section">
@@ -346,20 +351,79 @@ async function createOrder() {
 
 .booking-page {
   min-height: 100%;
-  background: #f7f8fa;
+  min-width: 0;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.booking-page > .el-main {
+  min-width: 0;
+  padding: 0;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #89664d;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: #89664d;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.booking-page :deep(.el-card) {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #433a3a06;
+}
+
+.booking-page :deep(.el-card__body) {
+  padding: 28px;
+}
+
+.booking-page :deep(.el-card__header) {
+  padding: 20px 28px;
+  background: #f8f4ee;
+}
+
+.booking-page :deep(.el-button) {
+  min-height: 44px;
+  border-radius: 6px;
+}
+
+.booking-page :deep(.el-select__wrapper) {
+  min-height: 44px;
+  border-radius: 6px;
 }
 
 .page-header {
   height: auto;
-  padding: 24px;
+  padding: 8px 0 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+}
+
+.page-header .el-text {
+  line-height: 1.8;
 }
 
 .page-header h1 {
   margin: 0 0 8px;
-  font-size: 26px;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 3px;
 }
 
 .process-card,
@@ -368,17 +432,36 @@ async function createOrder() {
 }
 
 .content-card {
-  max-width: 860px;
+  width: 100%;
+}
+
+.process-card {
+  background: linear-gradient(120deg, #eee5da, #f8f4ee);
+}
+
+.process-card :deep(.el-step__title) {
+  font-size: 14px;
 }
 
 .card-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.card-title .el-tag {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
 }
 
 .selection-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   width: 100%;
   margin-top: 20px;
@@ -389,6 +472,17 @@ async function createOrder() {
   height: auto;
   margin: 0;
   padding: 16px;
+  min-height: 76px;
+  border-radius: 8px;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.selection-list :deep(.el-radio.is-checked) {
+  background: var(--el-color-primary-light-9);
+}
+
+.selection-list :deep(.el-radio:hover:not(.is-disabled)) {
+  border-color: var(--el-color-primary);
 }
 
 .selection-list :deep(.el-radio__label) {
@@ -396,6 +490,11 @@ async function createOrder() {
   justify-content: space-between;
   width: 100%;
   padding-left: 10px;
+  min-width: 0;
+  gap: 8px;
+  flex-direction: column;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .selection-list span {
@@ -407,6 +506,13 @@ async function createOrder() {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+
+.form-actions .el-button {
+  margin-left: 0;
+  min-width: 120px;
 }
 
 .confirm-seat {
@@ -416,10 +522,44 @@ async function createOrder() {
 
 .order-summary {
   margin-top: 8px;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.8fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.booking-details {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+  background: #f8f5f1;
+}
+
+.summary-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.booking-details :deep(.el-descriptions__table) {
+  table-layout: fixed;
+}
+
+.booking-details :deep(.el-descriptions__label) {
+  width: 64px;
+}
+
+.booking-details :deep(.el-descriptions__content) {
+  overflow-wrap: anywhere;
 }
 
 .seat-section {
-  margin-top: 24px;
+  min-width: 0;
+}
+
+.seat-section > .el-button {
+  margin-top: 16px;
 }
 
 .seat-section__heading {
@@ -431,6 +571,19 @@ async function createOrder() {
 
 .seat-section__heading h3 {
   margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.seat-section__heading .el-text {
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+@media (max-width: 1000px) {
+  .order-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
 }
 
 @media (max-width: 767px) {
@@ -440,6 +593,18 @@ async function createOrder() {
   }
 
   .page-header {
+    padding: 8px 4px 24px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .selection-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .booking-details {
     padding: 16px;
   }
 

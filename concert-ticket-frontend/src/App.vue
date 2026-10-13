@@ -1,7 +1,7 @@
 <script setup>
 import { dateConversionYMDhms } from "@/components/componentsJs/ConvertPadding";
 import '@/styles/theme.css'
-import { isAdmin, syncAuth } from '@/services/auth'
+import { isAdmin, isLoggedIn, accessName, syncAuth } from '@/services/auth'
 
 syncAuth()
 
@@ -26,6 +26,7 @@ onUnmounted(() => clearInterval(clockInterval))
         <router-link to="/user" active-class="is-active">會員</router-link>
         <router-link v-if="isAdmin" to="/admin" active-class="is-active">管理後台</router-link>
       </nav>
+      <el-tag :type="isLoggedIn ? 'success' : 'info'" effect="light">{{ isLoggedIn ? `已登入・${accessName}` : '尚未登入' }}</el-tag>
       <time class="site-clock">{{ date }}</time>
     </header>
     <main class="site-main"><router-view /></main>

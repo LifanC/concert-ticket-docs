@@ -269,6 +269,10 @@ const inventoryFields = [
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+  padding: 24px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: linear-gradient(120deg, #eee5da, #f8f4ee);
 }
 
 h2,
@@ -278,6 +282,7 @@ h3 {
 
 h2 {
   font-size: 22px;
+  font-weight: 500;
 }
 
 h3 {
@@ -286,7 +291,7 @@ h3 {
 
 p {
   margin: 10px 0 0;
-  color: #606266;
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -298,7 +303,7 @@ p {
 }
 
 .refresh-controls span {
-  color: #606266;
+  color: var(--el-text-color-secondary);
   font-size: 13px;
 }
 
@@ -310,11 +315,18 @@ p {
 
 .metric-label {
   margin-bottom: 14px;
-  color: #606266;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.metric-grid :deep(.el-card) {
+  border-top: 3px solid #ad917c;
 }
 
 .metric-grid strong {
   font-size: 26px;
+  font-weight: 500;
+  color: #6d503c;
   overflow-wrap: anywhere;
 }
 
@@ -371,7 +383,7 @@ p {
 
 .status-item>span {
   font-size: 12px;
-  color: #606266;
+  color: var(--el-text-color-secondary);
 }
 
 @media (max-width: 1100px) {
@@ -392,7 +404,7 @@ p {
 
 @media (max-width: 767px) {
   .dashboard-toolbar {
-    padding-inline: 16px;
+    padding: 20px 16px;
   }
 
   .metric-grid {
@@ -408,6 +420,11 @@ p {
   }
 
   .refresh-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .refresh-controls span {
     width: 100%;
   }
 

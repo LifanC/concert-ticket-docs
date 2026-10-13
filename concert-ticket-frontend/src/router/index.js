@@ -4,6 +4,11 @@ import { isAdmin, syncAuth } from '@/services/auth'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
+    scrollBehavior(to) {
+        if (to.name === 'Activity') {
+            return { left: 0, top: 0 }
+        }
+    },
     routes: [
         {
             path: '/',

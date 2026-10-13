@@ -328,6 +328,23 @@ function exportDraft() {
 .settings {
   display: grid;
   gap: 20px;
+  min-width: 0;
+}
+
+.settings > * {
+  min-width: 0;
+}
+
+.settings :deep(.el-form-item) {
+  min-width: 0;
+}
+
+.settings :deep(.el-input-number) {
+  width: 100%;
+}
+
+.session-select + .el-button {
+  margin: 16px 0 0;
 }
 
 h3 {
@@ -338,8 +355,9 @@ h3 {
 p,
 .row-footer,
 .heading>span {
-  color: #606266;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
+  line-height: 1.8;
 }
 
 .session-select {
@@ -360,8 +378,11 @@ p,
 }
 
 .editor-row {
-  padding: 18px 0;
-  border-bottom: 1px solid #ebeef5;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+  background: #f8f5f1;
 }
 
 .zone-fields {
@@ -379,7 +400,7 @@ p,
 .stage {
   text-align: center;
   padding: 12px;
-  background: #f0f2f5;
+  background: #eee5da;
   border-radius: 8px;
   margin-bottom: 18px;
 }
@@ -388,6 +409,13 @@ p,
   max-height: 400px;
   overflow: auto;
   margin-bottom: 20px;
+}
+
+.save-actions {
+  padding: 20px 24px;
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  background: #fdfbf8;
 }
 
 .seat-row {
@@ -423,6 +451,14 @@ p,
 }
 
 @media (max-width: 600px) {
+  .editor-row {
+    padding: 16px;
+  }
+
+  .save-actions {
+    padding: 16px;
+  }
+
   .settings {
     min-width: 0;
   }
