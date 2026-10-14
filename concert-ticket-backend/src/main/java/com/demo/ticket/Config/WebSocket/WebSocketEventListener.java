@@ -1,3 +1,4 @@
+// 閱讀導引：監聽 WebSocket 連線生命週期事件，記錄連線與離線資訊。
 package com.demo.ticket.Config.WebSocket;
 
 import org.slf4j.Logger;
@@ -16,6 +17,9 @@ public class WebSocketEventListener {
     private static final Logger logger =
             LoggerFactory.getLogger(WebSocketEventListener.class);
 
+    /**
+     * 處理 WebSocket 連線事件並記錄相關資訊。
+     */
     @EventListener
     public void handleConnect(SessionConnectedEvent event) {
 
@@ -30,6 +34,9 @@ public class WebSocketEventListener {
         );
     }
 
+    /**
+     * 處理 WebSocket 離線事件並記錄相關資訊。
+     */
     @EventListener
     public void handleDisconnect(SessionDisconnectEvent event) {
 

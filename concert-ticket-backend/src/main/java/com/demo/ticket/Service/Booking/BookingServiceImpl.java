@@ -1,3 +1,4 @@
+// 閱讀導引：訂票流程：驗證登入、取得場次與票價、保留座位並建立待付款訂單；通知與排程在交易提交後執行。
 package com.demo.ticket.Service.Booking;
 
 import com.demo.ticket.Common.RedisKey;
@@ -41,6 +42,9 @@ public class BookingServiceImpl implements BookingService {
     private final BookingOrderService bookingOrderService;
     private final SalesSettingsService salesSettingsService;
 
+    /**
+     * 注入訂票資料存取、Redis 登入檢查、計價、訂單轉換與付款通知排程等元件。
+     */
     public BookingServiceImpl(
             BookingMapper bookingMapper,
             StringRedisTemplate stringRedisTemplate,
@@ -59,6 +63,9 @@ public class BookingServiceImpl implements BookingService {
         this.salesSettingsService = salesSettingsService;
     }
 
+    /**
+     * 查詢指定活動有場次的演出日期，回傳下拉選單使用的 value、label 與 note；登入紀錄不存在時回傳空清單。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyActivities(
@@ -69,6 +76,9 @@ public class BookingServiceImpl implements BookingService {
                 : new ArrayList<>();
     }
 
+    /**
+     * 依活動與演出日期查詢場次時間及剩餘可售數；查詢本身不排除售完或尚未開賣的場次。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySession(BookingSelectOnlySessionRequest request, LoginUser user) {
@@ -79,6 +89,9 @@ public class BookingServiceImpl implements BookingService {
                 : new ArrayList<>();
     }
 
+    /**
+     * 以登入會員的 email 查詢票券，回傳訂單、座位、票價及狀態；不接受前端指定其他會員。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyTicket(LoginUser user) {
@@ -87,6 +100,9 @@ public class BookingServiceImpl implements BookingService {
                 : new ArrayList<>();
     }
 
+    /**
+     * 取得指定活動的預設票價資料；分區與票種的實際售價由售票設定服務另外計算。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> selectOnlyActivitiesPrice(
@@ -97,6 +113,17 @@ public class BookingServiceImpl implements BookingService {
                 : new HashMap<>();
     }
 
+    /**
+     * 建立一張座位的待付款訂單，保留期限為建立後 10 分鐘。
+     * 會員、活動名稱與金額分別取自登入資訊、場次資料及後端計價，不採用前端傳入值。
+     * 訂單、保留數、座位與請求去重紀錄在同一交易內寫入；任一步失敗都會回滾。
+     *
+     * @param request 活動、演出日期時間、座位及可選的票種
+     * @param user 目前登入會員，作為訂單歸屬及限購計算依據
+     * @param idempotencyKey 同一訂位內容重試時須沿用的識別碼
+     * @return HTTP 201 與會員票券資料；已成功處理的相同請求回傳保存的原始回應
+     * @throws BookingException 登入失效、識別碼格式或內容衝突、場次不存在、限購或庫存不足
+     */
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -121,6 +148,7 @@ public class BookingServiceImpl implements BookingService {
         bookingCoreKey.setEmail(user.email());
         bookingCoreKey.setIdempotencyKey(idempotencyKey);
         bookingCoreKey.setHash(hash);
+        // 同一會員重送相同識別碼時回傳原結果；內容不同則拒絕，避免網路重試產生重複訂單。
         if (bookingCoreMapper.claimKey(bookingCoreKey) == 0) {
             Map<String, Object> previous = bookingCoreMapper.findKey(bookingCoreKey);
             if (!hash.equals(previous.get("request_hash"))) {
@@ -131,6 +159,7 @@ public class BookingServiceImpl implements BookingService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(previous.get("response_body"));
         }
+        // 先鎖定場次再檢查庫存與票價，讓同場次的訂票及設定更新依序執行。
         bookingCoreMapper.lockSession(session_id);
         Map<String, Object> snapshot = bookingCoreMapper.sessionSnapshot(session_id);
         if (snapshot == null || !activity_id.equals(snapshot.get("activity_id"))) {
@@ -140,8 +169,7 @@ public class BookingServiceImpl implements BookingService {
         BigDecimal defaultPrice = activityPrice == null ? null
                 : activityPrice instanceof BigDecimal price ? price : new BigDecimal(activityPrice.toString());
         Quote quote = salesSettingsService.quote(session_id, seat, ticketTypeId, user.email(), defaultPrice);
-        // Configured seats were materialized when the administrator saved the layout.
-        // 管理員儲存佈局後，配置的座位即生效。
+        // 已配置分區的場次在儲存設定時就建立完整座位；未配置的場次才依活動佈局補建。
         if (quote.zoneId() == null) {
             bookingCoreMapper.ensureSeat(session_id, seat);
         }
@@ -153,7 +181,7 @@ public class BookingServiceImpl implements BookingService {
         String createdOrderNo;
         if (cnt == 1) {
             BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
-            // "訂單編號格式需為 CTYYYYMMDDNNN，例如 CT20260815001" SQL處理
+            // 訂單編號由 SQL 以 CT＋當天日期＋每日流水號產生；流水號目前不補零。
             bookingSaveTicket.setSession_id(session_id);
             bookingSaveTicket.setEmail(accessJwt);
             bookingSaveTicket.setName(snapshot.get("name").toString());
@@ -181,6 +209,7 @@ public class BookingServiceImpl implements BookingService {
                 BookingException.requireOne(0);
             }
             bookingSaveTicket.setOrderno(orderno);
+            // 必須成功保留這張座位；失敗會拋出例外，連同先前的庫存與訂單寫入一起回滾。
             if (bookingCoreMapper.reserveSeat(bookingSaveTicket) != 1) {
                 throw new BookingException("SEAT_ALREADY_RESERVED", "座位不存在或已被保留", HttpStatus.CONFLICT);
             }
@@ -195,9 +224,10 @@ public class BookingServiceImpl implements BookingService {
                                     dateFormat(dateNow) + " ～ " + dateFormat(dateExpiresAt)
                     );
 
-            // Transaction commit 成功後，安排 expires_at 時執行
+            // 等資料庫提交成功才通知與排程，避免使用者收到已回滾訂單的付款訊息。
             TransactionSynchronizationManager.registerSynchronization(
                     new TransactionSynchronization() {
+                        /** 已提交的新訂單開始安排付款提醒與逾期處理，並發送建立成功通知。 */
                         @Override
                         public void afterCommit() {
                             bookingPaymentScheduler.scheduleExpiration(accessJwt, bookingSaveTicket);
@@ -226,11 +256,17 @@ public class BookingServiceImpl implements BookingService {
         return ResponseEntity.status(status).body(response);
     }
 
+    /**
+     * 以 JVM 預設時區輸出 yyyy-MM-dd HH:mm:ss，供付款期限通知顯示。
+     */
     private String dateFormat(Date date) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         return sdf.format(date);
     }
 
+    /**
+     * 將場次、活動、座位及非空票種序列化成 JSON，再計算 SHA-256；未指定票種時沿用三欄位格式。
+     */
     private String requestHash(String session, String activity, String seat, String ticketTypeId) {
         try {
             byte[] content = new ObjectMapper().writeValueAsBytes(
@@ -243,6 +279,9 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * 要求 Redis 仍有此 token 的登入紀錄且未被列入黑名單；不符合時拋出 HTTP 401 訂票例外。
+     */
     private void requireAuthenticated(LoginUser user) {
         boolean invalid = user == null
                 || !Boolean.TRUE.equals(user.accessExists())
@@ -256,13 +295,20 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
+    /**
+     * 供交易提交後的排程與通知使用；資料回滾時不執行這些動作。
+     */
     private void afterCommit(Runnable action) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            /** 交易提交成功時執行呼叫端提供的動作。 */
             @Override
             public void afterCommit() { action.run(); }
         });
     }
 
+    /**
+     * 要求訂單屬於登入會員與指定場次，將有效待付款訂單取消並釋放保留；提交成功後撤銷排程及發送通知。
+     */
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -288,6 +334,9 @@ public class BookingServiceImpl implements BookingService {
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
 
+    /**
+     * 僅在登入紀錄存在、token 未列入黑名單且請求狀態為待付款時，依場次條件查詢開賣日期與時間。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public Map<String, Object> sessionSalesDate(BookingSessionSalesDateRequest request, LoginUser user) {
@@ -318,6 +367,9 @@ public class BookingServiceImpl implements BookingService {
 
     }
 
+    /**
+     * 將有效待付款訂單轉為 PAID，把保留座位轉成售出，提交後撤銷排程及通知；此流程未呼叫外部金流。
+     */
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -343,6 +395,9 @@ public class BookingServiceImpl implements BookingService {
         return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(Map.of("judge", true))));
     }
 
+    /**
+     * 依活動的排號清單與每排座位數，產生含 id、row、number 的座位列表；未登入或缺少配置時回傳空清單。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlySeats(BookingSelectOnlySeatsRequest request, LoginUser user) {
@@ -369,6 +424,9 @@ public class BookingServiceImpl implements BookingService {
         return data;
     }
 
+    /**
+     * 先由活動、日期及時間找出場次，再讀取該場次非 AVAILABLE 的座位；找不到場次時回傳空清單。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<String> selectOnlyUnavailableSeats(

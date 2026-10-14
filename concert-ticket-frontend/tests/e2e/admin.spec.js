@@ -1,3 +1,4 @@
+// 閱讀導引：使用環境變數中的管理員帳密登入，驗證後台可讀取並切換頁面。
 import { test, expect } from '@playwright/test'
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off',

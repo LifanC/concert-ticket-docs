@@ -1,3 +1,4 @@
+// 閱讀導引：接收活動資料與座位佈局；column 是最後一排標籤，row 是每排座位數，圖片由另一個 multipart 欄位傳入。
 package com.demo.ticket.Dto.Admin;
 
 import java.math.BigDecimal;

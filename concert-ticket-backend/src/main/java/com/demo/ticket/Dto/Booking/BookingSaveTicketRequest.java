@@ -1,3 +1,4 @@
+// 閱讀導引：接收活動、演出日期時間、座位與票種選擇；訂單歸屬、名稱、狀態與票價由後端決定。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

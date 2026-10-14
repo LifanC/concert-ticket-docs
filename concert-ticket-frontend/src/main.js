@@ -1,3 +1,4 @@
+// 閱讀導引：前端啟動入口：建立 Vue 應用程式、安裝路由與 UI 元件並掛載到頁面。
 import { createApp, onMounted, onUnmounted } from 'vue'
 import App from './App.vue'
 import PubSub from 'pubsub-js'

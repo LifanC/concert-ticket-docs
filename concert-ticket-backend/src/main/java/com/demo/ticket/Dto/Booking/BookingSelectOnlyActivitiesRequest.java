@@ -1,3 +1,4 @@
+// 閱讀導引：接收活動編號，供查詢該活動的演出日期選單使用。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

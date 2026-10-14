@@ -1,3 +1,4 @@
+# 閱讀導引：驗證銷售報表查詢與 CSV 匯出，包含資料缺漏及試算表文字處理。
 import csv
 import tempfile
 import sqlite3
@@ -10,6 +11,7 @@ from analyze import SALES_SQL, fetch_sales, write_report
 
 
 class SalesReportTests(unittest.TestCase):
+    # 驗證報表只彙整已付款訂單，排除待付款、取消、逾期及退款資料。
     def test_sales_query_excludes_unpaid_cancelled_expired_and_refunded_orders(self):
         connection = sqlite3.connect(':memory:')
         self.addCleanup(connection.close)
@@ -24,23 +26,27 @@ class SalesReportTests(unittest.TestCase):
         ])
         self.assertEqual(connection.execute(SALES_SQL).fetchall(), [('S1', 2, 1200, 0), ('S2', 0, 0, 0)])
 
+    # 建立回傳指定查詢列的模擬資料庫連線，供報表測試使用。
     def connection(self, rows):
         connection = Mock()
         connection.cursor.return_value.fetchall.return_value = rows
         return connection
 
+    # 驗證已付款訂單缺金額時中止報表，並關閉查詢游標。
     def test_missing_paid_amount_fails_instead_of_understating_revenue(self):
         connection = self.connection([('S1', 2, Decimal('100'), 1)])
         with self.assertRaisesRegex(ValueError, 'payprice'):
             fetch_sales(connection)
         connection.cursor.return_value.close.assert_called_once()
 
+    # 驗證零銷售與零元票可正常統計，且查詢使用唯讀交易。
     def test_zero_sales_and_free_tickets_are_valid(self):
         connection = self.connection([('S1', 0, Decimal('0'), 0), ('S2', 1, Decimal('0'), 0)])
         self.assertEqual(fetch_sales(connection), [('S1', 0, Decimal('0')), ('S2', 1, Decimal('0'))])
         statements = [call.args[0] for call in connection.cursor.return_value.execute.call_args_list]
         self.assertEqual(statements[0], 'SET TRANSACTION READ ONLY')
 
+    # 驗證 CSV 保留大額十進位精度，並輸出可辨識中文的 UTF-8 BOM。
     def test_csv_keeps_decimal_precision_and_excel_encoding(self):
         with tempfile.TemporaryDirectory() as directory:
             path = write_report([('S1', 2, Decimal('9007199254740993.25'))], Path(directory))
@@ -49,6 +55,7 @@ class SalesReportTests(unittest.TestCase):
                 rows = list(csv.reader(file))
             self.assertEqual(rows[1], ['S1', '2', '9007199254740993.25'])
 
+    # 驗證可能被試算表當成公式的識別碼會加上文字前綴。
     def test_csv_neutralizes_formula_identifiers(self):
         prefixes = ['=', '+', '-', '@', '\t', '\r', '\n']
         with tempfile.TemporaryDirectory() as directory:
@@ -57,6 +64,7 @@ class SalesReportTests(unittest.TestCase):
                 rows = list(csv.reader(file))[1:]
             self.assertEqual([row[0] for row in rows], ["'" + prefix + 'S1' for prefix in prefixes])
 
+    # 驗證空報表仍有欄位標題，且連續匯出不覆蓋前一份檔案。
     def test_empty_report_has_headers_and_does_not_overwrite_previous_export(self):
         with tempfile.TemporaryDirectory() as directory:
             first = write_report([], Path(directory))

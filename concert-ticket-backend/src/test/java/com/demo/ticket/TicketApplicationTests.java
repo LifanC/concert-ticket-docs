@@ -1,3 +1,4 @@
+// 閱讀導引：以 MockMvc 驗證 JWT 與 API 權限，並確認訂單服務有交易代理；登入、Redis 與業務服務使用測試替身。
 package com.demo.ticket;
 
 import org.junit.jupiter.api.Test;
@@ -29,11 +30,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// 測試，陸續開發啟用。
 @SpringBootTest(properties = "analytics.enabled=false")
 class TicketApplicationTests {
     @Autowired ApplicationContext context;
-    // Prevent startup tasks from modifying the developer's database or exporting reports.
+    // 使用測試替身停用啟動時的金鑰寫入及逾期掃描；報表排程由測試屬性關閉。
     @MockitoBean SecretKey secretKey;
     @MockitoBean BookingExpirationRecovery expirationRecovery;
     @MockitoBean JwtTokenService tokens;
@@ -43,12 +43,18 @@ class TicketApplicationTests {
     @Autowired WebApplicationContext webContext;
     MockMvc mvc;
 
+    /**
+     * 初始化 MockMvc 測試環境並套用 Spring Security 設定。
+     */
     @BeforeEach
     void configureHttp() {
         mvc = MockMvcBuilders.webAppContextSetup(webContext)
                 .addFilters(context.getBean("springSecurityFilterChain", Filter.class)).build();
     }
 
+    /**
+     * 建立具有指定權限的測試登入資訊，供後續 HTTP 測試使用。
+     */
     void authenticate(String authority) {
         var claims = Jwts.claims().setId("test-token").setSubject("luke@admin.com")
                 .setExpiration(new Date(System.currentTimeMillis() + 60000));
@@ -58,6 +64,9 @@ class TicketApplicationTests {
         when(redis.hasKey("userData:jwt:access:test-token:luke@admin.com")).thenReturn(true);
     }
 
+    /**
+     * 驗證匿名使用者無法呼叫訂票 API，且不會觸發訂票服務。
+     */
     @Test
     void anonymousBookingIsUnauthorized() throws Exception {
         when(tokens.accessTokenInRedis(isNull())).thenThrow(new JwtException("Missing token"));
@@ -67,6 +76,9 @@ class TicketApplicationTests {
         verifyNoInteractions(booking);
     }
 
+    /**
+     * 驗證一般會員無法讀取管理資料。
+     */
     @Test
     void memberCannotReadAdminData() throws Exception {
 
@@ -81,6 +93,9 @@ class TicketApplicationTests {
         verifyNoInteractions(adminService);
     }
 
+    /**
+     * 驗證管理員權限能讀取管理 API 並呼叫對應服務。
+     */
     @Test
     void adminCanReadAdminData() throws Exception {
         // ① 準備：模擬有管理員權限的登入資料
@@ -98,6 +113,9 @@ class TicketApplicationTests {
         verify(adminService).selectAllActivities();
     }
 
+    /**
+     * 驗證會員能查詢自己的票券，並傳入正確登入資訊。
+     */
     @Test
     void memberCanReadOwnTickets() throws Exception {
         authenticate("USER_ITEM_IMPLEMENT");
@@ -109,6 +127,9 @@ class TicketApplicationTests {
         verify(booking).selectOnlyTicket(argThat(user -> user.email().equals("luke@admin.com")));
     }
 
+    /**
+     * 確認安全驗證鏈存在、訂單服務經過 Spring 交易代理，且 analytics.enabled=false 時不建立報表排程。
+     */
     @Test
     void contextLoads() {
         assertNotNull(context.getBean(SecurityFilterChain.class));

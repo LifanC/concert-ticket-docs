@@ -1,3 +1,4 @@
+// 閱讀導引：接收付款操作的訂單編號與場次；金額由訂單原價決定，前端不指定扣款金額。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

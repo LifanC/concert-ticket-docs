@@ -1,8 +1,9 @@
+// 閱讀導引：日期格式工具：將日期時間整理成畫面使用的格式。
 /**
- * <h3>ForMat日期YYYY-MM-DD HH:mm:ss</h3>
- * @param data 資料
- * @returns {String} 回傳資料前面補零
- * */
+ * 取得現在時間，透過 Intl.DateTimeFormat 產生日期時間文字。
+ * @param {boolean} data 是否使用 12 小時制，傳入格式器的 hour12 選項
+ * @returns {string} 依瀏覽器時區及格式器地區設定產生的現在時間
+ */
 function dateConversionYMDhms(data) {
     let date = new Date();
     let formatter = new Intl.DateTimeFormat('tw', {

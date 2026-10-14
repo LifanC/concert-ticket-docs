@@ -1,3 +1,4 @@
+// 閱讀導引：啟動後定期呼叫 Python 匯出銷售報表；以環境變數傳入資料庫設定，並限制子程序執行時間。
 package com.demo.ticket.Service.Python;
 
 import jakarta.annotation.PreDestroy;
@@ -34,6 +35,9 @@ public class SalesAnalyticsScheduler {
     private final long timeoutSeconds;
     private boolean started;
 
+    /**
+     * 讀取報表目錄、Python 路徑與資料庫設定，解析 JDBC 連線資訊；未指定 Python 時使用報表目錄的虛擬環境。
+     */
     public SalesAnalyticsScheduler(
             @Value("${analytics.directory:}") String directory,
             @Value("${analytics.python:}") String python,
@@ -56,6 +60,9 @@ public class SalesAnalyticsScheduler {
         this.timeoutSeconds = Math.max(1, timeoutSeconds);
     }
 
+    /**
+     * 僅啟動一次報表排程，立即執行後以固定間隔等待下一次執行。
+     */
     @EventListener(ApplicationReadyEvent.class)
     public synchronized void start() {
         if (!started) {
@@ -64,6 +71,9 @@ public class SalesAnalyticsScheduler {
         }
     }
 
+    /**
+     * 啟動 Python 報表子程序，傳入資料庫環境變數並記錄輸出；超時則結束子程序。
+     */
     void runReport() {
         Process process = null;
         try {
@@ -99,6 +109,9 @@ public class SalesAnalyticsScheduler {
         }
     }
 
+    /**
+     * 應用程式關閉時停止報表排程執行緒。
+     */
     @PreDestroy
     public void stop() {
         executor.shutdownNow();

@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：應用程式外框：呈現導覽、登入資訊與路由頁面，並維護畫面時鐘。
 import { dateConversionYMDhms } from "@/components/componentsJs/ConvertPadding";
 import '@/styles/theme.css'
 import { isAdmin, isLoggedIn, accessName, syncAuth } from '@/services/auth'
@@ -7,6 +8,7 @@ syncAuth()
 
 const date = ref(dateConversionYMDhms(true))
 
+// 每秒更新頁首的本地時間；元件卸載時清除計時器，避免留下背景工作。
 const clockInterval = setInterval(() => {
   date.value = dateConversionYMDhms(true)
 }, 1000)

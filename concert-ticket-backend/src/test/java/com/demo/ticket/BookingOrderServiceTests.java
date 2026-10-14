@@ -1,3 +1,4 @@
+// 閱讀導引：驗證訂單狀態轉換及資料更新的結果，防止付款、取消與逾期流程破壞一致性。
 package com.demo.ticket;
 
 import com.demo.ticket.Dto.Booking.*;
@@ -23,6 +24,9 @@ class BookingOrderServiceTests {
     BookingSaveTicket ticket;
     BookingOrder order;
 
+    /**
+     * 為每個測試初始化模擬元件與共用資料，避免測試情境互相影響。
+     */
     @BeforeEach
     void setup() {
         mapper = mock(BookingMapper.class);
@@ -42,6 +46,9 @@ class BookingOrderServiceTests {
         when(core.findOrder("TEST-1")).thenReturn(ticket);
     }
 
+    /**
+     * 驗證待付款訂單轉換時恰好更新一次訂單、庫存與座位。
+     */
     @ParameterizedTest
     @EnumSource(value = bookingOrderStatus.class, names = {"PAID", "CANCELLED", "EXPIRED"})
     void pendingOrderUpdatesInventoryAndSeatExactlyOnce(bookingOrderStatus target) {
@@ -66,6 +73,9 @@ class BookingOrderServiceTests {
         }
     }
 
+    /**
+     * 驗證終止狀態訂單不能再次付款。
+     */
     @ParameterizedTest
     @EnumSource(value = bookingOrderStatus.class, names = {"PAID", "CANCELLED", "EXPIRED", "REFUNDED"})
     void terminalOrdersCannotBePaidAgain(bookingOrderStatus current) {
@@ -76,6 +86,9 @@ class BookingOrderServiceTests {
         verify(core, never()).transitionSeat(any());
     }
 
+    /**
+     * 驗證其他會員的訂單在取得鎖之前即被視為不存在。
+     */
     @Test
     void anotherMembersOrderIsHiddenBeforeLocking() {
         order.setEmail("other@example.test");
@@ -85,6 +98,9 @@ class BookingOrderServiceTests {
         verifyNoInteractions(mapper);
     }
 
+    /**
+     * 驗證場次不符的訂單查詢被視為不存在。
+     */
     @Test
     void wrongSessionIsHidden() {
         order.setSession_id("S2");
@@ -93,6 +109,9 @@ class BookingOrderServiceTests {
         verifyNoInteractions(mapper);
     }
 
+    /**
+     * 驗證重複逾期處理不會再次歸還庫存。
+     */
     @Test
     void repeatedExpirationDoesNotReleaseInventory() {
         ticket.setStatus("EXPIRED");
@@ -102,6 +121,9 @@ class BookingOrderServiceTests {
         verify(core, never()).transitionSeat(any());
     }
 
+    /**
+     * 驗證訂單條件更新失敗時不再更新庫存或座位。
+     */
     @Test
     void lostConditionalUpdateDoesNotChangeInventory() {
         when(mapper.dopaypriceTicket(any())).thenReturn(0);
@@ -111,6 +133,9 @@ class BookingOrderServiceTests {
         verify(core, never()).transitionSeat(any());
     }
 
+    /**
+     * 驗證庫存更新筆數異常時拋出例外，避免回報成功。
+     */
     @Test
     void inventoryMismatchThrowsInsteadOfReportingSuccess() {
         when(mapper.dopaypriceTicket(any())).thenReturn(1);
@@ -120,6 +145,9 @@ class BookingOrderServiceTests {
         verify(core, never()).transitionSeat(any());
     }
 
+    /**
+     * 驗證取得場次鎖後重新讀取訂單狀態，避免使用舊資料。
+     */
     @Test
     void stateIsReadAgainAfterObtainingLock() {
         BookingSaveTicket paid = new BookingSaveTicket();

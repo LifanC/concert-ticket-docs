@@ -1,3 +1,4 @@
+// 閱讀導引：接收完整場次售票草稿；version 用於阻止覆蓋他人更新，限購額度包含已付款及有效待付款訂單。
 package com.demo.ticket.Dto.Admin;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

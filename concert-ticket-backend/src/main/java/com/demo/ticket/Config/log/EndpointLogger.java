@@ -1,3 +1,4 @@
+// 閱讀導引：啟動時輸出本機 Swagger UI 與 API 文件網址，方便開發者開啟文件。
 package com.demo.ticket.Config.log;
 
 import jakarta.annotation.Nonnull;
@@ -11,6 +12,9 @@ public class EndpointLogger implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointLogger.class);
 
+    /**
+     * 應用程式啟動後輸出 Swagger UI 與 API 文件網址。
+     */
     @Override
     public void run(@Nonnull String... args) {
         logger.info("""

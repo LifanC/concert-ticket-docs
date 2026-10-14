@@ -1,3 +1,4 @@
+// 閱讀導引：設定 HTTP 請求的存取規則及 JWT 驗證鏈；實際操作權限另由服務層檢查。
 package com.demo.ticket.security;
 
 import java.util.List;
@@ -33,12 +34,18 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    /**
+     * 取得 JWT filter，稍後將它加入 Spring Security 驗證鏈。
+     */
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    /**
+     * 設定 JWT filter 的容器註冊方式，避免與安全驗證鏈重複執行。
+     */
     @Bean
     @NullMarked
     public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(
@@ -46,11 +53,14 @@ public class SecurityConfig {
     ) {
         FilterRegistrationBean<JwtAuthenticationFilter> registration =
                 new FilterRegistrationBean<>(filter);
-        // Register the JWT filter only through the Spring Security filter chain.
+        // 停用 Servlet 容器的自動註冊，只讓 Spring Security 鏈執行一次 JWT 驗證。
         registration.setEnabled(false);
         return registration;
     }
 
+    /**
+     * 建立 HTTP 安全驗證鏈，套用存取規則與 JWT filter。
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -59,7 +69,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // WebSocket 放行
+                        // HTTP 握手不在此驗 JWT；STOMP CONNECT 的身分由 WebSocketConfig 驗證。
                         .requestMatchers(
                                 "/ws/**"
                         ).permitAll()
@@ -132,6 +142,9 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * 允許列出的前端來源攜帶 cookie，開放指定 HTTP 方法及 Authorization、Content-Type 標頭；其餘來源或自訂標頭未列入。
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 

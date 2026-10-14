@@ -1,3 +1,4 @@
+// 閱讀導引：處理註冊、登入、會員資料與登出，協調密碼驗證、JWT 和 Redis 登入狀態。
 package com.demo.ticket.Service.Login;
 
 import com.demo.ticket.Common.ConvertFormat;
@@ -36,23 +37,25 @@ public class LoginServiceImpl implements LoginService {
     @Value("${auth.cookie.sameSite:Lax}")
     private String refreshCookieSameSite;
 
-    // ? redis 到期時間 Seconds
+    // token 與登入快取的基礎有效秒數；實際簽發時再加少量隨機秒數。
     @Value("${jwt.refreshExpirationSeconds}")
     private long refreshExpirationSeconds;
 
     @Value("${jwt.accessExpirationSeconds}")
     private long accessExpirationSeconds;
 
-    /*
-     * 防 Cache Stampede（雪崩）
-     * 問題：* 大量 key 同時過期 → DB 被打爆
-     * */
+    /**
+     * 回傳 refresh token 基礎有效秒數加上 1 至 60 秒，分散登入資料的到期時間。
+     */
     private int refreshExpirationSecondsAddRndomNumber() {
         int min = 1;
         int max = 60;
         return Math.toIntExact(refreshExpirationSeconds + (new Random().nextInt((max - min) + 1) + min));
     }
 
+    /**
+     * 回傳 access token 基礎有效秒數加上 1 至 60 秒，分散登入資料的到期時間。
+     */
     private int accessExpirationSecondsAddRndomNumber() {
         int min = 1;
         int max = 60;
@@ -65,6 +68,9 @@ public class LoginServiceImpl implements LoginService {
     private final ObjectMapper objectMapper;
     private final JwtTokenService jwtTokenService;
 
+    /**
+     * 注入 BCrypt、會員查詢、Redis、JSON 與 JWT 元件，協調會員登入及快取資料。
+     */
     public LoginServiceImpl(
             BCryptPasswordEncoder passwordEncoder,
             LoginMapper loginMapper,
@@ -79,6 +85,9 @@ public class LoginServiceImpl implements LoginService {
         this.jwtTokenService = jwtTokenService;
     }
 
+    /**
+     * 建立會員並以 BCrypt 編碼密碼，回傳註冊結果。
+     */
     @Override
     public ResponseEntity<?> register(RegisterRequest request) {
         final String account = request.account().trim();
@@ -107,6 +116,11 @@ public class LoginServiceImpl implements LoginService {
                 ));
     }
 
+    /**
+     * 依帳號或 email 查詢會員，以 BCrypt 比對密碼；成功才建立 refresh token 與對應 Redis 紀錄。
+     * 成功與帳密不符皆回傳 HTTP 200，前端須看 data[0].judge；成功的 refresh token 放在 HttpOnly cookie。
+     * 此方法尚未回傳 access token，前端需再呼叫 validate 完成登入。
+     */
     @Override
     public ResponseEntity<?> login(LoginRequest request) {
         final String account = request.account().trim();
@@ -203,6 +217,9 @@ public class LoginServiceImpl implements LoginService {
                 ));
     }
 
+    /**
+     * 以 SCAN 查找符合鍵名模式的 Redis 資料並分批刪除；cnt 同時控制掃描建議量與刪除批量。
+     */
     private void redisDels(String accessRedisKey, int cnt) {
         ScanOptions options = ScanOptions.scanOptions()
                 .match(accessRedisKey)
@@ -214,7 +231,7 @@ public class LoginServiceImpl implements LoginService {
                 while (cursor.hasNext()) {
                     String key = new String(cursor.next());
                     keysToDelete.add(key);
-                    // 批量刪除：每 ? 個 key 刪一次，避免一次性刪太多
+                    // 累積到 cnt 個鍵就刪除一批，避免一次把所有鍵存入記憶體。
                     if (keysToDelete.size() >= cnt) {
                         stringRedisTemplate.delete(keysToDelete);
                         keysToDelete.clear();
@@ -229,6 +246,11 @@ public class LoginServiceImpl implements LoginService {
         });
     }
 
+    /**
+     * 驗證 refresh token 簽章與期限，使用 token 的 subject 取得 Redis 會員快取後簽發 access token。
+     * 會員快取不存在時仍回傳 HTTP 200，但 judge 為 false；JWT 驗證失敗會拋出例外。
+     * 此流程使用 token 內的 jti 作為 access 紀錄識別碼，並非直接讀取或核對已儲存的 refresh token。
+     */
     @Override
     public ResponseEntity<?> validate(String refreshToken) {
         List<Map<String, Object>> data = new ArrayList<>();
@@ -283,8 +305,7 @@ public class LoginServiceImpl implements LoginService {
                 // redis(指定key)的上限數量
                 int maximumQuantity = 20;
                 if (redisCount >= maximumQuantity) {
-                    // Redis「我希望每次 SCAN 返回大約 5 個 key」
-                    // 這是一個 建議值，Redis 可能返回多於或少於這個數量，取決於內部算法。
+                    // SCAN 的 count＝100 只是建議掃描量，不保證每次回傳筆數；仍需迭代游標到結束。
                     redisDels(accessRedisKey, cnt);
                 }
                 accessRedisKey = String.format(
@@ -319,6 +340,10 @@ public class LoginServiceImpl implements LoginService {
                 ));
     }
 
+    /**
+     * 以登入 email 與請求姓名作為資料庫比對條件，更新電話及生日，再重新查詢會員資料更新 Redis 快取。
+     * 姓名在這裡不是可修改欄位；成功訊息未依資料庫更新筆數判斷。
+     */
     @Override
     public ResponseEntity<?> saveProfile(LoginSaveProfileRequest request, LoginUser user) {
         final String name = request.name().trim();
@@ -362,6 +387,10 @@ public class LoginServiceImpl implements LoginService {
                 ));
     }
 
+    /**
+     * 驗證 refresh token 後刪除對應 token、登入識別及會員快取，並以過期 cookie 清除瀏覽器 refresh token。
+     * 黑名單識別碼來自 refresh token；黑名單保存秒數依目前 access token 的剩餘時間計算，向上取整到秒。
+     */
     @Override
     public ResponseEntity<?> logout(LoginUser user, String refreshToken) {
         List<Map<String, Object>> data = new ArrayList<>();

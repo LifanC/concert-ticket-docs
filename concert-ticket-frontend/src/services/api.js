@@ -1,3 +1,4 @@
+// 閱讀導引：集中建立 Axios API 客戶端，自動附上 access token；遇到 401 時更新 token 並重試一次。
 import router from '@/router'
 import axios from 'axios'
 import { syncAuth, resetAuth } from '@/services/auth'
@@ -12,17 +13,24 @@ const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL || '/api'
 ).replace(/\/$/, '');
 
+/** 將圖片 API 路徑加上目前 API 基底位址；空路徑回傳空字串。 */
 export function resolveActivityImageUrl(path) {
   return path ? `${apiBaseUrl}${path}` : ''
 }
 
-// 專門 refresh token，用「乾淨」axios，不掛 auth interceptor
+// 更新 token 使用獨立客戶端，避免更新請求本身再次觸發同一個 401 重試流程。
 const refreshClient = axios.create({
   baseURL: `${apiBaseUrl}/v1/login`,
   timeout: 10000,
   withCredentials: true,
 })
 
+/**
+ * 建立 /v1/{resourcePath} 的 Axios 客戶端，設定 10 秒逾時並攜帶 cookie。
+ * 每次請求才讀 access token cookie，避免客戶端保留登入或更新 token 之前的舊值。
+ * @param {string} resourcePath activity、admin、booking 或 login
+ * @returns {import('axios').AxiosInstance} 尚未安裝回應攔截器的客戶端
+ */
 function createApi(resourcePath) {
   const client = axios.create({
     baseURL: `${apiBaseUrl}/v1/${resourcePath}`,
@@ -44,6 +52,7 @@ function createApi(resourcePath) {
   return client
 }
 
+/** 安裝回應攔截器；401 更新 token 後重試一次，失敗時清除登入狀態，403 返回活動頁。 */
 function setupAuthInterceptor(client) {
   client.interceptors.response.use(
     response => response,
@@ -52,8 +61,9 @@ function setupAuthInterceptor(client) {
       const status = error.response?.status
       const originalRequest = error.config
 
-      // access token 過期
+      // 401 可能來自 token 過期或其他登入失效；只對尚未重試的原請求嘗試更新 token。
       if (status === 401 && originalRequest && !originalRequest._retry) {
+        // 每個原始請求只自動重試一次，避免失效 token 導致無限循環。
         originalRequest._retry = true
 
         try {
@@ -84,7 +94,7 @@ function setupAuthInterceptor(client) {
         } catch (refreshError) {
           console.error('refresh token 失敗:', refreshError)
 
-          // refresh token 也失效 → 登出
+          // 更新 token 失敗或回應沒有新 token 時，清除本地登入狀態並保留返回頁面路徑。
           clearCookie('accessName')
           clearCookie('accessToken')
           resetAuth()
@@ -107,7 +117,7 @@ function setupAuthInterceptor(client) {
 
       const currentRoute = router.currentRoute.value
 
-      // 400 is a validation error; keep the session and let the form display it.
+      // 400 交由原表單顯示輸入錯誤，不清除登入狀態；其他未特別處理的錯誤也原樣拒絕。
 
       if (status === 403) {
         ElMessage({

@@ -1,3 +1,4 @@
+// 閱讀導引：使用模擬 API 驗證圖片各自載入，並區分正常、缺圖及載入失敗狀態。
 import { test, expect } from '@playwright/test'
 
 test('images display independently and distinguish missing and failed images', async ({ page }) => {

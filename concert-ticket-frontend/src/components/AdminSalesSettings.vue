@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：編輯各場次的分區、票價、票種與限購草稿；儲存前檢查配置並帶上版本號。
 import { computed, ref } from 'vue'
 import { adminApi } from '@/services/api'
 
@@ -17,7 +18,9 @@ const rowLabels = computed(() => draft.value?.rowLabels ?? [])
 const seatsPerRow = computed(() => draft.value?.seatsPerRow ?? 0)
 const locked = computed(() => draft.value?.locked || saving.value || loading.value)
 const moneyFormat = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+/** 將票價轉成新台幣顯示文字，供票價及設定頁使用。 */
 const money = (value) => moneyFormat.format(value)
+/** 以 API 回應建立獨立場次草稿；未配置時提供全場分區、全票及預設限購 4 張，這些預設值尚未寫入後端。 */
 function applySettings(id, data) {
   drafts.value[id] = {
     version: data.version,
@@ -34,10 +37,12 @@ function applySettings(id, data) {
       : [{ id: ++nextId, name: '全票', discountPercent: 100, eligibility: '' }],
   }
 }
+/** 優先取出後端錯誤訊息，沒有可用訊息時回傳呼叫端的預設提示。 */
 function errorMessage(cause, fallback) {
   const data = cause.response?.data
   return data?.message ?? data?.data?.find((item) => item.remark)?.remark ?? fallback
 }
+/** 切換場次時優先保留已編輯草稿；force=true 才重新取資料覆寫草稿，以請求版本忽略較慢的舊回應。 */
 async function selectSession(force = false) {
   const version = ++loadVersion
   const id = sessionId.value
@@ -69,6 +74,7 @@ const rowAssignments = computed(() => rowLabels.value.map((label, index) => ({
     return start >= 0 && end >= start && index >= start && index <= end
   }),
 })))
+// 每排必須恰好分配一個分區；此處提供即時表單提示，後端還會檢查長度、精度及數量上限。
 const issues = computed(() => {
   if (!draft.value) return []
   const errors = []
@@ -125,9 +131,11 @@ const issues = computed(() => {
   }
   return [...new Set(errors)]
 })
+/** 依分區排數範圍及每排座位數計算分區座位總數。 */
 function zoneCount(zone) {
   return rowAssignments.value.filter((row) => row.zones.some((item) => item.id === zone.id)).length * seatsPerRow.value
 }
+/** 將草稿欄位轉成 API 名稱並去除文字前後空白；只送版本、限購、分區及票種，草稿內的暫時 id 不會提交。 */
 function payload() {
   return {
     version: draft.value.version,
@@ -153,6 +161,7 @@ function payload() {
     ),
   }
 }
+/** 草稿通過前端檢查且未鎖定才提交；成功以回應更新草稿，後端回報 SALES_SETTINGS_LOCKED 時同步凍結編輯。 */
 async function saveSettings() {
   if (issues.value.length || locked.value) return
   const id = sessionId.value
@@ -171,6 +180,7 @@ async function saveSettings() {
     saving.value = false
   }
 }
+/** 通過檢查且可編輯時下載含場次編號的 JSON 草稿；只匯出檔案，不會呼叫儲存 API。 */
 function exportDraft() {
   if (issues.value.length || locked.value) return
   const url = URL.createObjectURL(

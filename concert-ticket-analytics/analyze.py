@@ -1,3 +1,4 @@
+# 閱讀導引：以唯讀交易彙整各場次已付款訂單，再匯出 CSV；不將統計結果寫回資料庫。
 """Export current paid-order totals per session without modifying the database."""
 
 import argparse
@@ -9,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
+# 將 PAID 條件放在 LEFT JOIN 的 ON 內，保留沒有已付款訂單的場次，讓它們仍以零銷售出現在報表。
 SALES_SQL = """
 SELECT s.id,
        COUNT(t.orderno) AS paid_orders,
@@ -22,32 +24,38 @@ ORDER BY s.id
 """
 
 
+# 回傳 (場次編號, 已付款訂單數, 已付款金額) 清單；查詢限時 30 秒，已付款缺金額時拋出 ValueError。
 def fetch_sales(connection):
     with closing(connection.cursor()) as cursor:
+        # 將本次交易限制為唯讀，報表程式僅讀取訂單，不更動業務資料。
         cursor.execute("SET TRANSACTION READ ONLY")
         cursor.execute("SET LOCAL statement_timeout = '30s'")
         cursor.execute(SALES_SQL)
         rows = cursor.fetchall()
+    # 已付款但缺金額會低估營收，因此中止匯出，讓資料問題先被修正。
     if any(row[3] for row in rows):
         raise ValueError("已付款訂單有缺少 payprice 的資料，請先確認金額再產生報表。")
     return [tuple(row[:3]) for row in rows]
 
 
+# 將統計列寫入新的 UTF-8 BOM CSV，處理可能被試算表解讀成公式的識別碼，回傳報表 Path。
 def write_report(rows, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     path = output_dir / f"sales_report_{stamp}.csv"
+    # x 模式避免覆蓋既有檔案；UTF-8 BOM 讓試算表軟體正確辨識中文欄位。
     with path.open("x", encoding="utf-8-sig", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["場次編號", "已付款訂單數", "已付款訂單金額"])
         for session_id, count, amount in rows:
-            # Treat database identifiers as text when opened in spreadsheets.
+            # 對公式起始字元加單引號，讓試算表將場次編號視為文字，不執行公式。
             if session_id.startswith(("=", "+", "-", "@", "\t", "\r", "\n")):
                 session_id = "'" + session_id
             writer.writerow([session_id, count, format(amount, ".2f")])
     return path
 
 
+# 解析輸出路徑及環境設定，連線查詢後匯出報表；成功回傳 0，設定、查詢或寫入失敗回傳 1。
 def main():
     parser = argparse.ArgumentParser(description="匯出各場次目前已付款訂單的數量與金額。")
     parser.add_argument("--output-dir", type=Path, default=BASE_DIR / "reports",

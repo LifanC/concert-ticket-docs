@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：會員頁：處理登入、註冊、資料修改與登出，成功後同步前端登入狀態。
 import { useRouter } from 'vue-router'
 import { loginApi } from '@/services/api'
 import { syncAuth, resetAuth } from '@/services/auth'
@@ -55,6 +56,7 @@ const registerFormNotOk = ref(
 )
 
 executeFirst()
+/** 依 access token cookie 初始化登入畫面；沒有 token 時清除名稱及共用登入狀態，並停止通知連線，不呼叫 API。 */
 function executeFirst() {
   isLoggedIn.value = !!toFindCookie('accessToken')
   if (!isLoggedIn.value) {
@@ -65,6 +67,7 @@ function executeFirst() {
   }
 }
 
+/** 先呼叫 login 讓瀏覽器保存 HttpOnly refresh cookie，再呼叫 validate 取得 access token；兩步成功後同步會員資料並前往活動頁。 */
 const submitLogin = async () => {
   loginFormNotOk.value = {
     account: '',
@@ -148,6 +151,7 @@ const submitLogin = async () => {
   }
 }
 
+/** 檢查必填資料及兩次密碼一致後註冊；成功切換到資料頁，但不建立登入狀態，使用者仍需另外登入。 */
 const submitRegister = async () => {
   registerFormNotOk.value = {
     account: '',
@@ -208,6 +212,7 @@ const submitRegister = async () => {
   disconnectWebSocket()
 }
 
+/** 送出姓名、電話及生日；後端以姓名作比對條件，只修改電話與生日。回傳失敗時顯示欄位錯誤或清空表單。 */
 const saveProfile = async () => {
   profileFormNotOk.value = {
     phone: '',
@@ -264,6 +269,7 @@ const saveProfile = async () => {
     disconnectWebSocket()
   }
 }
+/** 有 access token 時呼叫登出；成功或請求失敗時清除本地登入資料及通知連線，只有後端回傳 judge=false 時保留登入狀態。 */
 const logout = async () => {
   let isLoggedIn_ = false
   let accessToken = toFindCookie('accessToken')

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.demo.ticket.Mapper.LoginMapper">
+    <!-- 閱讀導引：會員登入及資料的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
 
     <insert id="create">
         insert
@@ -22,6 +23,7 @@
                )
     </insert>
 
+    <!-- 同一輸入可為帳號或完整 email；含密碼雜湊的查詢結果僅供後端使用。 -->
     <select id="select" resultType="java.util.Map">
         select
             user_data.account,
@@ -36,6 +38,7 @@
            or email = #{account}
     </select>
 
+    <!-- 目前以 email 的 @ 前段比對權限，不是完整 email 的相等比較。 -->
     <select id="selectPermissions" resultType="java.lang.String">
         select
             permissions.code
@@ -46,6 +49,7 @@
         where SPLIT_PART(user_data.email, '@', 1) = SPLIT_PART(#{account}, '@', 1)
     </select>
 
+    <!-- name 與 email 是 WHERE 條件；實際修改的欄位只有電話與生日。 -->
     <update id="save">
         update "interviewworks_ticket"."user_data" ud
         set phone = #{phone},

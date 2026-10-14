@@ -1,3 +1,4 @@
+// 閱讀導引：Spring Boot 啟動入口；載入元件與設定，啟動 HTTP 服務。
 package com.demo.ticket;
 
 import org.slf4j.Logger;
@@ -17,6 +18,9 @@ public class TicketApplication {
     // 建立 Logger
     private static final Logger logger = LoggerFactory.getLogger(TicketApplication.class);
 
+    /**
+     * 啟動程式並載入執行環境。
+     */
     public static void main(String... args) {
 
         // 啟動 Spring Boot

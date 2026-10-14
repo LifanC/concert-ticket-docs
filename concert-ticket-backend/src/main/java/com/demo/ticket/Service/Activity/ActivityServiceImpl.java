@@ -1,3 +1,4 @@
+// 閱讀導引：查詢活動與圖片，並處理會員收藏活動的讀取與儲存。
 package com.demo.ticket.Service.Activity;
 
 import com.demo.ticket.Dto.Activity.ActivityFavorite;
@@ -22,17 +23,26 @@ public class ActivityServiceImpl implements ActivityService {
 
     private final ActivityMapper activityMapper;
 
+    /**
+     * 注入活動與收藏資料的查詢介面，讓公開活動和會員收藏共用資料存取元件。
+     */
     public ActivityServiceImpl(
             ActivityMapper activityMapper
     ) {
         this.activityMapper = activityMapper;
     }
 
+    /**
+     * 讀取已有場次的公開活動；同一活動若各場次狀態不同，SQL 可能回傳不同狀態的多筆活動資料。
+     */
     @Override
     public List<Map<String, Object>> selectAllActivities() {
         return activityMapper.selectAllActivities();
     }
 
+    /**
+     * 依活動編號讀取 JPEG 位元組，回傳 image/jpeg；查無資料或內容不是 byte[] 時回傳 404。
+     */
     @Override
     public ResponseEntity<byte[]> activityImage(String activityId) {
         Map<String, Object> image = activityMapper.selectActivityImage(activityId);
@@ -48,6 +58,9 @@ public class ActivityServiceImpl implements ActivityService {
                 .body(bytes);
     }
 
+    /**
+     * 查詢指定會員收藏的活動。
+     */
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user) {
@@ -60,6 +73,9 @@ public class ActivityServiceImpl implements ActivityService {
         return data;
     }
 
+    /**
+     * 新增會員與活動的收藏關聯。
+     */
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -67,6 +83,9 @@ public class ActivityServiceImpl implements ActivityService {
         return changeFavoriteActivity(request, user, true);
     }
 
+    /**
+     * 移除會員與活動的收藏關聯。
+     */
     @Override
     @Transactional
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -74,6 +93,9 @@ public class ActivityServiceImpl implements ActivityService {
         return changeFavoriteActivity(request, user, false);
     }
 
+    /**
+     * 以登入 email 與活動編號新增或刪除收藏，依更新筆數設定 judge；新增回傳 201，刪除回傳 200。
+     */
     private ResponseEntity<?> changeFavoriteActivity(ActivityFavoriteRequest request, LoginUser user, boolean save) {
         final String activity_id = request.activity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
