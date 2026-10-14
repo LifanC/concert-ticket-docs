@@ -208,7 +208,7 @@ PostgreSQL 保存會員、活動、場次與訂單；MyBatis 負責讀寫資料�
 | Booking | 查詢活動／場次／票券、`saveTicket`、`cancelOrder`、`dopayprice` | 會員訂票流程 |
 | Booking.Seats | `GET /v1/booking/selectOnlySeats`、`GET /v1/booking/selectOnlyUnavailableSeats` | 場次座位與不可用座位查詢 |
 | Admin | 查詢活動／場次／票券、`saveActivity`、`deleteActivity`、`createSession` | 後台管理 |
-| Admin.Image | `POST /v1/admin/saveActivity`、`GET /v1/admin/selectAllActivities` | 隨活動儲存可選的 JPEG；管理員活動列表含 Base64 圖片資料 |
+| Admin.Image | `POST /v1/admin/saveActivity`、`GET /v1/admin/selectAllActivities` | 隨活動儲存可選的 JPEG；管理員活動列表回傳 `image_url`，由圖片 API 載入 |
 | Admin.SalesSettings | `GET /v1/admin/sessions/{sessionId}/sales-settings`、`PUT /v1/admin/sessions/{sessionId}/sales-settings` | 查詢與儲存場次分區、票種及限購 |
 | Booking.SalesSettings | `GET /v1/booking/sessions/{sessionId}/sales-settings` | 會員查詢票價、分區與剩餘限購額度 |
 

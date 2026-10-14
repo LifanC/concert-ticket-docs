@@ -35,7 +35,7 @@
 | 取得活動 | `GET /api/v1/activity/selectAllActivities` |
 | 公開讀取活動圖片 | `GET /api/v1/activity/activityImage/{activityId}` |
 | 管理員儲存活動與圖片 | `POST /api/v1/admin/saveActivity` |
-| 管理員活動列表（含 Base64 圖片） | `GET /api/v1/admin/selectAllActivities` |
+| 管理員活動列表（含圖片 API 路徑 `image_url`） | `GET /api/v1/admin/selectAllActivities` |
 | 刪除活動 | `DELETE /api/v1/admin/deleteActivity` |
 | 新增／更新場次 | `POST /api/v1/admin/createSession` |
 | 建立訂單 | `POST /api/v1/booking/saveTicket` |
@@ -55,7 +55,7 @@ WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization:
 
 上傳檔上限為 10 MB，原圖最多 2,400 萬像素。後端檢查 JPEG 內容，保留原始比例並將最長邊縮至不超過 1280 px；再調整 JPEG 品質，必要時進一步縮小，使儲存內容不超過 1,048,576 bytes。圖片驗證失敗回傳 HTTP 400，訊息位於 `data[1].error.image`。請求大小限制由 `application.yml` 與 `application-docker.yml` 的 multipart 設定控制，整筆請求上限為 11 MB。
 
-公開 `GET /api/v1/activity/activityImage/{activityId}` 回傳 `image/jpeg`；活動沒有圖片時回傳 404，無需登入。管理員透過 `GET /api/v1/admin/selectAllActivities` 取得含 `image_data`、`content_type` 的活動資料，由前端產生圖片網址；此端點需要 `ADMIN_ITEM_IMPLEMENT` 權限。
+公開 `GET /api/v1/activity/activityImage/{activityId}` 回傳 `image/jpeg`；活動沒有圖片時回傳 404，無需登入。管理員透過 `GET /api/v1/admin/selectAllActivities` 取得含 `image_url`、`content_type` 的活動資料，前端依 `image_url` 透過圖片 API 載入圖片，不再由活動列表回傳 Base64 圖片資料；此列表端點需要 `ADMIN_ITEM_IMPLEMENT` 權限。
 
 ### 刪除活動與場次管理
 
