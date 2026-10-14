@@ -1,3 +1,4 @@
+// 閱讀導引：接收活動編號，供產生活動座位圖使用。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

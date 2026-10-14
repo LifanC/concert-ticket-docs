@@ -1,3 +1,4 @@
+// 閱讀導引：接收註冊會員資料與明文密碼，欄位註記定義格式限制；密碼以 WRITE_ONLY 避免回傳。
 package com.demo.ticket.Dto.Login;
 
 import com.fasterxml.jackson.annotation.JsonProperty;

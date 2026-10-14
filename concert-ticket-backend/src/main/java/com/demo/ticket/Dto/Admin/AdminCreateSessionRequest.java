@@ -1,3 +1,4 @@
+// 閱讀導引：接收場次新增或修改資料；空 id 表示新增，已有 id 表示修改日期、開賣時間或狀態。
 package com.demo.ticket.Dto.Admin;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

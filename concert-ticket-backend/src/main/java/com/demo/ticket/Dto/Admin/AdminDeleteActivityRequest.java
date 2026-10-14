@@ -1,3 +1,4 @@
+// 閱讀導引：接收要刪除的活動編號；是否已有場次由服務與 SQL 再次確認。
 package com.demo.ticket.Dto.Admin;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

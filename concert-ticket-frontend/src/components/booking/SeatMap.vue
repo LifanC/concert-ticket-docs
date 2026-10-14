@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：共用座位圖：呈現排號、分區與不可選座位，透過 v-model 將選取結果交回訂票頁。
 import { bookingApi } from '@/services/api'
 
 const props = defineProps({
@@ -44,6 +45,7 @@ const seatRows = computed(() => {
 const availableCount = computed(() => seats.value.filter((seat) => !isUnavailable(seat.id)).length)
 
 watch(() => [props.activityId, props.seatLayout], () => loadSeats(props.activityId), { immediate: true })
+/** 優先使用父元件提供的 seatLayout；只有未提供佈局時才查活動 API，回應前若活動或資料來源切換就捨棄舊結果。 */
 async function loadSeats(activityId) {
   seats.value = []
   seatsPerRow.value = 0
@@ -71,13 +73,17 @@ async function loadSeats(activityId) {
   }
 }
 
+/** 判斷座位是否包含在父元件提供的選取清單。 */
 const isSelected = (seatId) => props.modelValue.includes(seatId)
+/** 判斷座位是否已占用或被分區篩選排除。 */
 const isUnavailable = (seatId) => props.unavailableSeats.has(seatId) || props.filteredSeats.has(seatId)
+/** 將座位圖捲動至使用者指定的排號。 */
 const jumpToRow = () => {
   const row = seatScroll.value?.querySelector(`[data-row="${selectedRow.value}"]`)
   row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
+/** 點選已選座位會取消選取；單選模式以新座位替換，多選模式只保留 maxSelection 範圍內的選擇，透過 v-model 回傳。 */
 const selectSeat = (seatId) => {
   if (isUnavailable(seatId)) return
 

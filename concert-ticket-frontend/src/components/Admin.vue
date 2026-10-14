@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：管理頁：維護活動、上傳圖片與建立場次，並載入銷售統計和售票設定。
 import { adminApi, resolveActivityImageUrl } from '@/services/api'
 import { connectWebSocket, showNotification } from '@/services/websocket'
 import AdminDashboard from './AdminDashboard.vue'
@@ -24,6 +25,7 @@ onMounted(() => connectWebSocket())
 
 loadDashboard()
 executeFirst()
+/** 並行讀取場次及訂單，兩份資料皆有效才替換統計內容；更新失敗時保留上次成功資料並顯示提示。 */
 async function loadDashboard() {
   if (loading.value) return
   loading.value = true
@@ -49,6 +51,7 @@ async function loadDashboard() {
   }
 }
 
+/** 載入管理用活動清單，將回傳圖片路徑轉成可供圖片元素使用的網址。 */
 async function executeFirst() {
   const response_selectAllActivities = await adminApi({
     method: 'get',
@@ -77,6 +80,7 @@ const seatRowCountByCategory = {
   STAGE_PLAY: 100,
   SPECIAL_EXHIBITION: 150,
 }
+/** 將排號轉成英文字母標籤，支援超過 Z 的排號。 */
 const seatRowLabel = (index) => {
   let number = index
   let label = ''
@@ -94,6 +98,7 @@ const seatRangeOptions = computed(() => {
     return { label: `A～${end} 排（${index + 1} 排）`, value: end }
   })
 })
+/** 活動類別切換時調整座位排數選項，避免保留不適用的排數。 */
 const onActivityCategoryChange = () => {
   activityForm.column = ''
   activityFormNotOk.value.column = ''
@@ -109,10 +114,12 @@ const activityFormNotOk = ref(
     row: '',
   }
 )
+/** 將表單預設的 yyyy/MM/dd 字串轉為 yyyy-MM-dd，月與日補兩位。 */
 const formatDate = (date) => {
   const [year, month, day] = date.split('/')
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 }
+/** 預設演出日為今天起 30 天後的第一個星期六，開賣日為明天，演出與開賣時間皆為 09:00。 */
 const getday = () => {
   const now = new Date()
   const date = new Date(now)
@@ -165,6 +172,7 @@ const imagePreview = ref('')
 const imageUpload = ref(null)
 let imageLoadVersion = 0
 
+/** 清除選圖、預覽及圖片欄位錯誤；僅對本頁產生的 blob: URL 呼叫 revokeObjectURL。 */
 function clearImageSelection() {
   imageLoadVersion++
   if (imagePreview.value.startsWith('blob:')) {
@@ -178,6 +186,7 @@ function clearImageSelection() {
 onBeforeUnmount(() => {
   if (imagePreview.value.startsWith('blob:')) URL.revokeObjectURL(imagePreview.value)
 })
+/** 重設活動表單並開啟新增視窗。 */
 const openAdd = () => {
   clearImageSelection()
   Object.assign(
@@ -196,6 +205,7 @@ const openAdd = () => {
   dialogMode.value = '新增活動'
   dialogVisible.value = true
 }
+/** 將選取活動填入表單並開啟編輯視窗。 */
 const openEdit = async (activity) => {
   clearImageSelection()
   const loadVersion = imageLoadVersion
@@ -208,6 +218,7 @@ const openEdit = async (activity) => {
     imagePreview.value = activityImageUrls.value[activity.id] || resolveActivityImageUrl(activity.image_url)
   }
 }
+/** 檢查瀏覽器回報的 JPEG MIME 與 10 MiB 上限，合格才建立預覽 URL；實際內容仍由後端解碼驗證。 */
 function onImageChange(uploadFile) {
   const file = uploadFile.raw
   if (!file || file.type !== 'image/jpeg' || file.size > 10 * 1024 * 1024) {
@@ -221,6 +232,7 @@ function onImageChange(uploadFile) {
   imagePreview.value = URL.createObjectURL(file)
   activityFormNotOk.value.image = ''
 }
+/** 檢查必要欄位與類別排數，以 multipart 上傳 activity JSON 及可選 image；成功時合併回應到本地活動清單。 */
 const saveActivity = async () => {
   activityFormNotOk.value = {
     image: '',
@@ -271,7 +283,7 @@ const saveActivity = async () => {
       activity = response.data
     }
     const imageUrl = resolveActivityImageUrl(activity.image_url)
-    // Refresh after uploads even when the image path stays the same.
+    // 圖片替換後路徑可能不變，加入時間參數讓瀏覽器重新取得內容，避免顯示快取舊圖。
     activityImageUrls.value[id] = imageUrl && imageFile.value
       ? `${imageUrl}?v=${Date.now()}` : imageUrl
     dialogVisible.value = false
@@ -289,6 +301,7 @@ const saveActivity = async () => {
     dialogVisible.value = true
   }
 }
+/** 提交刪除後以回應清單替換活動資料；遇到已有場次的警告時，使用與 WebSocket 共用的通知去重流程呈現。 */
 const deleteActivity = async (activity) => {
   try {
     const response = await adminApi({
@@ -310,6 +323,7 @@ const deleteActivity = async (activity) => {
     }
   }
 }
+/** editing 為 false 時以空 id 新增場次，為 true 時保留原 id 更新；成功後以後端場次清單替換本地資料。 */
 const createSession = async (editing = false) => {
   sessionFormNotOk.value = {
     activity_id: '',
@@ -349,14 +363,17 @@ const createSession = async (editing = false) => {
 }
 const delayedDays = ref(7)
 const delayedDaysDate = ref('')
+/** 將選取場次填入編輯狀態並開啟場次編輯視窗。 */
 const openSessionsEdit = (sessions) => {
   Object.assign(sessionForm, sessions)
   delayedDaysDate.value = getDaysSaveSessions(sessionForm.date, delayedDays.value)
   dialogVisibleSessions.value = true
 }
+/** 依指定天數更新延後日期的預覽，供場次日期選擇使用。 */
 const delayed = (days) => {
   delayedDaysDate.value = getDaysSaveSessions(sessionForm.date, days)
 };
+/** 把預覽的延後日期填入表單，啟動 createSession(true) 並立即關閉視窗；此函式未等待儲存完成。 */
 const saveSessions = () => {
   let dateSession = getDaysSaveSessions(sessionForm.date, delayedDays.value)
   Object.assign(
@@ -368,6 +385,7 @@ const saveSessions = () => {
   createSession(true)
   dialogVisibleSessions.value = false
 }
+/** 以瀏覽器本地日期將 yyyy-MM-dd 加上指定天數，再回傳相同格式；Date 會自動處理跨月與跨年。 */
 const getDaysSaveSessions = (saveDate, days) => {
   const [year, month, day] = saveDate.split("-").map(Number);
   const date = new Date(year, month - 1, day);
@@ -385,10 +403,12 @@ const sessionStatusForm = reactive(
     status: '',
   }
 )
+/** 開啟指定場次的狀態編輯視窗。 */
 const openSessionsStatusEdit = (sessions) => {
   Object.assign(sessionStatusForm, sessions)
   dialogVisibleSessionsStatus.value = true
 }
+/** 以場次編號及狀態表單呼叫共用場次儲存端點，成功後替換場次清單並關閉狀態視窗。 */
 const saveSessionsStatus = async () => {
   const response = await adminApi({
     method: 'post',
@@ -418,6 +438,7 @@ const categoryMap = {
   STAGE_PLAY: '舞台劇',
   SPECIAL_EXHIBITION: '展覽特展',
 }
+/** 將業務狀態對應至 Element Plus 標籤顏色。 */
 const statusType = (status) => (
   {
     'COMING_SOON': 'warning',

@@ -1,3 +1,4 @@
+// 閱讀導引：驗證不同角色切換活動與會員頁時，導覽及登入畫面符合預期。
 import { test, expect } from '@playwright/test'
 
 for (const role of ['guest', 'member', 'admin']) {

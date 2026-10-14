@@ -1,3 +1,4 @@
+// 閱讀導引：以活動編號、日期與時間找到場次，再查詢該場次不可選座位；selected_session 是時間文字。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

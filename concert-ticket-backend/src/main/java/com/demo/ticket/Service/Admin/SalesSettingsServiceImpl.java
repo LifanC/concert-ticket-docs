@@ -1,3 +1,4 @@
+// 閱讀導引：管理場次分區、票種與限購設定；訂票時依資料庫設定計價，並檢查會員可購張數。
 package com.demo.ticket.Service.Admin;
 
 import com.demo.ticket.Dto.Admin.Quote;
@@ -22,11 +23,17 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
     private final SalesSettingsMapper salesSettingsMapper;
     private final BookingCoreMapper bookingCoreMapper;
 
+    /**
+     * 注入售票設定查詢與場次鎖定介面，讓配置變更和訂票遵守相同鎖定流程。
+     */
     public SalesSettingsServiceImpl(SalesSettingsMapper salesSettingsMapper, BookingCoreMapper bookingCoreMapper) {
         this.salesSettingsMapper = salesSettingsMapper;
         this.bookingCoreMapper = bookingCoreMapper;
     }
 
+    /**
+     * 在 REPEATABLE_READ 唯讀交易中讀取設定，讓場次、分區與票種查詢維持同一資料快照；不附會員額度。
+     */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     @Override
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
@@ -34,6 +41,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return readSettings(sessionId, null);
     }
 
+    /**
+     * 使用一致的讀取快照回傳票價及座位配置，另計入會員已付款與尚未逾期的待付款票數，計算剩餘額度。
+     */
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     @Override
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
@@ -41,6 +51,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return readSettings(sessionId, email);
     }
 
+    /**
+     * 合併場次、分區、票種與會員數量，組裝售票設定；未配置時使用活動預設票價。
+     */
     private Map<String, Object> readSettings(String sessionId, String email) {
         Map<String, Object> session = requireSession(sessionId);
         Map<String, Object> saved = salesSettingsMapper.settings(sessionId);
@@ -82,6 +95,14 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return result;
     }
 
+    /**
+     * 先鎖場次並核對草稿版本，再拒絕已有保留、售出或占用紀錄的場次。
+     * 座位排號與每排座位數沿用既有配置；在同一交易內重建分區、票種及座位分區關聯，版本加一。
+     * @param sessionId 要修改的場次
+     * @param request 草稿版本、會員限購張數、完整分區及票種清單
+     * @return 儲存後的完整售票設定
+     * @throws BookingException 場次不存在、版本已更新、設定已鎖定或配置不合法
+     */
     @Transactional
     @Override
     @PreAuthorize("hasAuthority('ADMIN_ITEM_IMPLEMENT')")
@@ -90,8 +111,10 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         Map<String, Object> session = requireSession(sessionId);
         Map<String, Object> saved = salesSettingsMapper.settings(sessionId);
         long version = saved == null ? 0 : ((Number) saved.get("version")).longValue();
+        // 版本號避免舊草稿覆蓋其他管理員剛儲存的設定。
         if (request.version() != version)
             throw new BookingException("SETTINGS_VERSION_CONFLICT", "設定已由其他管理員更新，請重新載入", HttpStatus.CONFLICT);
+        // 已有保留或售出座位時凍結設定，維持既有訂單的座位及票價語意。
         if (isLocked(sessionId, session)) {
             throw new BookingException("SALES_SETTINGS_LOCKED", "場次已有保留或售出座位，不能修改配置", HttpStatus.CONFLICT);
         }
@@ -148,7 +171,11 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return readSettings(sessionId, null);
     }
 
-    // Called by saveTicket after it obtains the shared session lock, inside the booking transaction.
+    /**
+     * 未配置分區時使用活動預設價；已配置時確認座位與票種屬於場次，並檢查會員限購額度。
+     * 票價以分區原價乘票種百分比計算，分區及票種名稱一起回傳，供訂單保存下單時資訊。
+     * 呼叫端必須在交易內先取得場次鎖，避免限購檢查與建立訂單之間有其他訂票插入。
+     */
     @Override
     public Quote quote(String sessionId, String seat, String ticketTypeId, String email, BigDecimal defaultPrice) {
         Map<String, Object> settings = salesSettingsMapper.settings(sessionId);
@@ -180,10 +207,17 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         );
     }
 
+    /**
+     * 以分區原價乘上票種百分比，使用 HALF_UP 四捨五入到小數點後兩位。
+     */
     private BigDecimal calculatePrice(BigDecimal price, BigDecimal percent) {
+        // 使用十進位金額計算分區價格 × 票種百分比，四捨五入到小數點後兩位。
         return price.multiply(percent).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * 依序驗證座位配置、限購、分區與票種；不合法時拋出設定驗證例外。
+     */
     private void validate(SalesSettingsRequest request, List<String> rows, int perRow, long capacity) {
         validateLayout(rows, perRow, capacity);
         validateConfiguration(request);
@@ -191,6 +225,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         validateTicketTypes(request.ticketTypes());
     }
 
+    /**
+     * 確認排號唯一、每排座位數合法，且座位總數與場次容量一致。
+     */
     private void validateLayout(List<String> rows, int perRow, long capacity) {
         if (rows.isEmpty() || new HashSet<>(rows).size() != rows.size()) {
             throw invalid("座位配置與場次容量不一致");
@@ -200,6 +237,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         }
     }
 
+    /**
+     * 確認限購張數、分區數與票種數皆在允許範圍內。
+     */
     private void validateConfiguration(SalesSettingsRequest request) {
         if (isInRange(request.maxTicketsPerMember(), 1, 10000)
                 || isValidListSize(request.zones(), 150)
@@ -208,7 +248,11 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         }
     }
 
+    /**
+     * 檢查分區資料及排數涵蓋範圍，要求每排恰好屬於一個分區。
+     */
     private void validateZones(List<ZoneRequest> zones, List<String> rows) {
+        // 每排必須恰好屬於一個分區；零次表示漏排，多次表示重疊。
         int[] coverage = new int[rows.size()];
         Set<String> names = new HashSet<>();
         for (ZoneRequest zone : zones) {
@@ -220,6 +264,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         if (Arrays.stream(coverage).anyMatch(count -> count != 1)) throw invalid("分區不得重疊，且必須涵蓋所有座位");
     }
 
+    /**
+     * 檢查單一分區的名稱、顏色與價格，並記錄名稱以偵測重複。
+     */
     private void validateZone(ZoneRequest zone, Set<String> names) {
         if (zone == null) {
             throw invalid("分區名稱、顏色或價格無效");
@@ -231,6 +278,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         }
     }
 
+    /**
+     * 檢查票種名稱、價格比例及資格說明，拒絕不合法或重複設定。
+     */
     private void validateTicketTypes(List<TicketTypeRequest> ticketTypes) {
         Set<String> names = new HashSet<>();
         for (TicketTypeRequest type : ticketTypes) {
@@ -245,27 +295,45 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         }
     }
 
+    /**
+     * 檢查整數是否缺值或超出範圍；true 表示不合法，false 表示通過。
+     */
     private boolean isInRange(Integer value, int min, int max) {
         return value == null || value < min || value > max;
     }
 
+    /**
+     * 檢查清單是否缺值、空白或超過上限；true 表示不合法。
+     */
     private boolean isValidListSize(List<?> values, int max) {
         return values == null || values.isEmpty() || values.size() > max;
     }
 
+    /**
+     * 檢查名稱是否不合法或已重複；true 表示不合法，合法的新名稱會加入 names。
+     */
     private boolean isUniqueName(String name, Set<String> names) {
         return isInvalidName(name) || !names.add(name.trim());
     }
 
+    /**
+     * 檢查顏色是否為六位十六進位色碼，true 表示合法。
+     */
     private boolean isValidColor(String color) {
         return color != null && color.matches("#[0-9a-fA-F]{6}");
     }
 
+    /**
+     * 檢查數值是否缺值、超出範圍或超過兩位小數；true 表示不合法。
+     */
     private boolean isValidDecimal(BigDecimal value, BigDecimal min, BigDecimal max) {
         return value == null || value.compareTo(min) < 0
                 || value.compareTo(max) > 0 || value.scale() > 2;
     }
 
+    /**
+     * 取得指定場次資料；不存在時拋出 HTTP 404 訂票例外。
+     */
     private Map<String, Object> requireSession(String id) {
         Map<String, Object> session = salesSettingsMapper.session(id);
         if (session == null) {
@@ -274,6 +342,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return session;
     }
 
+    /**
+     * 拆解逗號分隔的排號設定，移除空白後回傳有效排號清單。
+     */
     private List<String> rows(Map<String, Object> layout) {
         return layout.get("seat_rows") == null
                 ? List.of()
@@ -284,6 +355,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
                 .filter(row -> !row.isEmpty()).toList();
     }
 
+    /**
+     * 依排號及每排座位數產生座位編號，例如 A-01。
+     */
     private List<String> seats(List<String> rows, int perRow) {
         List<String> seats = new ArrayList<>();
         for (String row : rows) {
@@ -294,20 +368,32 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         return seats;
     }
 
+    /**
+     * 將資料庫數值轉成整數；缺值時回傳 0。
+     */
     private int integer(Object value) {
         return value == null ? 0 : ((Number) value).intValue();
     }
 
+    /**
+     * 判斷場次是否已有保留或售出座位，true 表示不能再修改售票配置。
+     */
     private boolean isLocked(String sessionId, Map<String, Object> session) {
         return integer(session.get("reserved")) > 0
                 || integer(session.get("sold")) > 0
                 || salesSettingsMapper.occupied(sessionId) > 0;
     }
 
+    /**
+     * 判斷名稱是否缺值、空白或超過 40 字；true 表示不合法。
+     */
     private boolean isInvalidName(String name) {
         return name == null || name.isBlank() || name.length() > 40;
     }
 
+    /**
+     * 建立售票設定驗證例外，供呼叫端回傳 HTTP 400。
+     */
     private BookingException invalid(String message) {
         return new BookingException("INVALID_SALES_SETTINGS", message, HttpStatus.BAD_REQUEST);
     }

@@ -1,3 +1,4 @@
+// 閱讀導引：統一處理付款、取消與逾期，讓訂單、場次保留數及座位在同一交易內轉換。
 package com.demo.ticket.Service.Booking;
 
 import com.demo.ticket.Dto.Booking.*;
@@ -13,6 +14,9 @@ public class BookingOrderService {
     private final BookingMapper bookingMapper;
     private final BookingCoreMapper bookingCoreMapper;
 
+    /**
+     * 注入訂單／庫存與座位的更新介面，供單一交易同步三種資料。
+     */
     public BookingOrderService(
             BookingMapper bookingMapper,
             BookingCoreMapper bookingCoreMapper
@@ -21,6 +25,14 @@ public class BookingOrderService {
         this.bookingCoreMapper = bookingCoreMapper;
     }
 
+    /**
+     * 鎖定場次後重新讀取訂單，再以條件更新同步訂單、庫存與座位。
+     * 所有更新必須恰好影響一筆資料；任一步異常就拋出例外，讓整筆交易回滾。
+     *
+     * @param bookingOrder 訂單編號、目標狀態與可選的 email、場次核對條件；null 核對條件會略過
+     * @return 成功轉換為 true；逾期任務遇到不存在、已處理或未到期訂單時為 false
+     * @throws BookingException 非逾期操作找不到訂單、狀態衝突或更新筆數異常
+     */
     @Transactional
     public boolean transition(BookingOrder bookingOrder) {
         final String orderno = bookingOrder.getOrderno();
@@ -37,11 +49,12 @@ public class BookingOrderService {
             }
             throw new BookingException("ORDER_NOT_FOUND", "找不到訂單", HttpStatus.NOT_FOUND);
         }
-        // All writers lock session before order/seat, avoiding payment/reservation deadlocks.
-        // 所有作者在下單/預訂座位前都會鎖定會話，避免付款/預訂僵局。
+        // 與訂票流程使用相同鎖定順序：先鎖場次，再更新訂單與座位，降低交錯鎖定造成死結的機會。
         bookingCoreMapper.lockSession(ticket.getSession_id());
+        // 取得場次鎖後重新讀取，避免使用等待鎖之前的舊訂單狀態。
         ticket = bookingCoreMapper.findOrder(orderno);
         bookingOrderStatus current = bookingOrderStatus.valueOf(ticket.getStatus());
+        // 逾期背景任務遇到已處理訂單可直接略過；使用者的非法轉換則回傳衝突。
         if (!current.canTransitionTo(target)) {
             if (target == bookingOrderStatus.EXPIRED) {
                 return false;
@@ -59,8 +72,7 @@ public class BookingOrderService {
             }
             case CANCELLED -> rows = bookingMapper.cancelTicket(ticket);
             case EXPIRED -> rows = bookingMapper.updateTicketExpiredAt(ticket);
-            // Refund accounting is not implemented yet; never expose a partial refund.
-            // 退款會計系統尚未啟用；切勿公開部分退款資訊。
+            // 狀態列舉保留 REFUNDED，但尚無退款、庫存與金額的完整處理流程，因此此處拒絕退款。
             default -> throw conflict();
         }
         if (rows == 0) {
@@ -70,6 +82,7 @@ public class BookingOrderService {
             throw conflict();
         }
         BookingException.requireOne(rows);
+        // 付款將保留轉成售出；取消或逾期則歸還庫存，並將座位恢復可選。
         boolean paid = target == bookingOrderStatus.PAID;
         BookingSession session = new BookingSession();
         session.setSession_id(ticket.getSession_id());
@@ -85,6 +98,9 @@ public class BookingOrderService {
         return true;
     }
 
+    /**
+     * 建立訂單狀態衝突例外，讓呼叫端回傳 HTTP 409。
+     */
     private BookingException conflict() {
         return new BookingException("INVALID_ORDER_STATE", "訂單狀態已變更或已逾期", HttpStatus.CONFLICT);
     }

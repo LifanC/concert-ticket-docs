@@ -1,3 +1,4 @@
+// 閱讀導引：驗證活動圖片的處理與管理流程，包含不合法輸入的處理。
 package com.demo.ticket;
 
 import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
@@ -28,6 +29,9 @@ class AdminActivityImageTests {
     private AdminServiceImpl service;
     private UUID activityUuid;
 
+    /**
+     * 為每個測試初始化模擬元件與共用資料，避免測試情境互相影響。
+     */
     @BeforeEach
     void setup() {
         mapper = mock(AdminMapper.class);
@@ -42,6 +46,9 @@ class AdminActivityImageTests {
                         "image_url", "/v1/activity/activityImage/ACT-20260917-001")));
     }
 
+    /**
+     * 驗證圖片儲存為縮放後 JPEG，且記錄的尺寸與實際圖片一致。
+     */
     @Test
     void savesResizedJpegWithMatchingDimensions() throws Exception {
         BufferedImage original = new BufferedImage(2000, 1000, BufferedImage.TYPE_INT_RGB);
@@ -68,6 +75,9 @@ class AdminActivityImageTests {
         assertEquals(height.getValue().intValue(), stored.getHeight());
     }
 
+    /**
+     * 驗證未重新選圖時不覆寫原有活動圖片。
+     */
     @Test
     void leavesExistingImageUntouchedWhenNoImageIsSelected() {
         service.saveActivity(request(), null);
@@ -75,6 +85,9 @@ class AdminActivityImageTests {
         verify(mapper, never()).upsertActivityImage(any(), anyString(), anyInt(), anyInt(), any());
     }
 
+    /**
+     * 驗證活動類別不允許的排數會被拒絕。
+     */
     @Test
     void rejectsSeatRowsOutsideTheActivityCategory() {
         var request = new AdminSaveActivityRequest(
@@ -85,6 +98,9 @@ class AdminActivityImageTests {
         verify(mapper, never()).create_activity(any());
     }
 
+    /**
+     * 驗證能建立活動類別允許上限內的座位排數。
+     */
     @Test
     void createsRowsThroughTheCategoryLimit() {
         service.saveActivity(request("MUSIC_CONCERT", "AX"), null);
@@ -99,6 +115,9 @@ class AdminActivityImageTests {
                 .map(value -> value.substring(value.lastIndexOf(", ") + 2)).toList());
     }
 
+    /**
+     * 驗證刪除活動時先移除圖片，維持刪除順序。
+     */
     @Test
     void deletesImageBeforeItsActivity() {
         when(mapper.lockActivity("ACT-20260917-001")).thenReturn("ACT-20260917-001");
@@ -115,10 +134,16 @@ class AdminActivityImageTests {
         calls.verify(mapper).delete_activity("ACT-20260917-001");
     }
 
+    /**
+     * 建立活動管理測試所需的請求資料，供不同類別與排數情境共用。
+     */
     private AdminSaveActivityRequest request() {
         return request("MUSIC_CONCERT", "B");
     }
 
+    /**
+     * 建立活動管理測試所需的請求資料，供不同類別與排數情境共用。
+     */
     private AdminSaveActivityRequest request(String category, String lastRow) {
         return new AdminSaveActivityRequest(
                 "", "測試活動", category, "測試場地",

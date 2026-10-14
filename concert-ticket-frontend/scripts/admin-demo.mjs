@@ -1,3 +1,4 @@
+// 閱讀導引：以瀏覽器自動化操作管理功能，供示範與畫面檢查使用。
 import { chromium, expect } from '@playwright/test'
 
 if (!process.env.E2E_ADMIN_ACCOUNT || !process.env.E2E_ADMIN_PASSWORD) {

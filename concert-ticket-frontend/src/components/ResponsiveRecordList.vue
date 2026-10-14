@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：共用紀錄清單：依螢幕寬度切換表格或卡片，透過欄位設定與插槽呈現資料。
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
@@ -9,6 +10,7 @@ const props = defineProps({
 })
 const mobile = ref(false)
 let media
+/** 讀取已建立的 max-width:767px 媒體查詢，決定顯示卡片或桌面表格；只在掛載後及視窗跨過界線時呼叫。 */
 const updateLayout = () => { mobile.value = media.matches }
 onMounted(() => {
   media = window.matchMedia('(max-width: 767px)')
@@ -16,7 +18,9 @@ onMounted(() => {
   media.addEventListener('change', updateLayout)
 })
 onBeforeUnmount(() => media?.removeEventListener('change', updateLayout))
+// 標題、圖片、狀態及操作已有專屬區塊，其餘欄位才放入卡片的詳細資料列表。
 const cardFields = computed(() => props.fields.filter(field => !['title', 'image', 'status', 'actions'].includes(field.role)))
+/** 依欄位格式器取得紀錄顯示值；無格式器時讀取欄位，缺值顯示破折號。 */
 const value = (field, record) => field.format ? field.format(record) : (record[field.key] ?? '—')
 </script>
 

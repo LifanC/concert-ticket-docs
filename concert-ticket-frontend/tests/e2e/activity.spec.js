@@ -1,3 +1,4 @@
+// 閱讀導引：驗證真實活動 API、匿名頁面導向，以及模擬資料下的搜尋、收藏與訂票入口。
 import { test, expect } from '@playwright/test'
 
 const activities = [

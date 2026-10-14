@@ -1,3 +1,4 @@
+// 閱讀導引：驗證會員從活動選場次與座位的流程；只有 E2E_CREATE_ORDER=1 時才真正提交訂單。
 import { test, expect } from '@playwright/test'
 
 test.use({

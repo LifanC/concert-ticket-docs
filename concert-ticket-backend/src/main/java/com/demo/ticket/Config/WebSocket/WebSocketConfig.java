@@ -1,3 +1,4 @@
+// 閱讀導引：設定 SockJS/STOMP 連線、訊息路由及連線身分驗證，供會員接收即時通知。
 package com.demo.ticket.Config.WebSocket;
 
 import com.demo.ticket.Common.ConvertFormat;
@@ -31,18 +32,27 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
+    /**
+     * 注入 JWT 驗證服務，在 STOMP CONNECT 階段建立 WebSocket 使用者身分。
+     */
     public WebSocketConfig(
             JwtTokenService jwtTokenService
     ) {
         this.jwtTokenService = jwtTokenService;
     }
 
+    /**
+     * 啟用 /queue 訊息代理並設定 /user 個人訊息前綴。
+     */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/queue");
         registry.setUserDestinationPrefix("/user");
     }
 
+    /**
+     * 註冊 /ws 連線端點，啟用 SockJS 並設定允許的來源模式。
+     */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
@@ -50,11 +60,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .withSockJS();
     }
 
+    /**
+     * 安裝 STOMP 入站攔截器，在 CONNECT 階段驗證 token 並綁定會員身分。
+     */
     @Override
     public void configureClientInboundChannel(
             ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
 
+                    /**
+                     * 處理入站 STOMP 訊息；CONNECT 時驗證 JWT 並設定使用者，回傳訊息繼續傳遞。
+                     */
                     @Override
                     public Message<?> preSend(
                             @NonNull Message<?> message,

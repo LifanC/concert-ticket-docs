@@ -1,3 +1,4 @@
+// 閱讀導引：接收姓名、電話與生日；姓名用於既有資料比對，登入會員 email 由後端提供。
 package com.demo.ticket.Dto.Login;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

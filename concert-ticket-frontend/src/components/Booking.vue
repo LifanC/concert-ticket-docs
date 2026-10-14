@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：訂票頁：依序選日期、場次、票種與座位，再建立待付款訂單；價格及可用座位以後端資料為準。
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { bookingApi } from '@/services/api'
@@ -27,6 +28,7 @@ const bookingSteps = ['選日期', '選場次', '建立訂單']
 const sessionId = computed(() => sessions.value.find((item) => item.value === selectedSession.value)?.id ?? '')
 const selectedZone = computed(() => zoneForSeat(selectedSeats.value[0]))
 const selectedType = computed(() => salesSettings.value?.ticketTypes.find((type) => type.id === selectedTicketType.value))
+// 畫面票價來自後端回傳的預設價或分區／票種矩陣；真正下單時後端仍會重新計價。
 const selectedPrice = computed(() => {
   if (!salesSettings.value) {
     return null
@@ -42,10 +44,13 @@ const canBook = computed(
     && (!salesSettings.value.configured || (selectedTicketType.value && salesSettings.value.remainingAllowance > 0))
 )
 const moneyFormat = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD' })
+/** 將價格轉為新台幣文字；null 代表尚無可用票價，改顯示選擇票種與座位的提示。 */
 const money = (value) => value === null ? '請先選擇票種與座位' : moneyFormat.format(value)
+/** 優先取出後端錯誤訊息，沒有可用訊息時回傳呼叫端的預設提示。 */
 function errorMessage(error, fallback) {
   return error.response?.data?.message ?? error.response?.data?.data?.find((item) => item.remark)?.remark ?? fallback
 }
+/** 依 rowLabels 的順序比對分區範圍，不能直接用字母大小比較；未配置或沒有座位時回傳 null，無匹配分區時為 undefined。 */
 function zoneForSeat(seatId) {
   if (!seatId || !salesSettings.value?.configured) return null
   const row = seatId.split('-')[0]
@@ -62,6 +67,7 @@ const seatZones = computed(() => {
   }
   return result
 })
+// 這組座位只是被畫面分區篩選排除，並不表示已被其他會員保留或售出。
 const filteredSeats = computed(() => {
   const result = new Set()
   if (!selectedZoneFilter.value) return result
@@ -87,6 +93,7 @@ const seatLayout = computed(
 
 watch(activityId, async (id, _, onCleanup) => {
   let active = true
+  // 活動切換後忽略前一次請求的結果，避免較慢的舊回應覆蓋目前畫面。
   onCleanup(() => { active = false })
   step.value = 0
   selectedDate.value = ''
@@ -125,6 +132,7 @@ watch(
   }
 )
 
+/** 同時載入不可選座位與售票設定；場次已切換時捨棄回應，並移除失效選擇。 */
 async function loadBookingDetails() {
   const id = sessionId.value
   if (!id) throw new Error('Missing session')
@@ -136,6 +144,7 @@ async function loadBookingDetails() {
     }),
     bookingApi.get(`/sessions/${encodeURIComponent(id)}/sales-settings`),
   ])
+  // 請求期間若切換場次，捨棄回應，避免把不同場次的座位與票價混在一起。
   if (sessionId.value !== id) return
   unavailableSeats.value = new Set(unavailable.data)
   salesSettings.value = settings.data
@@ -144,6 +153,7 @@ async function loadBookingDetails() {
   }
   selectedSeats.value = selectedSeats.value.filter((seat) => !unavailableSeats.value.has(seat))
 }
+/** 驗證目前步驟的選擇，載入下一步所需資料後前進；載入失敗時保留錯誤提示。 */
 async function nextStep() {
   if (loading.value) return
   if ((step.value === 0 && !selectedDate.value) || (step.value === 1 && !selectedSession.value)) return
@@ -164,7 +174,9 @@ async function nextStep() {
     loading.value = false
   }
 }
+/** 步驟大於 0 且目前沒有載入或提交訂單時，退回前一步並清除錯誤提示。 */
 function previousStep() { if (step.value > 0 && !loading.value && !submittingBooking.value) { step.value--; loadError.value = '' } }
+/** 重新取得目前場次的座位與售票設定，同步載入及錯誤狀態。 */
 async function refreshBooking() {
   loading.value = true
   loadError.value = ''
@@ -175,6 +187,11 @@ async function refreshBooking() {
   }
   finally { loading.value = false }
 }
+/**
+ * 提交一張座位的待付款訂單，重複提交期間停用操作。
+ * 同一內容在網路失敗時沿用 Idempotency-Key；400 或 409 視為需調整選擇，清除識別碼並重讀場次資料。
+ * 成功後清空選取座位與識別碼，提醒使用者付款，再刷新目前場次。
+ */
 async function createOrder() {
   if (submittingBooking.value || !canBook.value) return
   const data = {
@@ -183,6 +200,7 @@ async function createOrder() {
     status: 'PENDING_PAYMENT', seat: selectedSeats.value[0], ticketTypeId: selectedTicketType.value || null,
   }
   const fingerprint = JSON.stringify([sessionId.value, data.activity_id, data.seat, data.ticketTypeId])
+  // 相同訂位內容的網路重試沿用識別碼；改選場次、座位或票種才建立新的識別碼。
   if (pendingBooking.value?.fingerprint !== fingerprint) {
     pendingBooking.value = { fingerprint, key: crypto.randomUUID() }
   }
@@ -197,12 +215,13 @@ async function createOrder() {
     await refreshBooking()
   } catch (error) {
     loadError.value = errorMessage(error, '建立訂單失敗，請重試。')
+    // 資料不合法或座位衝突時重新載入設定，讓使用者依最新狀態調整選擇。
     if ([400, 409].includes(error.response?.status)) {
       pendingBooking.value = null
       try {
         await loadBookingDetails()
       } catch {
-        /* Keep the original order error visible. */
+        // 重讀失敗時保留原本的訂票錯誤，避免遮住使用者此次下單失敗的原因。
       }
     }
   } finally {

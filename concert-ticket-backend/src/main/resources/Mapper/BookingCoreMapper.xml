@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.demo.ticket.Mapper.BookingCoreMapper">
+    <!-- 閱讀導引：座位保留及請求去重的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
 
     <resultMap id="bookingSaveTicket" type="com.demo.ticket.Dto.Booking.BookingSaveTicket">
         <result column="session_id" property="session_id"/>
         <result column="expires_at" property="expires_at"/>
     </resultMap>
 
+    <!-- flushCache 讓鎖定後重讀訂單時不使用第一次查詢的本地快取。 -->
     <select id="findOrder" resultMap="bookingSaveTicket" flushCache="true">
         SELECT orderno, session_id, email, seat, status, expires_at
         FROM interviewworks_ticket.ticket
         WHERE orderno = #{orderno}
     </select>
 
+    <!-- 共用的場次資料列鎖；訂票、付款、釋放與售票設定都先鎖場次，並持有到交易結束。 -->
     <select id="lockSession" resultType="java.lang.String">
         SELECT id
         FROM interviewworks_ticket.session
@@ -27,6 +30,7 @@
         WHERE s.id = #{sessionId}
     </select>
 
+    <!-- 只補建符合活動佈局的座位；字串編號合法不代表確實存在於這個活動。 -->
     <insert id="ensureSeat">
         INSERT INTO interviewworks_ticket.session_seat(session_id, seat_id)
         SELECT DISTINCT s.id, #{seat}
@@ -41,6 +45,7 @@
         ON CONFLICT DO NOTHING
     </insert>
 
+    <!-- 狀態條件是最後一道防線：兩次訂票即使選同座位，也只有 AVAILABLE 能被保留。 -->
     <update id="reserveSeat">
         UPDATE interviewworks_ticket.session_seat
         SET status            = 'RESERVED',
@@ -52,6 +57,7 @@
           AND status = 'AVAILABLE'
     </update>
 
+    <!-- 必須仍由這筆訂單保留，防止舊訂單釋放別人的新保留；版本每次轉換遞增。 -->
     <update id="transitionSeat">
         UPDATE interviewworks_ticket.session_seat
         SET status            = #{status},
@@ -64,6 +70,7 @@
           AND status = 'RESERVED'
     </update>
 
+    <!-- 每輪只取最早的 100 筆，避免一次掃描處理所有逾期訂單。 -->
     <select id="expiredOrders" resultType="java.lang.String">
         SELECT orderno
         FROM interviewworks_ticket.ticket
@@ -80,6 +87,7 @@
         ORDER BY seat_id
     </select>
 
+    <!-- 唯一鍵由會員及識別碼組成；衝突時由服務讀取舊回應，不另建立訂單。 -->
     <insert id="claimKey">
         INSERT INTO interviewworks_ticket.booking_idempotency(email, idempotency_key, request_hash)
         VALUES (#{email}, #{idempotencyKey}, #{hash})
@@ -94,6 +102,7 @@
         FOR UPDATE
     </select>
 
+    <!-- 只有未完成的請求可寫入結果，保存的 JSON 用於相同請求重試。 -->
     <update id="completeKey">
         UPDATE interviewworks_ticket.booking_idempotency
         SET orderno       = #{createdOrderNo},

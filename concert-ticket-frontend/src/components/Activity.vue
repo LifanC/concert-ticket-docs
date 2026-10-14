@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：活動首頁：載入活動與圖片，提供搜尋、收藏、訂票入口及我的票券操作。
 import { useRouter } from 'vue-router'
 import ResponsiveRecordList from './ResponsiveRecordList.vue'
 import { activityApi, bookingApi, resolveActivityImageUrl } from '@/services/api'
@@ -7,6 +8,7 @@ import { toFindCookie } from '@/components/componentsJs/cookie.js'
 const router = useRouter()
 const canUseFavorites = ref(hasUserAuthority())
 const showFavoriteControls = computed(() => canUseFavorites.value || !toFindCookie('accessToken'))
+/** 解碼目前 JWT 判斷畫面是否顯示會員操作；此判斷不取代後端權限驗證。 */
 function hasUserAuthority() {
   const token = toFindCookie('accessToken')
   if (!token) return false
@@ -33,6 +35,7 @@ const activityImageStatus = ref({})
 let imageRequestsCancelled = false
 let activityImageLoadVersion = 0
 
+/** 並行讀取活動圖片 Blob，區分載入中、缺圖與錯誤；以批次版本忽略舊回應，並釋放不用的 Blob URL。 */
 async function loadActivityImages() {
   if (imageRequestsCancelled) return
   const version = ++activityImageLoadVersion
@@ -41,6 +44,7 @@ async function loadActivityImages() {
   Object.values(activityImageUrls.value).forEach(url => URL.revokeObjectURL(url))
   activityImageUrls.value = {}
   activityImageStatus.value = Object.fromEntries(ids.map(id => [id, imagePaths.get(id) ? 'loading' : 'missing']))
+  /** 判斷圖片載入作業是否仍屬於目前批次，避免舊結果覆蓋新畫面。 */
   const isCurrent = () => !imageRequestsCancelled && version === activityImageLoadVersion
   await Promise.all(ids.map(async (id) => {
     if (!imagePaths.get(id)) return
@@ -70,6 +74,7 @@ onUnmounted(() => {
 })
 
 executeFirst()
+/** 讀取公開活動清單後啟動圖片載入；JWT 含一般會員權限時另讀取收藏，不阻塞活動圖片呈現。 */
 async function executeFirst() {
   const response = await activityApi.get('/selectAllActivities')
   if (imageRequestsCancelled) return
@@ -105,6 +110,7 @@ const categoryMap = {
   SPECIAL_EXHIBITION: '展覽特展',
 }
 
+// 同時套用關鍵字、類別、狀態與只看收藏；篩選在本地資料進行，不另發 API。
 const filteredActivities = computed(() => {
   const normalizedKeyword = keyword.value.trim().toLowerCase()
   return activities.value.filter((activity) => {
@@ -118,12 +124,14 @@ const filteredActivities = computed(() => {
   })
 })
 
+/** 清空活動篩選條件，恢復完整清單。 */
 const resetFilters = () => {
   keyword.value = ''
   selectedCategory.value = '全部'
   selectedStatus.value = '全部'
   showFavoritesOnly.value = false
 }
+/** 未登入時導向會員頁；一般會員可新增或取消收藏，同一活動處理中會阻擋重複點擊，API 成功後才更新本地 Set。 */
 const toggleFavorite = async (activity) => {
   if (!toFindCookie('accessToken')) {
     ElMessage({
@@ -167,12 +175,15 @@ const toggleFavorite = async (activity) => {
     pendingFavoriteIds.value.delete(favoriteKey)
   }
 }
+/** 將活動 id 統一轉成字串，避免 API 與畫面資料型別不同時無法比對收藏。 */
 const getFavoriteKey = (activity) => {
   return String(activity.id)
 }
+/** 判斷指定活動是否存在於目前會員的收藏資料。 */
 const isFavorite = (activity) => {
   return favoriteActivityIds.value.has(getFavoriteKey(activity))
 }
+/** 僅在活動狀態為售票中時帶入活動編號及名稱前往訂票；其他狀態只顯示提示。 */
 const goBooking = (activity) => {
   if (activity.status === 'TICKETS_ARE_ON_SALE') {
     router.push(
@@ -200,6 +211,7 @@ const ticketForm = reactive(
     seat: ''
   }
 )
+/** 提交票券的訂單及場次編號；後端 judge 為 true 時直接將這筆本地票券改為 CANCELLED，未重新載入整份清單。 */
 const cancelOrder = async (ticket) => {
   Object.assign(
     ticketForm,
@@ -230,6 +242,7 @@ const paypricedataForm = reactive(
     salestime: '',
   }
 )
+/** 依票券場次查詢開賣日期時間，補入付款表單後開啟視窗；查詢失敗時保持視窗關閉。 */
 const payprice = async (payprice) => {
   Object.assign(
     paypricedataForm,
@@ -260,6 +273,7 @@ const payprice = async (payprice) => {
     paypriceDialogVisible.value = false
   }
 }
+/** 送出目前表單的訂單付款操作，回應後關閉視窗；judge 為 false 時顯示失敗提示，本方法未重新查詢票券。 */
 const dopayprice = async () => {
   const response = await bookingApi({
     method: 'put',
@@ -294,6 +308,7 @@ const ticketsMap = {
   EXPIRED: '超過付款期限',
   REFUNDED: '已退款',
 }
+/** 將業務狀態對應至 Element Plus 標籤顏色。 */
 const statusType = (status) => (
   {
     'COMING_SOON': 'warning',
@@ -307,9 +322,9 @@ const statusType = (status) => (
     'REFUNDED': 'info'
   }[status] || 'info'
 )
+/** 先開啟票券視窗，再向後端讀取目前會員的票券清單並替換畫面資料。 */
 const myTicketsVisibleDialog = async () => {
   myTicketsVisible.value = true
-  // selectAllTicket
   const response = await bookingApi({
     method: 'get',
     params: {},

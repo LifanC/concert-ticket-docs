@@ -1,3 +1,4 @@
+// 閱讀導引：接收要收藏或取消收藏的活動編號；會員 email 由登入身分取得。
 package com.demo.ticket.Dto.Activity;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

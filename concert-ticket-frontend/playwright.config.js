@@ -1,3 +1,4 @@
+// 閱讀導引：設定 Edge 瀏覽器端測試、失敗追蹤與截圖；網站需先啟動，測試位址可由 E2E_BASE_URL 指定。
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({

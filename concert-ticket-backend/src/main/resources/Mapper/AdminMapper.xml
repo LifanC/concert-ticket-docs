@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.demo.ticket.Mapper.AdminMapper">
+    <!-- 閱讀導引：活動與場次管理的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
     <select id="lockSession" resultType="java.lang.String">
         SELECT id FROM interviewworks_ticket.session WHERE id = #{id} FOR UPDATE
     </select>
@@ -100,6 +101,7 @@
         order by ticket.created_date, ticket.updated_date
     </select>
 
+    <!-- 新增才產生活動編號；指定 id 會以 UPSERT 寫入，更新時沿用活動 UUID。 -->
     <select id="create_activity" resultType="java.util.Map">
         WITH next_activity AS (
         INSERT INTO "interviewworks_ticket".activity_sequence
@@ -216,6 +218,7 @@
         SELECT EXISTS (SELECT 1 FROM interviewworks_ticket.session WHERE activity_id = #{id})
     </select>
 
+    <!-- 即使服務先檢查過，刪除 SQL 仍拒絕已有場次的活動，保留相關歷史資料。 -->
     <delete id="delete_activity">
         DELETE FROM "interviewworks_ticket".activity activity
         WHERE activity.id = #{id}
@@ -226,6 +229,7 @@
           )
     </delete>
 
+    <!-- 指定 id 時更新場次，未指定時產生編號；更新不將既有 sold 歸零。 -->
     <select id="create_session" resultType="java.lang.String">
         WITH next_session AS (
         INSERT INTO "interviewworks_ticket".session_sequence

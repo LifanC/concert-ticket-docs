@@ -1,3 +1,4 @@
+// 閱讀導引：從請求解析 JWT 並建立 Spring Security 登入身分，讓後續 API 取得使用者資訊。
 package com.demo.ticket.security;
 
 import com.demo.ticket.Common.ConvertFormat;
@@ -40,6 +41,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 注入 JWT 驗證、Redis 登入紀錄與 JSON 回應工具，供每次 HTTP 請求驗證使用。
+     */
     public JwtAuthenticationFilter(
             JwtTokenService jwtTokenService,
             StringRedisTemplate stringRedisTemplate,
@@ -63,6 +67,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/v3/api-docs"
     );
 
+    /**
+     * 用完整請求 URI 的前綴比對公開端點，回傳 true 表示略過 JWT 驗證；同時建立或沿用 requestId 供追蹤。
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
@@ -83,6 +90,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return skip;
     }
 
+    /**
+     * 驗證 Bearer JWT 的簽章與期限，拒絕黑名單 token，將權限與 LoginUser 放入 Spring Security 上下文。
+     * Redis access 紀錄是否存在保存在 LoginUser.accessExists，並非在此一律拒絕；後續服務依此確認登入有效性。
+     * JWT 過期或無效時清除上下文並回傳 JSON 401，避免後續端點使用不合法身分。
+     */
     @Override
     protected void doFilterInternal(
             @Nonnull HttpServletRequest request,

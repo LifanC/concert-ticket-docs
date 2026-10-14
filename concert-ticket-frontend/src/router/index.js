@@ -1,3 +1,4 @@
+// 閱讀導引：定義頁面路由與導覽守衛；需要登入的頁面會保留返回路徑，管理頁另檢查管理員顯示狀態。
 import {createRouter, createWebHistory} from "vue-router";
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
 import { isAdmin, syncAuth } from '@/services/auth'

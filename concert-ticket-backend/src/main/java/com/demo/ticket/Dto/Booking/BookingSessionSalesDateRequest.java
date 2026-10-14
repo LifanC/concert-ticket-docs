@@ -1,3 +1,4 @@
+// 閱讀導引：接收場次、活動、演出日期時間及待付款狀態，供付款視窗查詢開賣資訊。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

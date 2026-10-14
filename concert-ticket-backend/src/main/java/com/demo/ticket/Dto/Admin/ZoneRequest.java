@@ -1,3 +1,4 @@
+// 閱讀導引：接收分區名稱、色碼、起訖排號及原價；分區必須涵蓋全部排號，且彼此不得重疊。
 package com.demo.ticket.Dto.Admin;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

@@ -1,3 +1,4 @@
+// 閱讀導引：接收取消訂單的編號與場次；會員歸屬及可取消狀態由後端核對。
 package com.demo.ticket.Dto.Booking;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;

@@ -1,3 +1,4 @@
+// 閱讀導引：接收登入帳號或 email 及明文密碼；密碼只作輸入，不序列化到回應。
 package com.demo.ticket.Dto.Login;
 
 import com.fasterxml.jackson.annotation.JsonProperty;

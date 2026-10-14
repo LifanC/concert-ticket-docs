@@ -1,4 +1,5 @@
 <script setup>
+// 閱讀導引：將場次與訂單資料整理成統計數字和圖表，供管理員查看銷售狀況。
 import { computed, toRefs, ref, watch, onBeforeUnmount } from 'vue'
 import ResponsiveRecordList from './ResponsiveRecordList.vue'
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js'
@@ -15,22 +16,27 @@ const props = defineProps({
 })
 const emit = defineEmits(['refresh'])
 const { sessions, orders } = toRefs(props)
+/** 將輸入轉成數字，缺值視為 0，供統計計算使用。 */
 const number = (value) => Number(value ?? 0)
 const integerFormat = new Intl.NumberFormat('zh-TW')
 const moneyFormat = new Intl.NumberFormat('zh-TW', {
   style: 'currency', currency: 'TWD', maximumFractionDigits: 2,
 })
+/** 依目前數字格式器輸出整數顯示文字。 */
 const formatNumber = (value) => integerFormat.format(value)
+/** 依新台幣格式器輸出金額顯示文字。 */
 const formatMoney = (value) => moneyFormat.format(value)
 const totals = computed(() => sessions.value.reduce((total, session) => ({
   capacity: total.capacity + number(session.capacity),
   sold: total.sold + number(session.sold),
   reserved: total.reserved + number(session.reserved),
 }), { capacity: 0, sold: 0, reserved: 0 }))
+// 營收只加總目前狀態為 PAID 的 payprice，不將待付款的 price 算入營收。
 const revenue = computed(
   () => orders.value.reduce((total, order) =>
     total + (order.status === 'PAID' ? number(order.payprice) : 0), 0)
 )
+/** 計算售出數占容量的百分比；容量不大於 0 時顯示破折號。 */
 const rate = (sold, capacity) => capacity > 0 ? `${(sold / capacity * 100).toFixed(1)}%` : '—'
 const statusDefinitions = [
   { value: 'PENDING_PAYMENT', label: '待付款', type: 'warning' },
@@ -39,6 +45,7 @@ const statusDefinitions = [
   { value: 'EXPIRED', label: '已逾期', type: 'danger' },
   { value: 'REFUNDED', label: '已退款', type: 'info' },
 ]
+// 這裡統計的是訂單筆數；狀態不在定義表內的訂單另歸入「其他狀態」。
 const statusCounts = computed(() => {
   const counts = orders.value.reduce((result, order) => {
     result[order.status] = (result[order.status] ?? 0) + 1
@@ -49,6 +56,7 @@ const statusCounts = computed(() => {
   const other = orders.value.length - knownTotal
   return other ? [...known, { value: 'OTHER', label: '其他狀態', type: 'info', count: other }] : known
 })
+// 可售數使用總容量減已售及保留，與後端訂票庫存公式一致。
 const rows = computed(() => sessions.value.map((session) => {
   const capacity = number(session.capacity)
   const sold = number(session.sold)
@@ -82,6 +90,7 @@ const statusChartData = computed(() => ({
   labels: chartStatuses.value.map(status => status.label),
   datasets: [{ data: chartStatuses.value.map(status => status.count), backgroundColor: statusColors }],
 }))
+// 等 Vue 完成畫面更新後才存取 canvas；有圖表就更新資料，canvas 移除時銷毀實例。
 watch([sessionCanvas, sessionChartData], ([canvas, data]) => {
   if (!canvas) {
     sessionChart?.destroy()
@@ -152,6 +161,7 @@ watch([statusCanvas, statusChartData], ([canvas, data]) => {
     },
   })
 }, { flush: 'post' })
+// Chart.js 有自己的監聽器與資源，離開元件時需要明確銷毀兩張圖表。
 onBeforeUnmount(() => {
   sessionChart?.destroy()
   statusChart?.destroy()

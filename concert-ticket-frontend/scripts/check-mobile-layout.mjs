@@ -1,3 +1,4 @@
+// 閱讀導引：以行動裝置尺寸開啟頁面，檢查版面及產生相關檢查結果。
 import { chromium } from '@playwright/test'
 import assert from 'node:assert/strict'
 
@@ -26,6 +27,7 @@ try {
       else if (path.includes('/activityImage/')) return route.fulfill({ status: 404, body: '' })
       await route.fulfill({ json: data })
     })
+    /** 等待畫面更新並檢查是否超出視窗寬度；label 用於指出發生問題的頁面。 */
     const checkWidth = async label => {
       await page.waitForTimeout(400)
       const dimensions = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }))

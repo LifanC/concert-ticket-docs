@@ -1,3 +1,4 @@
+// 閱讀導引：將通知傳送至指定會員的個人訊息佇列；接收端訂閱 /user/queue/notifications。
 package com.demo.ticket.Config.WebSocket;
 
 import org.slf4j.Logger;
@@ -17,6 +18,9 @@ public class NotifierConsumer {
     private final SimpMessagingTemplate messagingTemplate;
     private final SimpUserRegistry simpUserRegistry;
 
+    /**
+     * 注入訊息傳送器與線上使用者登錄表，供推播及連線診斷使用。
+     */
     public NotifierConsumer(
             SimpMessagingTemplate messagingTemplate,
             SimpUserRegistry simpUserRegistry
@@ -25,6 +29,9 @@ public class NotifierConsumer {
         this.simpUserRegistry = simpUserRegistry;
     }
 
+    /**
+     * 將通知傳到指定會員的個人 WebSocket 佇列；此呼叫不保證離線會員已讀取訊息。
+     */
     public void sendNotification(NotificationMessage message) {
 
         List<String> users = simpUserRegistry.getUsers()

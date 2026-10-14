@@ -1,3 +1,4 @@
+// 閱讀導引：使用會員帳密驗證登入、自己的票券、管理頁拒絕與登出流程。
 import { test, expect } from '@playwright/test'
 
 // Credentials and authenticated API payloads must not be retained in traces.

@@ -1,3 +1,4 @@
+// 閱讀導引：共用格式轉換工具，將資料轉成其他流程所需的格式。
 package com.demo.ticket.Common;
 
 import org.springframework.util.StringUtils;
@@ -28,6 +29,9 @@ public class ConvertFormat {
                     .optionalEnd()
                     .toFormatter();
 
+    /**
+     * 將日期文字轉為台北時區的 yyyy-MM-dd HH:mm:ss；空白輸入回傳現在時間，Z 結尾輸入視為 UTC。
+     */
     public static String time(String str) {
 
         if (!StringUtils.hasText(str)) {
@@ -51,6 +55,9 @@ public class ConvertFormat {
 
     }
 
+    /**
+     * 從 Bearer 標頭取出 token；標頭缺值或格式不符時回傳 null。
+     */
     public static String resolveToken(String bearerToken) {
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);

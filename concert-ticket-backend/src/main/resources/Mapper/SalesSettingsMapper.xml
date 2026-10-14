@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.demo.ticket.Mapper.SalesSettingsMapper">
+    <!-- 閱讀導引：售票設定的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
     <select id="session" resultType="java.util.Map" flushCache="true">
         SELECT s.id,
                s.activity_id,
@@ -52,6 +53,7 @@
         WHERE session_id = #{sessionId}
         ORDER BY seat_id
     </select>
+    <!-- 這是存在性旗標 0／1，不是總張數；即使場次計數不同步，有占用紀錄也禁止修改配置。 -->
     <select id="occupied" resultType="int" flushCache="true">
         SELECT (EXISTS (SELECT 1
                         FROM interviewworks_ticket.session_seat
@@ -62,6 +64,7 @@
                        WHERE session_id = #{sessionId}
                          AND status IN ('PENDING_PAYMENT', 'PAID'))) ::int
     </select>
+    <!-- 已付款及未逾期待付款都占限購額度；取消、逾期與退款不計入。 -->
     <select id="memberQuantity" resultType="long" flushCache="true">
         SELECT coalesce(sum(quantity), 0)
         FROM interviewworks_ticket.ticket
@@ -100,6 +103,7 @@
         INSERT INTO interviewworks_ticket.session_ticket_type (id, session_id, name, price_percent, eligibility, sort_order)
         VALUES (#{id}, #{sessionId}, #{name}, #{pricePercent}, #{eligibility}, #{sortOrder})
     </insert>
+    <!-- 既有座位不覆寫，避免批次補建時重設其狀態。 -->
     <insert id="insertSeats">
         INSERT INTO interviewworks_ticket.session_seat (session_id, seat_id) VALUES
         <foreach collection="seats" item="seat" separator=",">(#{sessionId}, #{seat})</foreach>
@@ -109,6 +113,7 @@
         UPDATE interviewworks_ticket.session_seat SET zone_id = #{zoneId} WHERE session_id = #{sessionId} AND seat_id IN
         <foreach collection="seats" item="seat" open="(" separator="," close=")">#{seat}</foreach>
     </update>
+    <!-- 座位分區與票種都須屬於同一場次；折扣金額由 Java 用 BigDecimal 計算。 -->
     <select id="seatPrice" resultType="java.util.Map">
         SELECT z.id   AS zone_id,
                z.name AS zone_name,

@@ -1,3 +1,4 @@
+// 閱讀導引：接收票種名稱、原價百分比及資格說明；pricePercent＝50 表示分區原價的半價。
 package com.demo.ticket.Dto.Admin;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
