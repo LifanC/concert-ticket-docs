@@ -1,22 +1,22 @@
 # 演唱會訂票系統
 
-本專案提供演唱會活動瀏覽、會員管理、訂票與管理員後台功能。系統由 Vue 3 前端、Spring Boot 後端、PostgreSQL 與 Redis 組成，並由 Java 定時呼叫 Python 產生銷售報表，可透過 Docker Compose 一次啟動。
-
-**線上演唱會售票系統｜全端個人專案**
+這是一個演唱會售票網站，可瀏覽活動、註冊會員、選座訂票，也有管理員後台。
 
 線上網站：[演唱會訂票系統](https://concert-ticket-frontend.onrender.com/)
 
-使用 Vue 3 與 Spring Boot 開發演唱會售票系統，整合會員驗證、活動瀏覽、場次選座、訂單管理與管理員後台，並提供自動化測試及 Python 銷售報表。
+前端使用 Vue 3，後端使用 Spring Boot，資料存放在 PostgreSQL，Redis 負責登入狀態。可用 Docker Compose 一次啟動，後端也會定時執行 Python 產生銷售報表。
 
-1. 使用 MyBatis 與 PostgreSQL 交易、列鎖及唯一約束保護座位占用，同步處理訂單、座位與庫存異動；建立訂單支援 `Idempotency-Key`，讓相同訂位請求可安全重試。
-2. 實作 10 分鐘付款期限、訂單到期排程與定期補償掃描，處理付款、取消及逾期狀態轉換，並補償服務重啟後遺留的逾期訂單。
-3. 整合 Spring Security、JWT Access Token／Refresh Token 與 Redis，實作會員及管理員權限、Token 更新與登出失效機制；使用 STOMP WebSocket 推送個人訂單通知。
-4. 以 Docker Compose 整合前端、後端、PostgreSQL 與 Redis，並由 Java 定時執行 Python，匯出各場次已付款訂單數與金額的 CSV 報表。
-5. 後端保留基本 Spring 啟動測試，前端保留原有 Playwright 瀏覽器流程，Python 保留報表測試；GitHub Actions 已設定後端測試、前端建置與 Python 測試，業務功能測試之後再補。
+主要特色：
 
-目前付款為系統內訂單狀態操作；外部金流、退款及完整高併發驗收仍待完成，詳見[測試與建置](#測試與建置)與[功能規劃](FEATURES_ROADMAP.md)。
+- 用資料庫交易、鎖定與唯一限制，避免同一座位被重複訂走。
+- 同一訂位請求可安全重試，不會重複建立訂單。
+- 訂單須在 10 分鐘內付款；取消或逾期後會釋放座位，重啟後也會補查逾期訂單。
+- 區分會員與管理員權限，並提供個人即時通知。
+- 已設定基本測試與 GitHub Actions 自動檢查，完整購票與多人同時訂票的驗證仍待補齊。
 
-本專案採用 OpenAI Codex 協作開發，協助需求拆解、架構討論、程式碼撰寫與重構、問題排查及文件整理；由本人進行需求確認、技術方案取捨、程式碼檢視、系統整合與測試驗證。
+付款目前只更新系統內的訂單狀態，尚未串接外部金流與退款。詳見[功能規劃](FEATURES_ROADMAP.md)。
+
+本專案使用 OpenAI Codex 協助開發與整理文件；需求、技術選擇、程式碼檢查、整合與測試由本人確認。
 
 ## 系統畫面
 
@@ -169,64 +169,31 @@
 
 ## 功能解析
 
-### 前台使用者
+### 會員與管理員
 
-- 公開瀏覽全部活動。
-- 活動列表與詳情顯示已上傳的圖片；同一活動有多個場次時，前端只下載一次圖片。
-- 會員註冊、登入、Token 驗證、個人資料修改及登出。
-- 依活動查詢場次、票券、價格及開賣日期。
-- 選擇日期、場次與座位；不可用座位依場次查詢，避免不同場次互相影響。
-- 座位圖逐排顯示排號、可選狀態與已選座位，支援快速跳排、座位區捲動及載入失敗重試。
-- 建立票券訂單、查詢個人票券、付款及取消訂單。
-- 接收個人 WebSocket 訂單通知。
+會員可搜尋和收藏活動、選擇場次與座位、建立訂單、查看票券、付款及取消訂單。座位按場次管理，不同場次互不影響。
 
-### 管理後台
+管理員可查看銷售儀表板、維護活動與圖片、建立或更新場次，以及設定分區票價、票種和限購張數。已有場次的活動不能刪除。
 
-- 查詢活動、場次及票券。
-- 新增、修改活動；只有尚未建立場次的活動可刪除。已有場次時保留資料並顯示 WebSocket 警告，API 回傳 HTTP 409。
-- 新增活動時先選活動類型，再選 A 排起的最後一排；音樂演唱會最多 50 排（AX）、舞台劇 100 排（CV）、展覽特展 150 排（ET），每排 1～10 席。修改活動時可重新設定座位配置。
-- 活動圖片可選填；編輯時不選新圖片會保留原圖，刪除活動時一併刪除圖片。
-- 各活動可分別建立多個場次；新增時由後端產生新編號，延期或狀態修改則更新原場次。
-- 銷售儀表板顯示已付款營收、售票率、可售庫存與訂單狀態，使用 Chart.js 呈現場次票況堆疊長條圖與訂單狀態圓環圖。
-- 活動、後台管理與庫存列表使用共用 `ResponsiveRecordList.vue`，手機顯示卡片、桌面顯示表格；欄位、圖片與按鈕各自只維護一份定義。會員、購票、導覽與座位圖也提供手機排版，詳見[前端說明](concert-ticket-frontend/README.md#手機排版與共用列表)。
-- 分區設定涵蓋全部座位，各票種以分區基準價的百分比計價；限購包含已付款與有效待付款訂單。
-- 管理 API 僅允許具 `ADMIN_ITEM_IMPLEMENT` 權限的使用者存取。
+活動座位從 A 排開始，每排 1～10 席。音樂演唱會最多 50 排、舞台劇 100 排、展覽特展 150 排。手機版會調整表單、列表與座位圖，詳見[前端說明](concert-ticket-frontend/README.md#手機排版與共用列表)。
 
-### 驗證與授權
+### 登入與權限
 
-- Spring Security 在 Controller 前透過自訂 JWT Filter 驗證請求。
-- 登入與活動查詢為公開 API；訂票 API 需要一般會員權限；管理 API 需要管理員權限。
-- 使用 Access Token 與 Refresh Token，並以 Redis 保存及檢查 Token 狀態，支援登出失效。
-- 前端 Axios 統一附帶 Bearer Access Token；收到 401 時透過 `POST /api/v1/login/validate` 與 HttpOnly Refresh Token Cookie 更新 Token，失敗後導回會員頁。
+活動可公開瀏覽；訂票需要會員權限，後台操作需要管理員權限。登入後使用 Access Token 呼叫 API，過期時透過 Refresh Token 更新；登出會讓登入憑證失效。
 
-### 訂單狀態與逾時處理
+### 訂單與座位
 
-- 建立訂單時產生訂單編號、10 分鐘付款期限與 `PENDING_PAYMENT` 狀態。
-- 使用 `TaskScheduler` 依每筆訂單到期時間建立排程。
-- 到期時再次確認狀態；仍未付款才更新為 `EXPIRED`，避免覆蓋已付款或已取消訂單。
-- 付款或取消後撤銷記憶體中的到期任務。
-- 主要票券狀態包含 `PENDING_PAYMENT`、`PAID`、`CANCELLED`、`EXPIRED`。
-- 另以固定延遲掃描逾期訂單（預設 30 秒，每批最多 100 筆），補償重啟或排程遺漏；補償掃描不補送 WebSocket 通知。
-- 座位保留、訂單及庫存異動在同一資料庫交易完成，並以有效訂單座位唯一索引避免重複占用。
-- 建立訂單必須帶 `Idempotency-Key`；同會員以相同 key 重試相同訂位會取得首次成功結果，不同訂位內容則回傳 409「衝突」（Conflict）。
-- 付款目前為系統內訂單狀態操作，尚未串接外部金流或實作退款流程。
+訂單有待付款（`PENDING_PAYMENT`）、已付款（`PAID`）、已取消（`CANCELLED`）、已逾期（`EXPIRED`）四種主要狀態。
 
-### 即時通知
+建立訂單後保留座位 10 分鐘。付款、取消與逾期時，訂單、座位和庫存一起更新。系統每 30 秒補查逾期訂單，每批最多 100 筆；補查不補送即時通知。
 
-- 後端採用 Spring WebSocket 與 STOMP。
-- 透過 `convertAndSendToUser` 發送至 `/user/queue/notifications` 類型的個人佇列。
-- 前端使用 `@stomp/stompjs` 與 SockJS 建立連線並訂閱個人通知。
-- 建立訂單的付款提示、付款即將到期與付款期限已到通知停留 30 秒；其他警告 8 秒、一般通知 5 秒，全部可手動關閉。顯示時間不影響訂單付款期限。
-- STOMP `CONNECT` 標頭攜帶 `Authorization: Bearer <accessToken>`，後端驗證後設定使用者身分。
-- 管理員刪除已有場次的活動時，只向操作管理員推送警告。API 同時提供提示作為斷線備援；前端依通知編號避免重複顯示。
+建立訂單必須帶 `Idempotency-Key`，用來辨識重複請求。同會員以相同 key 重送相同訂位，會取得第一次成功的結果；內容不同則回傳 HTTP 409。
 
-### 資料與部署
+### 即時通知與資料
 
-- PostgreSQL 儲存權限、會員、活動、活動圖片、場次及票券資料。
-- MyBatis Mapper／XML 負責 SQL 與物件映射。
-- Redis 用於 Token 狀態管理。
-- Docker Compose 編排 Vue、Spring Boot、PostgreSQL、Redis 四項服務；資料庫設有健康檢查與持久化 volume。
-- Swagger／OpenAPI 提供 API 文件與測試介面。
+WebSocket 會發送個人訂單通知。付款提醒顯示 30 秒、其他警告 8 秒、一般通知 5 秒，皆可手動關閉；提示的顯示時間不影響付款期限。
+
+PostgreSQL 保存會員、活動、場次與訂單；MyBatis 負責讀寫資料，Redis 管理登入憑證。Docker Compose 啟動前端、後端、資料庫與 Redis，Swagger 提供 API 文件。
 
 ### 主要 API 分組
 
@@ -499,5 +466,3 @@ docker exec -it redis-container redis-cli -a <password>
 - [前端說明](concert-ticket-frontend/README.md)
 - [資料庫初始化與訂票一致性](db-init/README.md)
 - [Python 銷售分析：Java 啟動後自動產生 CSV 報表](concert-ticket-analytics/README.md)
-
-

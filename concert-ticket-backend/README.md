@@ -71,128 +71,15 @@ WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization:
 
 目前未保留座位配置的業務測試；尚未以真實 PostgreSQL 驗證修改已有訂單的活動時，座位配置與既有訂單的相容性。
 
-# JWT 登入驗證流程
+## JWT 登入驗證流程
 
-## ① Login
+Token 是登入後使用的身分憑證。Access Token 用來呼叫 API，Refresh Token 用來更新過期的 Access Token。
 
-使用者輸入帳號密碼，由 Frontend 傳送至 Backend。
-
-```text
-Frontend ── 帳號 / 密碼 ──> Backend
-```
-
----
-
-## ② Login 成功
-
-Backend 驗證帳號密碼成功後，回傳：
-
-- Access Token
-- Refresh Token（透過 Set-Cookie 設定 HttpOnly、SameSite=Lax Cookie）
-
-```text
-Frontend <── Access Token ── Backend
-         <── Refresh Token（HttpOnly Cookie） ─ Backend
-```
-
----
-
-## ③ 呼叫 API
-
-Frontend 使用 **Access Token**，以 `Authorization: Bearer <accessToken>` 呼叫 Backend API。Redis 保存 Token 與相關狀態供驗證及失效處理。
-
-```text
-Frontend
-    │
-    │ Access Token
-    ▼
-Backend
-    │
-    │ 驗證 JWT
-    ▼
-驗證成功
-    │
-    ▼
-回傳資料
-```
-
----
-
-## ④ Access Token 過期
-
-當 Access Token 過期時，Frontend 攜帶 **Refresh Token Cookie** 向 `/api/v1/login/validate` 取得新的 Access Token。
-
-```text
-Frontend
-    │
-    │ Refresh Token Cookie
-    ▼
-POST /api/v1/login/validate
-    │
-    │ 驗證 Refresh Token
-    ▼
-Backend
-    │
-    ▼
-產生 New Access Token
-    │
-    ▼
-Frontend
-```
-
----
-
-## ⑤ Logout
-
-使用者登出時，Refresh Token 被撤銷或刪除，並清除 Refresh Token Cookie 與相關 Redis 狀態。
-
-```text
-Frontend
-    │
-    │ Logout
-    ▼
-Backend
-    │
-    ▼
-撤銷 / 刪除 Refresh Token
-```
-
----
-
-## 完整流程
-
-```text
-① Login
-Frontend ── 帳號 / 密碼 ──> Backend
-
-② Login 成功
-Frontend <── Access Token
-         <── Refresh Token（HttpOnly Cookie）
-
-③ 呼叫 API
-Frontend ── Access Token ──> Backend
-                              │
-                              ▼
-                           驗證 JWT
-                              │
-                              ▼
-                           回傳資料
-
-④ Access Token 過期
-Frontend ── Refresh Token Cookie ──> /api/v1/login/validate
-                               │
-                               ▼
-                        驗證 Refresh Token
-                               │
-                               ▼
-Frontend <── New Access Token
-
-⑤ Logout
-Frontend ── Logout ──> Backend
-                        │
-                        ▼
-                撤銷 / 刪除 Refresh Token
-```
+1. 前端送出帳號與密碼，後端確認是否正確。
+2. 登入成功後，後端回傳 Access Token，並把 Refresh Token 放進 HttpOnly Cookie，前端 JavaScript 無法直接讀取。
+3. 前端呼叫 API 時附上 `Authorization: Bearer <accessToken>`，後端檢查憑證與權限。Redis 保存相關狀態。
+4. Access Token 過期時，前端帶 Cookie 呼叫 `POST /api/v1/login/validate`，取得新憑證。Cookie 使用 `SameSite=Lax`。
+5. 登出時撤銷 Refresh Token，清除 Cookie 與相關 Redis 狀態。
 
 ## 功能範圍
 

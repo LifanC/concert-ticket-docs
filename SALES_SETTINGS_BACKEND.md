@@ -1,6 +1,6 @@
 # 場次分區、票種及限購
 
-前後端已串接。管理後台的「分區與限購」可讀取與儲存場次設定；購票頁可選票種、篩選分區、查看實際票價及會員剩餘限購額度。每筆訂單仍為一個座位，會員可建立多筆訂單直到場次限購上限。
+管理員可在「分區與限購」設定票價、票種和限購張數。會員購票時可選票種與分區，並查看價格和剩餘可買張數。每筆訂單只買一個座位，可分次購買到限購上限。
 
 ## 資料庫更新
 
@@ -15,8 +15,6 @@ Get-Content -Raw -Encoding UTF8 db-init/init.sql |
   docker compose exec -T db psql -U postgres -d interviewworks -v ON_ERROR_STOP=1
 ```
 
-本次調整沒有重建或刪除既有應用資料庫。
-
 ## 操作方式
 
 1. 建立活動與場次，進入「分區與限購」選擇場次。
@@ -24,7 +22,7 @@ Get-Content -Raw -Encoding UTF8 db-init/init.sql |
 3. 依排別範圍設定分區名稱、顏色與價格。每一排只能屬於一區，所有排別必須分配。
 4. 新增票種與價格比例，例如學生票 80% 代表八折。各票種適用所有分區。
 5. 檢查預覽並按「儲存設定」。重新載入會讀回已儲存版本，匯出 JSON 只是下載備份。
-6. 購票端選擇票種、分區與座位，再建立訂單。後端確認價格並保存訂單快照。
+6. 購票端選擇票種、分區與座位，再建立訂單。後端確認價格，並保存下單時的價格與票種。
 
 已有保留或售出座位的場次不可修改設定。已設定分區的場次不能更換活動；延後日期或更改狀態時維持已儲存容量與座位配置。
 
@@ -59,7 +57,7 @@ GET 與 PUT 成功回傳 `configured`、`version`、`locked`、`rowLabels`、`se
 
 已設定分區含 `id`、`capacity`、`available` 及 `prices`；prices 以 ticketTypeId 為鍵，提供後端算好的票價。會員 GET 另回傳 `memberTicketQuantity`、`remainingAllowance`；未設定限購時 remainingAllowance 為 null。
 
-`POST /v1/booking/saveTicket` 新增 `ticketTypeId`。已設定場次必須提供同場次有效票種，未設定場次可省略。price 為相容舊客戶端而保留，但不作定價依據，新前端不傳 price。冪等雜湊包含票種，重送不新增訂單。
+`POST /v1/booking/saveTicket` 新增 `ticketTypeId`。已設定場次必須提供同場次有效票種，未設定場次可省略。price 為相容舊客戶端而保留，但不作定價依據，新前端不傳 price。辨識重複請求時也會比對票種；相同請求重送不會新增訂單。
 
 ## 儲存與訂位規則
 
