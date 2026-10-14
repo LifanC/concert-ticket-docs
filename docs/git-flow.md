@@ -4,13 +4,13 @@
 
 | 分支 | 用途 | 從哪裡建立 | 完成後合併到 |
 | --- | --- | --- | --- |
-| `master` | 保存穩定、可上線的版本，通常會加上版本標籤；透過合併接收變更，不直接開發。 | — | — |
-| `develop` | 整合開發中的功能，作為下一個版本的開發基礎。 | `master` | 透過 `release` 整理後發布 |
+| `master` | 保存可上線的穩定版本，不直接在這裡開發。 | — | — |
+| `develop` | 集中整合新功能，準備下一版。 | `master` | 透過 `release` 整理後發布 |
 | `feature` | 開發個別新功能。 | `develop` | `develop` |
-| `release` | 進行發布前的最後測試與修正。 | `develop` | `master` 和 `develop` |
+| `release` | 上線前測試與修正。 | `develop` | `master` 和 `develop` |
 | `hotfix` | 緊急修復線上版本的問題。 | `master` | `master` 和 `develop` |
 
-`master` 和 `develop` 是長期保留的分支；`feature`、`release`、`hotfix` 通常在任務完成並合併後刪除。
+`master` 和 `develop` 長期保留，其他分支完成並合併後通常會刪除。
 
 `release` 與 `hotfix` 的修正也要合併回 `develop`，讓後續版本包含相同修正。
 

@@ -79,18 +79,18 @@ Python 銷售分析由 Java 後端自動排程，輸出 CSV；儀表板直接使
 
 ## 手機排版與共用列表
 
-活動列表、管理後台的活動／場次／訂單列表，以及銷售儀表板的庫存列表，統一使用 `src/components/ResponsiveRecordList.vue`。螢幕寬度不超過 767px 時顯示直式卡片，其餘顯示表格，視窗尺寸改變時自動切換。
+活動與後台列表共用 `src/components/ResponsiveRecordList.vue`：寬度不超過 767px 顯示卡片，較寬時顯示表格。
 
-每個列表只定義一份 `fields`：`key` 對應資料欄位、`label` 為欄位名稱、`format` 處理顯示格式，`role` 指定標題、圖片、狀態或操作區。欄位設定與具名插槽同時供桌面與手機使用，新增欄位、修改按鈕或圖片內容只需改一次。
+桌面與手機共用一份 `fields` 欄位設定及插槽，修改欄位或按鈕只需改一次。`key` 對應資料、`label` 是名稱、`format` 處理格式、`role` 決定顯示位置。
 
-- `Activity.vue`：維護公開活動列表的 `activityFields` 與收藏、查看詳情按鈕。
-- `Admin.vue`：維護 `activityFields`、`sessionFields`、`orderFields` 與管理操作按鈕。
-- `AdminDashboard.vue`：維護 `inventoryFields`、圖表與統計資料。
-- `ResponsiveRecordList.vue`：統一管理表格／卡片結構、空資料提示及手機卡片間距。
+| 檔案 | 負責內容 |
+| --- | --- |
+| `Activity.vue` | 活動列表、收藏與詳情按鈕 |
+| `Admin.vue` | 活動、場次、訂單列表與管理按鈕 |
+| `AdminDashboard.vue` | 庫存列表、圖表與統計 |
+| `ResponsiveRecordList.vue` | 表格、卡片與空資料提示 |
 
-會員中心標題區與銷售概況工具列在手機保留左右 16px 內距；表單、購票摘要與導覽列支援換行。分區設定與購票座位區保留區域內的橫向捲動。
-
-`booking/SeatMap.vue` 在寬度不超過 600px 時將座位加大為 48 × 48px，座位間距為 12px，並增加排間距；快速找排獨立排列，座位圖可橫向捲動。座位大小由 `--seat-size` 統一控制按鈕寬度與網格欄寬。
+手機版表單與導覽列可換行，分區和座位區可橫向捲動。座位圖在寬度不超過 600px 時使用 48 × 48px 按鈕、12px 間距；可快速跳到指定排。座位大小由 `--seat-size` 控制。
 
 ## WebSocket 通知顯示時間
 
