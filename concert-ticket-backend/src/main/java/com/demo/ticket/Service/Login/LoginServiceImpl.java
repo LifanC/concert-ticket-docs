@@ -10,6 +10,7 @@ import com.demo.ticket.Service.JwtTokenService;
 import com.demo.ticket.security.LoginUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
@@ -226,7 +227,7 @@ public class LoginServiceImpl implements LoginService {
                 .count(cnt)
                 .build();
         stringRedisTemplate.execute((RedisCallback<Void>) connection -> {
-            try (Cursor<byte[]> cursor = connection.scan(options)) {
+            try (Cursor<byte @NonNull []> cursor = connection.keyCommands().scan(options)) {
                 List<String> keysToDelete = new ArrayList<>();
                 while (cursor.hasNext()) {
                     String key = new String(cursor.next());
@@ -293,7 +294,7 @@ public class LoginServiceImpl implements LoginService {
                 Long redisCount =
                         stringRedisTemplate.execute((RedisCallback<Long>) connection -> {
                             long count = 0;
-                            try (Cursor<byte[]> cursor = connection.scan(options)) {
+                            try (Cursor<byte @NonNull []> cursor = connection.keyCommands().scan(options)) {
                                 while (cursor.hasNext()) {
                                     cursor.next();
                                     count++;
@@ -357,11 +358,12 @@ public class LoginServiceImpl implements LoginService {
         dataMap.put("phone", "");
         dataMap.put("birthday", "");
         dataMap.put("judge", false);
-        LoginSaveProfile loginSaveProfile = new LoginSaveProfile();
-        loginSaveProfile.setName(name);
-        loginSaveProfile.setEmail(user.email());
-        loginSaveProfile.setPhone(phone);
-        loginSaveProfile.setBirthday(birthday);
+        LoginSaveProfile loginSaveProfile = LoginSaveProfile.builder()
+                .name(name)
+                .email(user.email())
+                .phone(phone)
+                .birthday(birthday)
+                .build();
         loginMapper.save(loginSaveProfile);
         dataMap.put("remark", "修改會員資料成功");
         dataMap.put("phone", phone);

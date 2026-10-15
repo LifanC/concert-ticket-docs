@@ -26,11 +26,12 @@ public class BookingExpirationService {
      */
     @Transactional
     public boolean expire(BookingSaveTicket ticket) {
-        BookingOrder bookingOrder = new BookingOrder();
-        bookingOrder.setOrderno(ticket.getOrderno());
-        bookingOrder.setSession_id(ticket.getSession_id());
-        bookingOrder.setEmail(null);
-        bookingOrder.setStatus(bookingOrderStatus.EXPIRED);
+        BookingOrder bookingOrder = BookingOrder.builder()
+                .orderno(ticket.getOrderno())
+                .session_id(ticket.getSession_id())
+                .email(null)
+                .status(bookingOrderStatus.EXPIRED)
+                .build();
         return bookingOrderService.transition(bookingOrder);
     }
 }

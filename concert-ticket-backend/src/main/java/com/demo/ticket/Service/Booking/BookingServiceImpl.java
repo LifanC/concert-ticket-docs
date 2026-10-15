@@ -144,10 +144,11 @@ public class BookingServiceImpl implements BookingService {
         final String session_id = sessionMap.get("session_id").toString();
         final String ticketTypeId = request.ticketTypeId() == null ? "" : request.ticketTypeId().trim();
         final String hash = requestHash(session_id, activity_id, seat, ticketTypeId);
-        BookingCoreKey bookingCoreKey = new BookingCoreKey();
-        bookingCoreKey.setEmail(user.email());
-        bookingCoreKey.setIdempotencyKey(idempotencyKey);
-        bookingCoreKey.setHash(hash);
+        BookingCoreKey bookingCoreKey = BookingCoreKey.builder()
+                .email(user.email())
+                .idempotencyKey(idempotencyKey)
+                .hash(hash)
+                .build();
         // 同一會員重送相同識別碼時回傳原結果；內容不同則拒絕，避免網路重試產生重複訂單。
         if (bookingCoreMapper.claimKey(bookingCoreKey) == 0) {
             Map<String, Object> previous = bookingCoreMapper.findKey(bookingCoreKey);
@@ -175,26 +176,27 @@ public class BookingServiceImpl implements BookingService {
         }
         List<Map<String, Object>> data;
         final String accessJwt = user.email();
-        BookingSession bookingSession = new BookingSession();
-        bookingSession.setSession_id(session_id);
+        BookingSession bookingSession = BookingSession.builder()
+                .session_id(session_id)
+                .build();
         int cnt = bookingMapper.updateSession(bookingSession);
         String createdOrderNo;
         if (cnt == 1) {
-            BookingSaveTicket bookingSaveTicket = new BookingSaveTicket();
             // 訂單編號由 SQL 以 CT＋當天日期＋每日流水號產生；流水號目前不補零。
-            bookingSaveTicket.setSession_id(session_id);
-            bookingSaveTicket.setEmail(accessJwt);
-            bookingSaveTicket.setName(snapshot.get("name").toString());
-            bookingSaveTicket.setDate(snapshot.get("date").toString());
-            bookingSaveTicket.setTime(snapshot.get("time").toString());
-            BigDecimal price = quote.price();
-            bookingSaveTicket.setZoneId(quote.zoneId());
-            bookingSaveTicket.setTicketTypeId(quote.ticketTypeId());
-            bookingSaveTicket.setZoneName(quote.zoneName());
-            bookingSaveTicket.setTicketTypeName(quote.ticketTypeName());
-            bookingSaveTicket.setStatus(bookingOrderStatus.PENDING_PAYMENT.name());
-            bookingSaveTicket.setSeat(seat);
-            bookingSaveTicket.setPrice(price);
+            BookingSaveTicket bookingSaveTicket = BookingSaveTicket.builder()
+                    .session_id(session_id)
+                    .email(accessJwt)
+                    .name(snapshot.get("name").toString())
+                    .date(snapshot.get("date").toString())
+                    .time(snapshot.get("time").toString())
+                    .zoneId(quote.zoneId())
+                    .ticketTypeId(quote.ticketTypeId())
+                    .zoneName(quote.zoneName())
+                    .ticketTypeName(quote.ticketTypeName())
+                    .status(bookingOrderStatus.PENDING_PAYMENT.name())
+                    .seat(seat)
+                    .price(quote.price())
+                    .build();
             // 可付款時間10分鐘
             int minutes = 10;
             Date dateNow = new Date();
@@ -242,11 +244,12 @@ public class BookingServiceImpl implements BookingService {
         Object response = ApiResponse.api(status, data);
         try {
             String body = new ObjectMapper().writeValueAsString(response);
-            BookingCompleteKey bookingCompleteKey = new BookingCompleteKey();
-            bookingCompleteKey.setEmail(user.email());
-            bookingCompleteKey.setIdempotencyKey(idempotencyKey);
-            bookingCompleteKey.setCreatedOrderNo(createdOrderNo);
-            bookingCompleteKey.setBody(body);
+            BookingCompleteKey bookingCompleteKey = BookingCompleteKey.builder()
+                    .email(user.email())
+                    .idempotencyKey(idempotencyKey)
+                    .createdOrderNo(createdOrderNo)
+                    .body(body)
+                    .build();
             BookingException.requireOne(
                     bookingCoreMapper.completeKey(bookingCompleteKey)
             );
@@ -315,11 +318,12 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> cancelOrder(BookingCanceTicketRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        BookingOrder bookingOrder = new BookingOrder();
-        bookingOrder.setOrderno(orderno);
-        bookingOrder.setSession_id(request.session_id());
-        bookingOrder.setEmail(user.email());
-        bookingOrder.setStatus(bookingOrderStatus.CANCELLED);
+        BookingOrder bookingOrder = BookingOrder.builder()
+                .orderno(orderno)
+                .session_id(request.session_id())
+                .email(user.email())
+                .status(bookingOrderStatus.CANCELLED)
+                .build();
         bookingOrderService.transition(bookingOrder);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);
@@ -354,11 +358,12 @@ public class BookingServiceImpl implements BookingService {
             );
             if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(blacklistRedisKey))) {
                 if (bookingOrderStatus.PENDING_PAYMENT.name().equals(ticket_status)) {
-                    BookingSalesDate bookingSalesDate = new BookingSalesDate();
-                    bookingSalesDate.setSession_id(session_id);
-                    bookingSalesDate.setActivity_id(activity_id);
-                    bookingSalesDate.setDate(date);
-                    bookingSalesDate.setTime(time);
+                    BookingSalesDate bookingSalesDate = BookingSalesDate.builder()
+                            .session_id(session_id)
+                            .activity_id(activity_id)
+                            .date(date)
+                            .time(time)
+                            .build();
                     dataMap = bookingMapper.sessionSalesDate(bookingSalesDate).get(session_id);
                 }
             }
@@ -376,11 +381,12 @@ public class BookingServiceImpl implements BookingService {
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
         requireAuthenticated(user);
         String orderno = request.orderno().trim();
-        BookingOrder bookingOrder = new BookingOrder();
-        bookingOrder.setOrderno(orderno);
-        bookingOrder.setSession_id(request.session_id());
-        bookingOrder.setEmail(user.email());
-        bookingOrder.setStatus(bookingOrderStatus.PAID);
+        BookingOrder bookingOrder = BookingOrder.builder()
+                .orderno(orderno)
+                .session_id(request.session_id())
+                .email(user.email())
+                .status(bookingOrderStatus.PAID)
+                .build();
         bookingOrderService.transition(bookingOrder);
         afterCommit(() -> {
             bookingPaymentScheduler.cancelExpiration(orderno);

@@ -1,8 +1,7 @@
 // 閱讀導引：Spring Boot 啟動入口；載入元件與設定，啟動 HTTP 服務。
 package com.demo.ticket;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -13,10 +12,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement(proxyTargetClass = true)
 @EnableScheduling
 @SpringBootApplication
+@Slf4j
 public class TicketApplication {
-
-    // 建立 Logger
-    private static final Logger logger = LoggerFactory.getLogger(TicketApplication.class);
 
     /**
      * 啟動程式並載入執行環境。
@@ -39,7 +36,7 @@ public class TicketApplication {
                 : String.join(", ", env.getDefaultProfiles());
 
         // 用 Logger 顯示完整 URL
-        logger.info("""
+        log.info("""
                         
                         ----------------------------------------------------------
                         \tApplication '{}' is running! Access URLs:

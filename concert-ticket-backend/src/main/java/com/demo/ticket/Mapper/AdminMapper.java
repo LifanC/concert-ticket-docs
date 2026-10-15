@@ -48,7 +48,7 @@ public interface AdminMapper {
     /**
      * 僅刪除尚未建立場次的活動圖片，回傳刪除筆數；有場次時不刪除。
      */
-    int deleteActivityImage(String id);
+    void deleteActivityImage(String id);
 
     /**
      * 僅刪除沒有任何場次的活動，回傳刪除筆數。

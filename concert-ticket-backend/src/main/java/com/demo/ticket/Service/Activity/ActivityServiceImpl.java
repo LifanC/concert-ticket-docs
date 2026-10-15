@@ -66,8 +66,9 @@ public class ActivityServiceImpl implements ActivityService {
     public List<Map<String, Object>> selectOnlyFavoriteActivities(LoginUser user) {
         List<Map<String, Object>> data = new ArrayList<>();
         if (user != null && Boolean.TRUE.equals(user.accessExists())) {
-            ActivityFavorite activityFavorite =  new ActivityFavorite();
-            activityFavorite.setEmail(user.email());
+            ActivityFavorite activityFavorite = ActivityFavorite.builder()
+                    .email(user.email())
+                    .build();
             data = activityMapper.selectOnlyFavoriteActivities(activityFavorite);
         }
         return data;
@@ -100,9 +101,10 @@ public class ActivityServiceImpl implements ActivityService {
         final String activity_id = request.activity_id().trim();
         List<Map<String, Object>> data = new ArrayList<>();
         Map<String, Object> dataMap = new HashMap<>();
-        ActivityFavorite activityFavorite =  new ActivityFavorite();
-        activityFavorite.setEmail(user.email());
-        activityFavorite.setActivity_id(activity_id);
+        ActivityFavorite activityFavorite = ActivityFavorite.builder()
+                .email(user.email())
+                .activity_id(activity_id)
+                .build();
         int cnt = save
                 ? activityMapper.saveFavoriteActivity(activityFavorite)
                 : activityMapper.deleteFavoriteActivity(activityFavorite);

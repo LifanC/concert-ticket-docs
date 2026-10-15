@@ -1,9 +1,8 @@
 // 閱讀導引：集中處理控制器例外；一般錯誤使用 ApiResponse，訂票例外另回傳 code、message、traceId 及 timestamp。
 package com.demo.ticket.Exception;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Dto.ApiResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,9 +16,8 @@ import java.time.Instant;
 import java.util.*;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
-
-    private final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
      * 將訂票例外的錯誤代碼、訊息與 HTTP 狀態轉為 API 回應。
@@ -45,7 +43,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidationException(
             MethodArgumentNotValidException ex) {
-        logger.warn("參數驗證失敗: {}", ex.getMessage());
+        log.warn("參數驗證失敗: {}", ex.getMessage());
         Map<String, String> fieldErrors = new TreeMap<>();
         ex.getBindingResult()
                 .getFieldErrors()
@@ -64,7 +62,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(FieldValidationException.class)
     public ResponseEntity<?> handleFieldValidation(FieldValidationException ex) {
-        logger.warn("欄位驗證失敗: {}: {}", ex.getField(), ex.getMessage());
+        log.warn("欄位驗證失敗: {}: {}", ex.getField(), ex.getMessage());
         return validationError(Map.of(ex.getField(), ex.getMessage()));
     }
 
@@ -90,7 +88,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DuplicateKeyException.class)
     public ResponseEntity<?> handleDuplicateKey(DuplicateKeyException ex) {
-        logger.warn("資料已存在", ex);
+        log.warn("資料已存在", ex);
         return error(HttpStatus.CONFLICT, "資料已存在");
     }
 
@@ -99,7 +97,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler({JwtException.class})
     public ResponseEntity<?> handleJwtException(JwtException ex) {
-        logger.warn("Token 驗證失敗: {}", ex.getMessage());
+        log.warn("Token 驗證失敗: {}", ex.getMessage());
         return error(HttpStatus.UNAUTHORIZED, "Token 無效或已過期");
     }
 
@@ -108,7 +106,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<?> handleAccessDenied(AccessDeniedException ex) {
-        logger.warn("權限不足: {}", ex.getMessage());
+        log.warn("權限不足: {}", ex.getMessage());
         return error(HttpStatus.FORBIDDEN, "權限不足");
     }
 
@@ -117,7 +115,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<?> handleInvalidOperation(RuntimeException ex) {
-        logger.warn("操作失敗: {}", ex.getMessage());
+        log.warn("操作失敗: {}", ex.getMessage());
         return error(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
