@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.InOrder;
 import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,17 +33,19 @@ class BookingOrderServiceTests {
         mapper = mock(BookingMapper.class);
         core = mock(BookingCoreMapper.class);
         service = new BookingOrderService(mapper, core);
-        ticket = new BookingSaveTicket();
-        ticket.setOrderno("TEST-1");
-        ticket.setEmail("wang@user.com");
-        ticket.setSession_id("S1");
-        ticket.setSeat("A1");
-        ticket.setStatus("PENDING_PAYMENT");
-        order = new BookingOrder();
-        order.setOrderno("TEST-1");
-        order.setEmail("wang@user.com");
-        order.setSession_id("S1");
-        order.setStatus(PAID);
+        ticket = BookingSaveTicket.builder()
+                .orderno("TEST-1")
+                .email("wang@user.com")
+                .session_id("S1")
+                .seat("A1")
+                .status("PENDING_PAYMENT")
+                .build();
+        order = BookingOrder.builder()
+                .orderno("TEST-1")
+                .email("wang@user.com")
+                .session_id("S1")
+                .status(PAID)
+                .build();
         when(core.findOrder("TEST-1")).thenReturn(ticket);
     }
 
@@ -150,11 +153,12 @@ class BookingOrderServiceTests {
      */
     @Test
     void stateIsReadAgainAfterObtainingLock() {
-        BookingSaveTicket paid = new BookingSaveTicket();
-        paid.setStatus("PAID");
+        BookingSaveTicket paid = BookingSaveTicket.builder()
+                .status("PAID")
+                .build();
         when(core.findOrder("TEST-1")).thenReturn(ticket, paid);
         assertThrows(BookingException.class, () -> service.transition(order));
-        var sequence = inOrder(core);
+        InOrder sequence = inOrder(core);
         sequence.verify(core).findOrder("TEST-1");
         sequence.verify(core).lockSession("S1");
         sequence.verify(core).findOrder("TEST-1");

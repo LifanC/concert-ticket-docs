@@ -1,8 +1,7 @@
 // 閱讀導引：將通知傳送至指定會員的個人訊息佇列；接收端訂閱 /user/queue/notifications。
 package com.demo.ticket.Config.WebSocket;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
@@ -11,9 +10,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
+@Slf4j
 public class NotifierConsumer {
-
-    private final Logger logger = LoggerFactory.getLogger(NotifierConsumer.class);
 
     private final SimpMessagingTemplate messagingTemplate;
     private final SimpUserRegistry simpUserRegistry;
@@ -39,7 +37,7 @@ public class NotifierConsumer {
                 .map(SimpUser::getName)
                 .toList();
 
-        logger.info(
+        log.info(
                 "準備推播 Email={}, WebSocket users={}",
                 message.getEmail(),
                 users
@@ -47,7 +45,7 @@ public class NotifierConsumer {
 
         boolean online = users.contains(message.getEmail());
 
-        logger.info(
+        log.info(
                 "目標使用者是否在線 Email={}, online={}",
                 message.getEmail(),
                 online
@@ -59,7 +57,7 @@ public class NotifierConsumer {
                 message
         );
 
-        logger.info(
+        log.info(
                 "已呼叫 WebSocket 推播 Email={}",
                 message.getEmail()
         );

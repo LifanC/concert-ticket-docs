@@ -1,13 +1,12 @@
 // 閱讀導引：設定 HTTP 請求的存取規則及 JWT 驗證鏈；實際操作權限另由服務層檢查。
 package com.demo.ticket.security;
 
+import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NullMarked;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,9 +27,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Slf4j
 public class SecurityConfig {
-
-    private final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -110,8 +108,8 @@ public class SecurityConfig {
                         // 沒登入 / 沒 token
                         .authenticationEntryPoint((request, response, ex) -> {
                             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-                            logger.info("401 URI = {}", request.getRequestURI());
-                            logger.info("401 Authentication = {}", authentication);
+                            log.info("401 URI = {}", request.getRequestURI());
+                            log.info("401 Authentication = {}", authentication);
                             response.sendError(
                                     HttpServletResponse.SC_UNAUTHORIZED,
                                     "尚未登入"
@@ -121,9 +119,9 @@ public class SecurityConfig {
                         // 已登入，但權限不足
                         .accessDeniedHandler((request, response, ex) -> {
                             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-                            logger.info("403 URI = {}", request.getRequestURI());
-                            logger.info("403 Authentication = {}", authentication);
-                            logger.info("Authorities = {}", authentication != null
+                            log.info("403 URI = {}", request.getRequestURI());
+                            log.info("403 Authentication = {}", authentication);
+                            log.info("Authorities = {}", authentication != null
                                     ? authentication.getAuthorities()
                                     : null);
 

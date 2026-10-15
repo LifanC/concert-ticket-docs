@@ -1,11 +1,10 @@
 // 閱讀導引：應用程式啟動時確保資料庫已有當月 JWT 簽章祕密；祕密建立與讀取由 SecretMapper 負責。
 package com.demo.ticket.Config.log;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Mapper.SecretMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +13,8 @@ import java.util.Base64;
 
 @Service
 @Transactional
+@Slf4j
 public class SecretKey {
-
-    private final Logger logger = LoggerFactory.getLogger(SecretKey.class);
 
     @Resource
     private SecretMapper secretMapper;
@@ -28,7 +26,7 @@ public class SecretKey {
     public void getSecret() {
         boolean cnt = secretMapper.getSecret();
         if (cnt) {
-            logger.info("SecretKey 資料已存在");
+            log.info("SecretKey 資料已存在");
         } else {
             SecureRandom random = new SecureRandom();
             // 實際產生 64 bytes（512 bits）的隨機資料，再編碼為可存入資料庫的 Base64 文字。

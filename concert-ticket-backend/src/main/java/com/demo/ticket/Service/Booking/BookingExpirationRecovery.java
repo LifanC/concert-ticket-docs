@@ -1,17 +1,16 @@
 // 閱讀導引：定期從資料庫找出逾期訂單，補處理因服務重啟或排程遺漏而未釋放的座位。
 package com.demo.ticket.Service.Booking;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Dto.Booking.BookingOrder;
 import com.demo.ticket.Dto.Booking.bookingOrderStatus;
 import com.demo.ticket.Mapper.BookingCoreMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class BookingExpirationRecovery {
-    private static final Logger log = LoggerFactory.getLogger(BookingExpirationRecovery.class);
     private final BookingCoreMapper bookingCoreMapper;
     private final BookingOrderService bookingOrderService;
 
@@ -34,11 +33,12 @@ public class BookingExpirationRecovery {
         // 每筆訂單各自提交；場次鎖與條件更新讓多個服務實例掃到同一訂單時，不會重複釋放庫存。
         for (String orderno : bookingCoreMapper.expiredOrders()) {
             try {
-                BookingOrder bookingOrder = new BookingOrder();
-                bookingOrder.setOrderno(orderno);
-                bookingOrder.setSession_id(null);
-                bookingOrder.setEmail(null);
-                bookingOrder.setStatus(bookingOrderStatus.EXPIRED);
+                BookingOrder bookingOrder = BookingOrder.builder()
+                        .orderno(orderno)
+                        .session_id(null)
+                        .email(null)
+                        .status(bookingOrderStatus.EXPIRED)
+                        .build();
                 bookingOrderService.transition(bookingOrder);
             } catch (RuntimeException ex) {
                 log.error("Expiration recovery failed for order {}", orderno, ex);

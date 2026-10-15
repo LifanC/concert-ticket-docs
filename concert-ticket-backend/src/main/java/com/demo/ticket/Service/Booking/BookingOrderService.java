@@ -64,10 +64,11 @@ public class BookingOrderService {
         int rows;
         switch (target) {
             case PAID -> {
-                BookingDopaypriceTicket pay = new BookingDopaypriceTicket();
-                pay.setOrderno(orderno);
-                pay.setSession_id(ticket.getSession_id());
-                pay.setCustomer(ticket.getEmail());
+                BookingDopaypriceTicket pay = BookingDopaypriceTicket.builder()
+                        .orderno(orderno)
+                        .session_id(ticket.getSession_id())
+                        .customer(ticket.getEmail())
+                        .build();
                 rows = bookingMapper.dopaypriceTicket(pay);
             }
             case CANCELLED -> rows = bookingMapper.cancelTicket(ticket);
@@ -84,16 +85,20 @@ public class BookingOrderService {
         BookingException.requireOne(rows);
         // 付款將保留轉成售出；取消或逾期則歸還庫存，並將座位恢復可選。
         boolean paid = target == bookingOrderStatus.PAID;
-        BookingSession session = new BookingSession();
-        session.setSession_id(ticket.getSession_id());
+        BookingSession session = BookingSession.builder()
+                .session_id(ticket.getSession_id())
+                .build();
         BookingException.requireOne(paid
                 ? bookingMapper.dopaypriceUpdateSession(session)
                 : bookingMapper.cancelSession(session));
-        BookingTransitionSeat bookingTransitionSeat = new  BookingTransitionSeat();
-        bookingTransitionSeat.setSessionId(ticket.getSession_id());
-        bookingTransitionSeat.setSeat(ticket.getSeat());
-        bookingTransitionSeat.setOrderno(orderno);
-        bookingTransitionSeat.setStatus(paid ? "SOLD" : "AVAILABLE");
+        BookingTransitionSeat bookingTransitionSeat = BookingTransitionSeat.builder()
+                .sessionId(ticket.getSession_id())
+                .seat(ticket.getSeat())
+                .orderno(orderno)
+                .status(
+                        paid ? "SOLD" : "AVAILABLE"
+                )
+                .build();
         BookingException.requireOne(bookingCoreMapper.transitionSeat(bookingTransitionSeat));
         return true;
     }

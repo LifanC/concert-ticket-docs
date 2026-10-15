@@ -1,6 +1,7 @@
 // 閱讀導引：管理活動、圖片與場次；儲存前檢查資料及圖片，並透過交易維持資料一致性。
 package com.demo.ticket.Service.Admin;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Dto.Admin.*;
 import com.demo.ticket.Dto.ApiResponse;
 import com.demo.ticket.Exception.FieldValidationException;
@@ -9,7 +10,6 @@ import com.demo.ticket.Config.WebSocket.NotificationMessage;
 import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.security.LoginUser;
 import jakarta.annotation.Resource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.util.*;
 
 @Service
+@Slf4j
 public class AdminServiceImpl implements AdminService{
 
     private static final int MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -106,13 +107,14 @@ public class AdminServiceImpl implements AdminService{
         int selectedRows = getSelectedRows(category, column);
         final String seat_id = column + "-" + row.toPlainString();
         PreparedImage preparedImage = prepareImage(image);
-        Activity activity = new Activity();
-        activity.setId(id);
-        activity.setName(name);
-        activity.setCategory(category);
-        activity.setVenue(venue);
-        activity.setPrice(price);
-        activity.setDescription(description);
+        Activity activity = Activity.builder()
+                .id(id)
+                .name(name)
+                .category(category)
+                .venue(venue)
+                .price(price)
+                .description(description)
+                .build();
         Map<String, Object> savedActivity = adminMapper.create_activity(activity);
         String activity_id = savedActivity.get("activity_id").toString();
         StringJoiner result = new StringJoiner(", ");
@@ -286,6 +288,7 @@ public class AdminServiceImpl implements AdminService{
         if (adminMapper.activityHasSessions(id)) {
             String reason = "活動 " + id + " 已建立場次，無法刪除。請保留活動及相關訂單資料。";
             var authentication = SecurityContextHolder.getContext().getAuthentication();
+            assert authentication != null;
             String email = authentication.getPrincipal() instanceof LoginUser user
                     ? user.email() : authentication.getName();
             NotificationMessage notification = new NotificationMessage(
@@ -296,8 +299,7 @@ public class AdminServiceImpl implements AdminService{
             try {
                 notifierConsumer.sendNotification(notification);
             } catch (org.springframework.messaging.MessagingException ex) {
-                org.slf4j.LoggerFactory.getLogger(AdminServiceImpl.class)
-                        .warn("刪除活動警告推播失敗，改由 API 回應通知", ex);
+                log.warn("刪除活動警告推播失敗，改由 API 回應通知", ex);
             }
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("message", reason, "notification", notification));
@@ -340,13 +342,6 @@ public class AdminServiceImpl implements AdminService{
                 throw new FieldValidationException("activity_id", "已設定分區的場次不能更換活動");
             }
         }
-        Session session = new Session();
-        session.setId(id);
-        session.setActivity_id(activity_id);
-        session.setDate(date);
-        session.setTime(time);
-        session.setSalesdate(salesdate);
-        session.setSalestime(salestime);
         BigDecimal capacity = BigDecimal.ZERO;
         Map<String, Object> dataMapOnlySeats = adminMapper.selectOnlySeats(activity_id).get(activity_id);
         if (dataMapOnlySeats != null) {
@@ -354,9 +349,19 @@ public class AdminServiceImpl implements AdminService{
             int seatsPerRow = Integer.parseInt(dataMapOnlySeats.get("seats_per_row").toString());
             capacity = BigDecimal.valueOf((long) rows * seatsPerRow);
         }
-        session.setCapacity(configured != null && !configured.isEmpty()
-                ? new BigDecimal(configured.get("capacity").toString()) : capacity);
-        session.setStatus(statusSession);
+        Session session = Session.builder()
+                .id(id)
+                .activity_id(activity_id)
+                .date(date)
+                .time(time)
+                .salesdate(salesdate)
+                .salestime(salestime)
+                .capacity(
+                        configured != null && !configured.isEmpty()
+                                ? new BigDecimal(configured.get("capacity").toString()) : capacity
+                )
+                .status(statusSession)
+                .build();
         adminMapper.create_session(session);
         List<Map<String, Object>> data = adminMapper.selectAllSessions();
         HttpStatus status = HttpStatus.OK;

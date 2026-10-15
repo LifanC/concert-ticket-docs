@@ -1,6 +1,7 @@
 // 閱讀導引：從請求解析 JWT 並建立 Spring Security 登入身分，讓後續 API 取得使用者資訊。
 package com.demo.ticket.security;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Common.RedisKey;
 import com.demo.ticket.Service.JwtTokenService;
@@ -11,8 +12,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -23,19 +22,17 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @Component
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String REQUEST_ID_ATTRIBUTE =
             JwtAuthenticationFilter.class.getName() + ".REQUEST_ID";
-
-    private final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenService jwtTokenService;
     private final StringRedisTemplate stringRedisTemplate;
@@ -80,7 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             requestId = UUID.randomUUID().toString();
             request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
         }
-        logger.info("JWT requestId={} method={} uri={} dispatcher={} alreadyFiltered={} skip={}",
+        log.info("JWT requestId={} method={} uri={} dispatcher={} alreadyFiltered={} skip={}",
                 requestId,
                 request.getMethod(),
                 path,
@@ -120,8 +117,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     accessExists
             );
             List<String> authorities = claims.get("authorities", List.class);
-            logger.info("account={}", user.email());
-            logger.info("authorities={}", Arrays.toString(authorities.toArray()));
             final String blacklistRedisKey = String.format(
                     RedisKey.redisKey.get("blacklist"),
                     user.tokenId()
@@ -144,7 +139,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder
                     .getContext()
                     .setAuthentication(authentication);
-            logger.info("authentication after={}", SecurityContextHolder.getContext().getAuthentication());
             filterChain.doFilter(request, response);
         } catch (ExpiredJwtException e) {
             SecurityContextHolder.clearContext();

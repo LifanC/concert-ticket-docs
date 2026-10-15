@@ -79,9 +79,13 @@ mybatis:
 # Logging 設定
 # -----------------------------
 logging:
-  config: classpath:log4j2.xml
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n%ex"
   # 日誌層級
   level:
+    root: INFO
+    org.springframework: INFO
+    org.mybatis: INFO
     # 設定指定 Mapper 套件的日誌層級
     com.example.demo.Mapper: DEBUG
     me.paulschwarz: DEBUG

@@ -1,12 +1,11 @@
 // 閱讀導引：設定 SockJS/STOMP 連線、訊息路由及連線身分驗證，供會員接收即時通知。
 package com.demo.ticket.Config.WebSocket;
 
+import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
 import org.jspecify.annotations.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -26,11 +25,10 @@ import java.util.Objects;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@Slf4j
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtTokenService jwtTokenService;
-
-    private final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
 
     /**
      * 注入 JWT 驗證服務，在 STOMP CONNECT 階段建立 WebSocket 使用者身分。
@@ -82,12 +80,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                 );
                         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
                             String authHeader = accessor.getFirstNativeHeader("Authorization");
-                            logger.info("Authorization = {}", authHeader);
+                            log.info("Authorization = {}", authHeader);
                             String accessToken = ConvertFormat.resolveToken(authHeader);
                             Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
                             // 從 JWT 取得 email
                             String accessJwt = accessClaims.getSubject();
-                            logger.info("JWT email = {}", accessJwt);
+                            log.info("JWT email = {}", accessJwt);
                             // 建立目前 WebSocket 使用者
                             UsernamePasswordAuthenticationToken authentication =
                                     new UsernamePasswordAuthenticationToken(
@@ -97,7 +95,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                     );
 
                             accessor.setUser(authentication);
-                            logger.info(
+                            log.info(
                                     "設定 WebSocket Principal = {}",
                                     Objects.requireNonNull(accessor.getUser()).getName()
                             );

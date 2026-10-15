@@ -1,9 +1,8 @@
 // 閱讀導引：啟動後定期呼叫 Python 匯出銷售報表；以環境變數傳入資料庫設定，並限制子程序執行時間。
 package com.demo.ticket.Service.Python;
 
+import lombok.extern.slf4j.Slf4j;
 import jakarta.annotation.PreDestroy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -19,8 +18,8 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @ConditionalOnProperty(name = "analytics.enabled", havingValue = "true", matchIfMissing = true)
+@Slf4j
 public class SalesAnalyticsScheduler {
-    private static final Logger log = LoggerFactory.getLogger(SalesAnalyticsScheduler.class);
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(task -> {
         Thread thread = new Thread(task, "sales-analytics");
         thread.setDaemon(true);

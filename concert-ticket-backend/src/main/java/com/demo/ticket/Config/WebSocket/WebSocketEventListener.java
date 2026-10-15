@@ -1,9 +1,7 @@
 // 閱讀導引：監聽 WebSocket 連線生命週期事件，記錄連線與離線資訊。
 package com.demo.ticket.Config.WebSocket;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
@@ -12,10 +10,8 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 @Component
+@Slf4j
 public class WebSocketEventListener {
-
-    private static final Logger logger =
-            LoggerFactory.getLogger(WebSocketEventListener.class);
 
     /**
      * 處理 WebSocket 連線事件並記錄相關資訊。
@@ -25,7 +21,7 @@ public class WebSocketEventListener {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        logger.info(
+        log.info(
                 "WebSocket CONNECT sessionId={}, user={}",
                 accessor.getSessionId(),
                 accessor.getUser() != null
@@ -40,7 +36,7 @@ public class WebSocketEventListener {
     @EventListener
     public void handleDisconnect(SessionDisconnectEvent event) {
 
-        logger.info(
+        log.info(
                 "WebSocket DISCONNECT sessionId={}, user={}",
                 event.getSessionId(),
                 event.getUser() != null
