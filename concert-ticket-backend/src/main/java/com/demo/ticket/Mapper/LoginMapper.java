@@ -15,7 +15,7 @@ public interface LoginMapper {
     /**
      * 將註冊資料寫入會員資料表。
      */
-    int create(Register register);
+    void create(Register register);
 
     /**
      * 以傳入 account 同時比對會員帳號或完整 email，回傳含密碼雜湊的會員資料，僅供後端處理。

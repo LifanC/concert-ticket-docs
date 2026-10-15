@@ -1,12 +1,52 @@
 // 閱讀導引：供註冊 SQL 寫入的會員資料；password 應為服務層產生的 BCrypt 雜湊。
 package com.demo.ticket.Dto.Login;
 
+import lombok.*;
+
+@Setter
+@Getter
+@Builder
 public class Register {
 
+    /**
+     * -- GETTER --
+     *  回傳會員帳號。
+     * -- SETTER --
+     *  設定會員帳號。
+
+     */
     private String account;
+    /**
+     * -- GETTER --
+     *  回傳名稱。
+     * -- SETTER --
+     *  設定名稱。
+
+     */
     private String name;
+    /**
+     * -- GETTER --
+     *  回傳會員電子郵件。
+     * -- SETTER --
+     *  設定會員電子郵件。
+
+     */
     private String email;
+    /**
+     * -- GETTER --
+     *  回傳電話。
+     * -- SETTER --
+     *  設定電話。
+
+     */
     private String phone;
+    /**
+     * -- GETTER --
+     *  回傳待寫入資料庫的 BCrypt 密碼雜湊，不是註冊請求中的明文密碼。
+     * -- SETTER --
+     *  設定已編碼的密碼雜湊；編碼處理由註冊服務呼叫 BCrypt 完成。
+
+     */
     private String password;
 
     /**
@@ -26,73 +66,4 @@ public class Register {
         this.password = password;
     }
 
-    /**
-     * 回傳會員帳號。
-     */
-    public String getAccount() {
-        return account;
-    }
-
-    /**
-     * 設定會員帳號。
-     */
-    public void setAccount(String account) {
-        this.account = account;
-    }
-
-    /**
-     * 回傳名稱。
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * 設定名稱。
-     */
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    /**
-     * 回傳會員電子郵件。
-     */
-    public String getEmail() {
-        return email;
-    }
-
-    /**
-     * 設定會員電子郵件。
-     */
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    /**
-     * 回傳電話。
-     */
-    public String getPhone() {
-        return phone;
-    }
-
-    /**
-     * 設定電話。
-     */
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    /**
-     * 回傳待寫入資料庫的 BCrypt 密碼雜湊，不是註冊請求中的明文密碼。
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * 設定已編碼的密碼雜湊；編碼處理由註冊服務呼叫 BCrypt 完成。
-     */
-    public void setPassword(String password) {
-        this.password = password;
-    }
 }

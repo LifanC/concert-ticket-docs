@@ -64,15 +64,21 @@ spring:
     driver-class-name: org.postgresql.Driver
 
 # -----------------------------
+# 訂單逾期掃描設定
+# -----------------------------
+booking:
+  expiration:
+    scan-delay-ms: 30000 # 每輪掃描結束後等待 30 秒；不是付款期限
+
+# -----------------------------
 # MyBatis 設定
 # -----------------------------
 mybatis:
   mapper-locations: classpath:Mapper/**/*.xml  # 指定 Mapper XML 對應檔的位置
   configuration:
-    # org.apache.ibatis.logging.stdout.StdOutImpl：將 SQL 日誌直接輸出至主控台
-    # org.apache.ibatis.logging.log4j2.Log4j2Impl：透過 Log4j2 記錄日誌
-    # org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl：透過 JDK 內建日誌系統記錄日誌
-    log-impl: org.apache.ibatis.logging.jdk14.Jdk14LoggingImpl
+    # org.apache.ibatis.logging.stdout.StdOutImpl
+    # org.apache.ibatis.logging.slf4j.Slf4jImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     mapUnderscoreToCamelCase: true # 將底線分隔的欄位名稱對應至駝峰命名的屬性
 
 # -----------------------------
@@ -87,5 +93,4 @@ logging:
     org.springframework: INFO
     org.mybatis: INFO
     # 設定指定 Mapper 套件的日誌層級
-    com.example.demo.Mapper: DEBUG
-    me.paulschwarz: DEBUG
+    com.demo.ticket.Mapper: DEBUG
