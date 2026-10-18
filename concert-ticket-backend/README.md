@@ -73,6 +73,8 @@ WebSocket 端點為 `/api/ws`，前端透過 STOMP `CONNECT` 的 `Authorization:
 
 ## JWT 登入驗證流程
 
+短時間內登入太多次時，後端會拒絕請求，並告知還要等幾秒，預設最多等 60 秒。會員頁會顯示倒數，等時間到了才能再按登入。後端使用 HTTP 429 表示請求過多，並透過 `Retry-After` 提供等待時間；已允許不同網域的前端讀取這項資訊。次數上限與部署設定見 [安全設定與部署](../docs/SECURITY.md)。
+
 Token 是登入後使用的身分憑證。Access Token 用來呼叫 API，Refresh Token 用來更新過期的 Access Token。
 
 1. 前端送出帳號與密碼，後端確認是否正確。
