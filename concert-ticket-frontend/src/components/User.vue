@@ -1,6 +1,7 @@
 <script setup>
 // 閱讀導引：會員頁：處理登入、註冊、資料修改與登出，成功後同步前端登入狀態。
 import { useRouter } from 'vue-router'
+import { onBeforeUnmount } from 'vue'
 import { loginApi } from '@/services/api'
 import { syncAuth, resetAuth } from '@/services/auth'
 import { toFindCookie, addCookie, clearCookie } from "@/components/componentsJs/cookie.js";
@@ -9,6 +10,49 @@ import { connectWebSocket, disconnectWebSocket } from "@/services/websocket";
 const router = useRouter()
 const activeTab = ref('login')
 const isLoggedIn = ref(false)
+const loginError = ref('')
+const loginSubmitting = ref(false)
+const loginRetrySeconds = ref(0)
+let loginRetryTimer
+
+function startLoginCooldown(seconds) {
+  clearInterval(loginRetryTimer)
+  const retryAt = Date.now() + seconds * 1000
+  const updateCountdown = () => {
+    loginRetrySeconds.value = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000))
+    loginError.value = loginRetrySeconds.value > 0
+      ? `登入嘗試次數過多，請於 ${loginRetrySeconds.value} 秒後再試。`
+      : ''
+    if (loginRetrySeconds.value === 0) clearInterval(loginRetryTimer)
+  }
+  updateCountdown()
+  loginRetryTimer = setInterval(updateCountdown, 1000)
+}
+
+onBeforeUnmount(() => clearInterval(loginRetryTimer))
+
+function handleLoginError(error) {
+  if (error.response?.status === 429) {
+    const retryAfter = error.response.headers?.['retry-after']
+    const seconds = retryAfter && /^\d+$/.test(String(retryAfter))
+      ? Number(retryAfter)
+      : Math.ceil((Date.parse(retryAfter) - Date.now()) / 1000)
+    if (Number.isFinite(seconds) && seconds > 0) {
+      startLoginCooldown(seconds)
+    } else {
+      loginError.value = '登入嘗試次數過多，請稍後再試。'
+    }
+    return
+  }
+  const data = error.response?.data?.data?.[1]?.error ?? {}
+  loginFormNotOk.value = {
+    account: data.account ?? '',
+    password: data.password ?? '',
+  }
+  if (!data.account && !data.password) {
+    loginError.value = '登入暫時無法完成，請稍後再試。'
+  }
+}
 const loginForm = reactive(
   {
     account: '',
@@ -69,6 +113,8 @@ function executeFirst() {
 
 /** 先呼叫 login 讓瀏覽器保存 HttpOnly refresh cookie，再呼叫 validate 取得 access token；兩步成功後同步會員資料並前往活動頁。 */
 const submitLogin = async () => {
+  if (loginSubmitting.value || loginRetrySeconds.value > 0) return
+  loginError.value = ''
   loginFormNotOk.value = {
     account: '',
     password: '',
@@ -77,6 +123,7 @@ const submitLogin = async () => {
     !loginForm.account ||
     !loginForm.password
   ) return
+  loginSubmitting.value = true
   let isLoggedIn_ = false
   try {
     const response = await loginApi({
@@ -123,11 +170,7 @@ const submitLogin = async () => {
           })
         }
       } catch (error) {
-        let data = error.response.data.data[1]?.error ?? {}
-        loginFormNotOk.value = {
-          account: data.account ?? '',
-          password: data.password ?? '',
-        }
+        handleLoginError(error)
       }
     } else {
       ElMessage({
@@ -136,11 +179,9 @@ const submitLogin = async () => {
       })
     }
   } catch (error) {
-    let data = error.response.data.data[1]?.error ?? {}
-    loginFormNotOk.value = {
-      account: data.account ?? '',
-      password: data.password ?? '',
-    }
+    handleLoginError(error)
+  } finally {
+    loginSubmitting.value = false
   }
   isLoggedIn.value = isLoggedIn_
   if (!isLoggedIn_) {
@@ -345,9 +386,24 @@ const logout = async () => {
         <h2>下一場精彩，<br>從這裡開始。</h2>
         <p class="intro-description">把期待留給現場，<br>把訂票與帳戶管理交給我們。</p>
         <div class="member-benefits">
-          <div><span class="benefit-number">01</span><div><h3>探索喜愛的活動</h3><p>找到值得親臨現場的精彩演出。</p></div></div>
-          <div><span class="benefit-number">02</span><div><h3>管理電子票券</h3><p>登入後查看屬於你的演出票券。</p></div></div>
-          <div><span class="benefit-number">03</span><div><h3>更新聯絡資訊</h3><p>讓訂單與活動通知順利送達。</p></div></div>
+          <div><span class="benefit-number">01</span>
+            <div>
+              <h3>探索喜愛的活動</h3>
+              <p>找到值得親臨現場的精彩演出。</p>
+            </div>
+          </div>
+          <div><span class="benefit-number">02</span>
+            <div>
+              <h3>管理電子票券</h3>
+              <p>登入後查看屬於你的演出票券。</p>
+            </div>
+          </div>
+          <div><span class="benefit-number">03</span>
+            <div>
+              <h3>更新聯絡資訊</h3>
+              <p>讓訂單與活動通知順利送達。</p>
+            </div>
+          </div>
         </div>
         <router-link class="explore-link" to="/">探索活動 <span aria-hidden="true">↗</span></router-link>
       </aside>
@@ -359,6 +415,8 @@ const logout = async () => {
               <el-text type="info">登入後可管理訂單與電子票券。</el-text>
             </div>
             <el-form :model="loginForm" label-position="top" class="account-form" @submit.prevent="submitLogin">
+              <el-alert v-if="loginError" :title="loginError" type="warning" :closable="false" show-icon
+                class="login-alert" role="alert" />
               <el-form-item label="電子信箱或帳號" required
                 :error="loginFormNotOk.account !== '' ? loginFormNotOk.account : ''">
                 <el-input v-model="loginForm.account" placeholder="wang@example.com" autocomplete="username" />
@@ -367,7 +425,10 @@ const logout = async () => {
                 <el-input v-model="loginForm.password" type="password" show-password placeholder="請輸入密碼"
                   autocomplete="current-password" />
               </el-form-item>
-              <el-button type="primary" class="submit-button" native-type="submit">登入</el-button>
+              <el-button type="primary" class="submit-button" native-type="submit" :loading="loginSubmitting"
+                :disabled="loginRetrySeconds > 0">
+                {{ loginRetrySeconds > 0 ? `請稍候 ${loginRetrySeconds} 秒` : '登入' }}
+              </el-button>
             </el-form>
             <p class="switch-text">還沒有帳戶？
               <el-button text type="primary" @click="activeTab = 'register'">立即註冊</el-button>
@@ -377,7 +438,8 @@ const logout = async () => {
             <div class="form-heading">
               <h2>建立新帳戶</h2><el-text type="info">請填寫基本資料，完成後即可開始訂票。</el-text>
             </div>
-            <el-form :model="registerForm" label-position="top" class="account-form details-form" @submit.prevent="submitRegister">
+            <el-form :model="registerForm" label-position="top" class="account-form details-form"
+              @submit.prevent="submitRegister">
               <el-form-item label="帳號" required
                 :error="registerFormNotOk.account !== '' ? registerFormNotOk.account : ''">
                 <el-input v-model="registerForm.account" placeholder="請輸入帳號" />
@@ -515,7 +577,7 @@ const logout = async () => {
   border-top: 1px solid #c7b7a7;
 }
 
-.member-benefits > div {
+.member-benefits>div {
   display: flex;
   align-items: baseline;
   gap: 16px;

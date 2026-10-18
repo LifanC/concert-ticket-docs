@@ -4,12 +4,16 @@ import com.demo.ticket.security.RateLimitException;
 import com.demo.ticket.security.RedisRateLimiter;
 import com.demo.ticket.security.RequestLimits;
 import com.demo.ticket.security.RequestRateLimitFilter;
+import com.demo.ticket.security.SecurityConfig;
+import com.demo.ticket.security.JwtAuthenticationFilter;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.filter.CorsFilter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -62,6 +66,24 @@ class RequestSecurityTests {
         filter.doFilter(request, response, chain);
         assertEquals(429, response.getStatus());
         assertEquals("17", response.getHeader("Retry-After"));
+        verifyNoInteractions(chain);
+    }
+
+    @Test
+    void crossOriginRateLimitExposesRetryAfterToFrontend() throws Exception {
+        SecurityConfig config = new SecurityConfig(mock(JwtAuthenticationFilter.class), filter);
+        ReflectionTestUtils.setField(config, "allowedOrigins", new String[]{"http://localhost:5173"});
+        CorsFilter cors = new CorsFilter(config.corsConfigurationSource());
+        request.addHeader("Origin", "http://localhost:5173");
+        doThrow(new RateLimitException(17)).when(limiter).check("login-ip", "192.0.2.1", 20, 60);
+
+        cors.doFilter(request, response, (req, res) -> filter.doFilter(req, res, chain));
+
+        assertEquals(429, response.getStatus());
+        assertEquals("17", response.getHeader("Retry-After"));
+        assertEquals("Retry-After", response.getHeader("Access-Control-Expose-Headers"));
+        assertEquals("http://localhost:5173", response.getHeader("Access-Control-Allow-Origin"));
+        assertEquals("true", response.getHeader("Access-Control-Allow-Credentials"));
         verifyNoInteractions(chain);
     }
 

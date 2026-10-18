@@ -180,6 +180,8 @@ public class SecurityConfig {
                         "Content-Type"
                 )
         );
+        // 讓跨網域前端能讀取限流回應的等待秒數並顯示倒數。
+        configuration.setExposedHeaders(List.of("Retry-After"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
