@@ -1,182 +1,146 @@
-// 閱讀導引：從請求解析 JWT 並建立 Spring Security 登入身分，讓後續 API 取得使用者資訊。
 package com.demo.ticket.security;
 
-import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Common.ConvertFormat;
-import com.demo.ticket.Common.RedisKey;
 import com.demo.ticket.Service.JwtTokenService;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
+/** 驗證受保護的請求，將登入會員與權限放入 Spring Security。 */
 @Component
-@Slf4j
+@NullMarked
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String REQUEST_ID_ATTRIBUTE =
-            JwtAuthenticationFilter.class.getName() + ".REQUEST_ID";
-
-    private final JwtTokenService jwtTokenService;
-    private final StringRedisTemplate stringRedisTemplate;
-    private final ObjectMapper objectMapper;
-
-    /**
-     * 注入 JWT 驗證、Redis 登入紀錄與 JSON 回應工具，供每次 HTTP 請求驗證使用。
-     */
-    public JwtAuthenticationFilter(
-            JwtTokenService jwtTokenService,
-            StringRedisTemplate stringRedisTemplate,
-            ObjectMapper objectMapper
-    ) {
-        this.jwtTokenService = jwtTokenService;
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.objectMapper = objectMapper;
-    }
-
-    private static final Set<String> PUBLIC_PATH_PREFIX = Set.of(
-            "/api/v1/login/register",
-            "/api/v1/login/login",
-            "/api/v1/login/validate",
-            "/api/v1/activity/selectAllActivities",
-            "/api/v1/activity/activityImage/",
-            // WebSocket
-            "/api/ws",
-            // Swagger
-            "/api/swagger-ui",
-            "/api/v3/api-docs"
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "/v1/login/register",
+            "/v1/login/login",
+            "/v1/login/validate",
+            "/v1/activity/selectAllActivities",
+            "/ws",
+            "/swagger-ui.html",
+            "/v3/api-docs"
     );
 
-    /**
-     * 用完整請求 URI 的前綴比對公開端點，回傳 true 表示略過 JWT 驗證；同時建立或沿用 requestId 供追蹤。
-     */
+    private static final Set<String> PUBLIC_PATH_PREFIXES = Set.of(
+            "/v1/activity/activityImage/",
+            "/ws/",
+            "/swagger-ui/",
+            "/v3/api-docs/"
+    );
+
+    private final JwtTokenService tokens;
+    private final RedisRateLimiter limiter;
+    private final RequestLimits limits;
+
+    public JwtAuthenticationFilter(JwtTokenService tokens,
+                                   RedisRateLimiter limiter,
+                                   RequestLimits limits) {
+        this.tokens = tokens;
+        this.limiter = limiter;
+        this.limits = limits;
+    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        // 不需要 JWT 的路徑
-        boolean skip = PUBLIC_PATH_PREFIX.stream().anyMatch(path::startsWith);
-        Object requestId = request.getAttribute(REQUEST_ID_ATTRIBUTE);
-        if (requestId == null) {
-            requestId = UUID.randomUUID().toString();
-            request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
-        }
-        log.info("JWT requestId={} method={} uri={} dispatcher={} alreadyFiltered={} skip={}",
-                requestId,
-                request.getMethod(),
-                path,
-                request.getDispatcherType(),
-                request.getAttribute(getAlreadyFilteredAttributeName()) != null,
-                skip);
-        return skip;
+        String requestPath = RequestPathUtils.path(request);
+        return "OPTIONS".equals(request.getMethod())
+                || PUBLIC_PATHS.contains(requestPath)
+                || PUBLIC_PATH_PREFIXES.stream().anyMatch(requestPath::startsWith);
     }
 
-    /**
-     * 驗證 Bearer JWT 的簽章與期限，拒絕黑名單 token，將權限與 LoginUser 放入 Spring Security 上下文。
-     * Redis access 紀錄是否存在保存在 LoginUser.accessExists，並非在此一律拒絕；後續服務依此確認登入有效性。
-     * JWT 過期或無效時清除上下文並回傳 JSON 401，避免後續端點使用不合法身分。
-     */
     @Override
-    protected void doFilterInternal(
-            @Nonnull HttpServletRequest request,
-            @Nonnull HttpServletResponse response,
-            @Nonnull FilterChain filterChain
-    ) throws IOException {
-        String token = ConvertFormat.resolveToken(request.getHeader("Authorization"));
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws IOException, ServletException {
         try {
-            Claims claims = jwtTokenService.accessTokenInRedis(token);
-            final String jti = claims.getId();
-            final String jwt = claims.getSubject();
-            final Instant jexpiresAt = claims.getExpiration().toInstant();
-            final String accessRedisKey = String.format(
-                    RedisKey.redisKey.get("access"),
-                    jti,
-                    jwt
-            );
-            Boolean accessExists = stringRedisTemplate.hasKey(accessRedisKey);
-            LoginUser user = new LoginUser(
-                    jti,
-                    jwt,
-                    jexpiresAt,
-                    accessExists
-            );
-            List<String> authorities = claims.get("authorities", List.class);
-            final String blacklistRedisKey = String.format(
-                    RedisKey.redisKey.get("blacklist"),
-                    user.tokenId()
-            );
-            Boolean blacklistExists = stringRedisTemplate.hasKey(blacklistRedisKey);
-            if (Boolean.TRUE.equals(blacklistExists)) {
-                throw new JwtException("JWT 無效");
-            }
-
-            List<SimpleGrantedAuthority> grantedAuthorities =
-                    authorities.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            grantedAuthorities
-                    );
-            SecurityContextHolder
-                    .getContext()
-                    .setAuthentication(authentication);
-            filterChain.doFilter(request, response);
-        } catch (ExpiredJwtException e) {
+            authenticateRequest(request);
+        } catch (JwtException | IllegalArgumentException exception) {
             SecurityContextHolder.clearContext();
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            objectMapper.writeValue(
-                    response.getWriter(),
-                    Map.of(
-                            "status", 401,
-                            "message", "JWT 已過期"
-                    )
+            SecurityErrorResponse.write(
+                    response,
+                    HttpStatus.UNAUTHORIZED.value(),
+                    "Token 無效或已過期"
             );
-
-        } catch (JwtException | IllegalArgumentException e) {
+            return;
+        } catch (RateLimitException exception) {
             SecurityContextHolder.clearContext();
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            objectMapper.writeValue(
-                    response.getWriter(),
-                    Map.of(
-                            "status", 401,
-                            "message", e.getMessage()
-                    )
+            SecurityErrorResponse.write(
+                    response,
+                    HttpStatus.TOO_MANY_REQUESTS.value(),
+                    exception.getRetryAfter(),
+                    "請求過於頻繁，請稍後再試"
             );
-        } catch (Exception e) {
+            return;
+        } catch (DataAccessException exception) {
             SecurityContextHolder.clearContext();
-            // 如果是 WebSocket handshake，直接拒絕
-            if (request.getRequestURI().startsWith("/ws")) {
-                response.sendError(
-                        HttpServletResponse.SC_UNAUTHORIZED,
-                        "WebSocket JWT 無效或已過期"
-                );
-            }
+            SecurityErrorResponse.write(
+                    response,
+                    HttpStatus.SERVICE_UNAVAILABLE.value(),
+                    5,
+                    "服務暫時無法使用"
+            );
+            return;
         }
+
+        // 後續業務錯誤交給原本的處理流程，避免被誤判為登入錯誤。
+        chain.doFilter(request, response);
     }
 
+    /** JWT 與 Redis 的登入有效性由 JwtTokenService 統一驗證。 */
+    private void authenticateRequest(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader == null) {
+            throw new JwtException("缺少登入憑證");
+        }
+
+        String accessToken = ConvertFormat.resolveToken(authorizationHeader);
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new JwtException("登入憑證格式不正確");
+        }
+
+        Claims claims = tokens.accessTokenInRedis(accessToken);
+        UsernamePasswordAuthenticationToken authentication = createAuthentication(claims);
+
+        if (RequestPathUtils.path(request).equals("/v1/booking/saveTicket")) {
+            limiter.check("booking-user", claims.getSubject(),
+                    limits.getBookingPerUser(), limits.getWindowSeconds());
+        }
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    /** 將已驗證的 JWT 內容轉成 Spring Security 使用的會員身分與權限。 */
+    private UsernamePasswordAuthenticationToken createAuthentication(Claims claims) {
+        List<?> permissionCodes = claims.get("authorities", List.class);
+        if (permissionCodes == null || permissionCodes.stream().anyMatch(code ->
+                !(code instanceof String))) {
+            throw new JwtException("Token 權限無效");
+        }
+
+        List<SimpleGrantedAuthority> authorities = permissionCodes.stream()
+                .map(code -> new SimpleGrantedAuthority((String) code))
+                .toList();
+        LoginUser user = new LoginUser(
+                claims.getId(),
+                claims.getSubject(),
+                claims.getExpiration().toInstant(),
+                true
+        );
+        return new UsernamePasswordAuthenticationToken(user, null, authorities);
+    }
 }

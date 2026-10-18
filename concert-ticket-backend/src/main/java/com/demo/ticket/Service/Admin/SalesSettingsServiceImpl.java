@@ -112,8 +112,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         Map<String, Object> saved = salesSettingsMapper.settings(sessionId);
         long version = saved == null ? 0 : ((Number) saved.get("version")).longValue();
         // 版本號避免舊草稿覆蓋其他管理員剛儲存的設定。
-        if (request.version() != version)
+        if (request.version() != version) {
             throw new BookingException("SETTINGS_VERSION_CONFLICT", "設定已由其他管理員更新，請重新載入", HttpStatus.CONFLICT);
+        }
         // 已有保留或售出座位時凍結設定，維持既有訂單的座位及票價語意。
         if (isLocked(sessionId, session)) {
             throw new BookingException("SALES_SETTINGS_LOCKED", "場次已有保留或售出座位，不能修改配置", HttpStatus.CONFLICT);
@@ -123,8 +124,9 @@ public class SalesSettingsServiceImpl implements SalesSettingsService {
         int perRow = integer(layout.get("seats_per_row"));
         validate(request, rows, perRow, ((Number) session.get("capacity")).longValue());
         List<String> allSeats = seats(rows, perRow);
-        if (!new HashSet<>(allSeats).containsAll(salesSettingsMapper.seats(sessionId)))
+        if (!new HashSet<>(allSeats).containsAll(salesSettingsMapper.seats(sessionId))) {
             throw invalid("場次既有座位與配置不一致");
+        }
         salesSettingsMapper.saveSettings(
                 Map.of(
                         "sessionId", sessionId,

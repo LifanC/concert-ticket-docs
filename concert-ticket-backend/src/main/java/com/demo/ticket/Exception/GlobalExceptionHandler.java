@@ -1,140 +1,166 @@
-// 閱讀導引：集中處理控制器例外；一般錯誤使用 ApiResponse，訂票例外另回傳 code、message、traceId 及 timestamp。
 package com.demo.ticket.Exception;
 
+import com.demo.ticket.Dto.ApiErrorResponse;
+import com.demo.ticket.security.RateLimitException;
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
-import com.demo.ticket.Dto.ApiResponse;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.security.access.AccessDeniedException;
-import io.jsonwebtoken.JwtException;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.UUID;
 
+/** 集中決定各種例外的狀態與訊息，所有回應由 error() 統一組裝。 */
 @RestControllerAdvice
 @Slf4j
+@NullMarked
 public class GlobalExceptionHandler {
 
-    /**
-     * 將訂票例外的錯誤代碼、訊息與 HTTP 狀態轉為 API 回應。
-     */
-    @ExceptionHandler(BookingException.class)
-    public ResponseEntity<?> handleBooking(BookingException ex) {
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimit(RateLimitException exception) {
+        ApiErrorResponse body = error(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        "RATE_LIMIT_EXCEEDED",
+                        "請求過於頻繁，請稍後再試"
+        );
         return ResponseEntity
-                .status(ex.getStatus())
-                .body(
-                        Map.of(
-                                "code", ex.getCode(),
-                                "message", ex.getMessage(),
-                                "traceId", UUID.randomUUID().toString(),
-                                "timestamp", Instant.now().toString()
-                        )
-                );
+                .status(body.status())
+                .header("Retry-After", Long.toString(exception.getRetryAfter()))
+                .body(body);
     }
 
-    // DTO 驗證失敗
-    /**
-     * 收集輸入驗證錯誤，整理成表單欄位可對應的 HTTP 400 回應。
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidationException(
-            MethodArgumentNotValidException ex) {
-        log.warn("參數驗證失敗: {}", ex.getMessage());
-        Map<String, String> fieldErrors = new TreeMap<>();
-        ex.getBindingResult()
-                .getFieldErrors()
-                .forEach(error -> {
-                    fieldErrors.put(
-                            error.getField(),
-                            error.getDefaultMessage()
-                    );
-                });
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataUnavailable() {
+        ApiErrorResponse body = error(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "SERVICE_UNAVAILABLE",
+                "服務暫時無法使用"
+        );
+        return ResponseEntity
+                .status(body.status())
+                .header("Retry-After", "5")
+                .body(body);
+    }
 
+    @ExceptionHandler(BookingException.class)
+    public ResponseEntity<ApiErrorResponse> handleBooking(BookingException exception) {
+        return response(
+                error(
+                        exception.getStatus(),
+                        exception.getCode(),
+                        Objects.requireNonNullElse(
+                                exception.getMessage(),
+                                "訂票操作失敗"
+                        )
+                )
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException exception) {
+        Map<String, String> fieldErrors = new TreeMap<>();
+        exception.getBindingResult().getFieldErrors().forEach(fieldError ->
+                fieldErrors.putIfAbsent(fieldError.getField(),
+                        Objects.requireNonNullElse(
+                                fieldError.getDefaultMessage(),
+                                "欄位格式不正確")
+                )
+        );
         return validationError(fieldErrors);
     }
 
-    /**
-     * 將指定欄位的驗證例外轉成表單錯誤回應。
-     */
     @ExceptionHandler(FieldValidationException.class)
-    public ResponseEntity<?> handleFieldValidation(FieldValidationException ex) {
-        log.warn("欄位驗證失敗: {}: {}", ex.getField(), ex.getMessage());
-        return validationError(Map.of(ex.getField(), ex.getMessage()));
-    }
-
-    /**
-     * 回傳 HTTP 400；data[0].remark 說明驗證失敗，data[1].error 以欄位名稱對應錯誤文字，供表單定位。
-     */
-    private ResponseEntity<?> validationError(Map<String, String> fieldErrors) {
-        HttpStatus status = HttpStatus.BAD_REQUEST;
-        List<Map<String, Object>> data = List.of(
-                Map.of("remark", "參數驗證失敗"),
-                Map.of("error", fieldErrors)
+    public ResponseEntity<ApiErrorResponse> handleFieldValidation(FieldValidationException exception) {
+        return validationError(
+                Map.of(
+                        exception.getField(),
+                        Objects.requireNonNullElse(
+                                exception.getMessage(),
+                                "欄位格式不正確")
+                )
         );
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
     }
 
-    /**
-     * 將資料庫唯一鍵衝突轉為使用者可理解的錯誤回應。
-     */
     @ExceptionHandler(DuplicateKeyException.class)
-    public ResponseEntity<?> handleDuplicateKey(DuplicateKeyException ex) {
-        log.warn("資料已存在", ex);
-        return error(HttpStatus.CONFLICT, "資料已存在");
+    public ResponseEntity<ApiErrorResponse> handleDuplicateKey() {
+        return response(
+                error(
+                        HttpStatus.CONFLICT,
+                        "DUPLICATE_DATA",
+                        "資料已存在")
+        );
     }
 
-    /**
-     * 將 JWT 驗證例外轉成未授權回應，讓前端處理登入失效。
-     */
-    @ExceptionHandler({JwtException.class})
-    public ResponseEntity<?> handleJwtException(JwtException ex) {
-        log.warn("Token 驗證失敗: {}", ex.getMessage());
-        return error(HttpStatus.UNAUTHORIZED, "Token 無效或已過期");
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiErrorResponse> handleJwtException() {
+        return response(
+                error(
+                        HttpStatus.UNAUTHORIZED,
+                        "UNAUTHORIZED",
+                        "Token 無效或已過期"
+                )
+        );
     }
 
-    /**
-     * 將權限不足例外轉為 HTTP 403 回應。
-     */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<?> handleAccessDenied(AccessDeniedException ex) {
-        log.warn("權限不足: {}", ex.getMessage());
-        return error(HttpStatus.FORBIDDEN, "權限不足");
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied() {
+        return response(
+                error(
+                        HttpStatus.FORBIDDEN,
+                        "FORBIDDEN",
+                        "權限不足"
+                )
+        );
     }
 
-    /**
-     * 將 IllegalArgumentException 與 IllegalStateException 轉為 HTTP 400，使用例外訊息作為回應 remark。
-     */
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
-    public ResponseEntity<?> handleInvalidOperation(RuntimeException ex) {
-        log.warn("操作失敗: {}", ex.getMessage());
-        return error(HttpStatus.BAD_REQUEST, ex.getMessage());
+    public ResponseEntity<ApiErrorResponse> handleInvalidOperation(RuntimeException exception) {
+        return response(
+                error(
+                        HttpStatus.BAD_REQUEST,
+                        "INVALID_OPERATION",
+                        Objects.requireNonNullElse(
+                                exception.getMessage(),
+                                "操作失敗")
+                )
+        );
     }
 
-    /**
-     * 依 HTTP 狀態及訊息組裝共用錯誤回應。
-     */
-    private ResponseEntity<?> error(HttpStatus status, String message) {
+    private ResponseEntity<ApiErrorResponse> response(ApiErrorResponse body) {
         return ResponseEntity
-                .status(status)
-                .body(
-                        ApiResponse.api(status, msg(message))
+                .status(body.status())
+                .body(body);
+    }
+
+    private ResponseEntity<ApiErrorResponse> validationError(Map<String, String> fieldErrors) {
+        ApiErrorResponse body = error(
+                HttpStatus.BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "參數驗證失敗"
+        ).withFieldErrors(fieldErrors);
+        return response(body);
+    }
+
+    private ApiErrorResponse error(HttpStatus status, String code, String message) {
+        String traceId = UUID.randomUUID().toString();
+        // 不記錄原始 JWT、表單拒絕值或資料庫例外內容。
+        log.warn("API error traceId={} status={} code={}", traceId, status.value(), code);
+        List<Map<String, Object>> data =
+                List.of(
+                        Map.of("remark", message),
+                        Map.of("error", Map.of())
                 );
+        return new ApiErrorResponse(status.value(), code, message, traceId, Instant.now(), data);
     }
-
-    /**
-     * 將錯誤訊息整理成 API 使用的資料清單。
-     */
-    private List<Map<String, Object>> msg(String ex) {
-        return List.of(Map.of("remark", ex));
-    }
-
 }

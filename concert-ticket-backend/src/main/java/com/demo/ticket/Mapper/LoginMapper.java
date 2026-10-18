@@ -28,7 +28,7 @@ public interface LoginMapper {
     void save(LoginSaveProfile loginSaveProfile);
 
     /**
-     * 依會員 email 的 @ 前段比對權限資料，回傳權限代碼；目前 SQL 不是完整 email 比對。
+     * 依會員完整 email 查詢權限代碼，避免不同網域的同名會員共用權限。
      */
     List<String> selectPermissions(String account);
 

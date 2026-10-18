@@ -20,7 +20,7 @@
         SELECT id
         FROM interviewworks_ticket.session
         WHERE id = #{sessionId}
-        FOR UPDATE
+            FOR UPDATE
     </select>
 
     <select id="sessionSnapshot" resultType="java.util.Map">
@@ -90,8 +90,7 @@
     <!-- 唯一鍵由會員及識別碼組成；衝突時由服務讀取舊回應，不另建立訂單。 -->
     <insert id="claimKey">
         INSERT INTO interviewworks_ticket.booking_idempotency(email, idempotency_key, request_hash)
-        VALUES (#{email}, #{idempotencyKey}, #{hash})
-            ON CONFLICT DO NOTHING
+        VALUES (#{email}, #{idempotencyKey}, #{hash}) ON CONFLICT DO NOTHING
     </insert>
 
     <select id="findKey" resultType="java.util.Map">
@@ -99,7 +98,7 @@
         FROM interviewworks_ticket.booking_idempotency
         WHERE email = #{email}
           AND idempotency_key = #{idempotencyKey}
-        FOR UPDATE
+            FOR UPDATE
     </select>
 
     <!-- 只有未完成的請求可寫入結果，保存的 JSON 用於相同請求重試。 -->

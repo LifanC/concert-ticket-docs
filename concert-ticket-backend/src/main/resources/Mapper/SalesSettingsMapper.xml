@@ -17,7 +17,11 @@
         WHERE s.id = #{sessionId}
     </select>
     <select id="settings" resultType="java.util.Map" flushCache="true">
-        SELECT session_id, max_tickets_per_member, version, seat_rows, seats_per_row
+        SELECT session_id,
+               max_tickets_per_member,
+               version,
+               seat_rows,
+               seats_per_row
         FROM interviewworks_ticket.session_sales_settings
         WHERE session_id = #{sessionId}
     </select>
@@ -42,7 +46,10 @@
         ORDER BY z.sort_order
     </select>
     <select id="ticketTypes" resultType="java.util.Map">
-        SELECT id, name, price_percent AS "pricePercent", eligibility
+        SELECT id,
+               name,
+               price_percent AS "pricePercent",
+               eligibility
         FROM interviewworks_ticket.session_ticket_type
         WHERE session_id = #{sessionId}
         ORDER BY sort_order
@@ -73,12 +80,21 @@
           AND (status = 'PAID' OR (status = 'PENDING_PAYMENT' AND expires_at > CURRENT_TIMESTAMP))
     </select>
     <insert id="saveSettings">
-        INSERT INTO interviewworks_ticket.session_sales_settings
-            (session_id, max_tickets_per_member, version, seat_rows, seats_per_row)
-        VALUES (#{sessionId}, #{maxTicketsPerMember}, #{version}, #{seatRows},
+        INSERT INTO interviewworks_ticket.session_sales_settings(session_id,
+                                                                 max_tickets_per_member,
+                                                                 version,
+                                                                 seat_rows,
+                                                                 seats_per_row)
+        VALUES (#{sessionId},
+                #{maxTicketsPerMember},
+                #{version},
+                #{seatRows},
                 #{seatsPerRow}) ON CONFLICT (session_id) DO
-        UPDATE SET max_tickets_per_member = EXCLUDED.max_tickets_per_member,
-            version = EXCLUDED.version, seat_rows = EXCLUDED.seat_rows, seats_per_row = EXCLUDED.seats_per_row
+        UPDATE
+            SET max_tickets_per_member = EXCLUDED.max_tickets_per_member,
+            version = EXCLUDED.version,
+            seat_rows = EXCLUDED.seat_rows,
+            seats_per_row = EXCLUDED.seats_per_row
     </insert>
     <update id="clearSeatZones">
         UPDATE interviewworks_ticket.session_seat
@@ -96,22 +112,44 @@
         WHERE session_id = #{sessionId}
     </delete>
     <insert id="insertZone">
-        INSERT INTO interviewworks_ticket.session_zone (id, session_id, name, color, row_start, row_end, price, sort_order)
+        INSERT INTO interviewworks_ticket.session_zone (id,
+                                                        session_id,
+                                                        name,
+                                                        color,
+                                                        row_start,
+                                                        row_end,
+                                                        price,
+                                                        sort_order)
         VALUES (#{id}, #{sessionId}, #{name}, #{color}, #{rowStart}, #{rowEnd}, #{price}, #{sortOrder})
     </insert>
     <insert id="insertTicketType">
-        INSERT INTO interviewworks_ticket.session_ticket_type (id, session_id, name, price_percent, eligibility, sort_order)
+        INSERT INTO interviewworks_ticket.session_ticket_type (id,
+                                                               session_id,
+                                                               name,
+                                                               price_percent,
+                                                               eligibility,
+                                                               sort_order)
         VALUES (#{id}, #{sessionId}, #{name}, #{pricePercent}, #{eligibility}, #{sortOrder})
     </insert>
     <!-- 既有座位不覆寫，避免批次補建時重設其狀態。 -->
     <insert id="insertSeats">
-        INSERT INTO interviewworks_ticket.session_seat (session_id, seat_id) VALUES
-        <foreach collection="seats" item="seat" separator=",">(#{sessionId}, #{seat})</foreach>
+        INSERT INTO interviewworks_ticket.session_seat (
+        session_id,
+        seat_id)
+        VALUES
+        <foreach collection="seats" item="seat" separator=",">
+            (#{sessionId}, #{seat})
+        </foreach>
         ON CONFLICT (session_id, seat_id) DO NOTHING
     </insert>
     <update id="assignZone">
-        UPDATE interviewworks_ticket.session_seat SET zone_id = #{zoneId} WHERE session_id = #{sessionId} AND seat_id IN
-        <foreach collection="seats" item="seat" open="(" separator="," close=")">#{seat}</foreach>
+        UPDATE interviewworks_ticket.session_seat
+        SET zone_id = #{zoneId}
+        WHERE session_id = #{sessionId}
+        AND seat_id IN
+        <foreach collection="seats" item="seat" open="(" separator="," close=")">
+            #{seat}
+        </foreach>
     </update>
     <!-- 座位分區與票種都須屬於同一場次；折扣金額由 Java 用 BigDecimal 計算。 -->
     <select id="seatPrice" resultType="java.util.Map">

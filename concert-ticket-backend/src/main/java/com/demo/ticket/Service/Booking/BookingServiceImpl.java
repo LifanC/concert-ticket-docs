@@ -14,6 +14,7 @@ import com.demo.ticket.Service.Admin.SalesSettingsService;
 import com.demo.ticket.security.LoginUser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,6 +34,9 @@ import java.util.*;
 
 @Service
 public class BookingServiceImpl implements BookingService {
+
+    @Value("${booking.payment.simulation-enabled:false}")
+    private boolean simulationEnabled;
 
     private final BookingMapper bookingMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -286,14 +290,15 @@ public class BookingServiceImpl implements BookingService {
      * 要求 Redis 仍有此 token 的登入紀錄且未被列入黑名單；不符合時拋出 HTTP 401 訂票例外。
      */
     private void requireAuthenticated(LoginUser user) {
-        boolean invalid = user == null
-                || !Boolean.TRUE.equals(user.accessExists())
-                || !Boolean.TRUE.equals(stringRedisTemplate.hasKey(
-                        String.format(RedisKey.redisKey.get("access"), user.tokenId(), user.email())))
-                || Boolean.TRUE.equals(stringRedisTemplate.hasKey(
-                        String.format(RedisKey.redisKey.get("blacklist"), user.tokenId())
-        ));
-        if (invalid) {
+        if (user == null || !Boolean.TRUE.equals(user.accessExists())) {
+            throw new BookingException("UNAUTHORIZED", "請重新登入", HttpStatus.UNAUTHORIZED);
+        }
+
+        String accessKey = String.format(RedisKey.redisKey.get("access"), user.tokenId(), user.email());
+        String blacklistKey = String.format(RedisKey.redisKey.get("blacklist"), user.tokenId());
+
+        if (!Boolean.TRUE.equals(stringRedisTemplate.hasKey(accessKey))
+                || Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistKey))) {
             throw new BookingException("UNAUTHORIZED", "請重新登入", HttpStatus.UNAUTHORIZED);
         }
     }
@@ -380,6 +385,8 @@ public class BookingServiceImpl implements BookingService {
     @PreAuthorize("hasAuthority('USER_ITEM_IMPLEMENT')")
     public ResponseEntity<?> dopayprice(BookingDopaypriceRequest request, LoginUser user) {
         requireAuthenticated(user);
+        if (!simulationEnabled) throw new BookingException("PAYMENT_SIMULATION_DISABLED",
+                "模擬付款未開放", HttpStatus.FORBIDDEN);
         String orderno = request.orderno().trim();
         BookingOrder bookingOrder = BookingOrder.builder()
                 .orderno(orderno)

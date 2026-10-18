@@ -16,7 +16,7 @@ public interface JwtTokenService {
     String createRefreshToken(String refreshRedisKey, String jti, int refreshExpirationSecondsAddRndomNumber, String account);
 
     /**
-     * 驗證 refresh token 簽章及期限，回傳 claims；不合法時由 JWT 函式庫拋出例外。
+     * 驗證 refresh token 類型、簽章、期限及 Redis 有效 session 與 token 紀錄。
      */
     Claims validateRefreshToken(String refreshToken);
 
@@ -26,7 +26,7 @@ public interface JwtTokenService {
     String createAccessToken(int accessExpirationSecondsAddRndomNumber, String accessJtId, String accountJwt);
 
     /**
-     * 驗證 access token 的簽章及期限並回傳 claims；此方法本身未查詢 Redis。
+     * 驗證 access token 類型、簽章、期限、權限及 Redis 有效 session 與撤銷狀態。
      */
     Claims accessTokenInRedis(String accessToken);
 }

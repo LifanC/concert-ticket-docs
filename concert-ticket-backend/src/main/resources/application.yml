@@ -6,6 +6,7 @@ jwt:
   accessExpirationSeconds: 1800
 
 analytics:
+  enabled: ${ANALYTICS_ENABLED:true}
   directory: ${ANALYTICS_DIRECTORY:}
   python: ${ANALYTICS_PYTHON:}
   delay-ms: ${ANALYTICS_DELAY_MS:1800000}
@@ -21,6 +22,7 @@ auth:
 # -----------------------------
 server:
   port: ${PORT:8080}
+  forward-headers-strategy: none
   servlet:
     context-path: /api
 
@@ -67,6 +69,8 @@ spring:
 # 訂單逾期掃描設定
 # -----------------------------
 booking:
+  payment:
+    simulation-enabled: ${PAYMENT_SIMULATION_ENABLED:false}
   expiration:
     scan-delay-ms: 30000 # 每輪掃描結束後等待 30 秒；不是付款期限
 
@@ -93,4 +97,23 @@ logging:
     org.springframework: INFO
     org.mybatis: INFO
     # 設定指定 Mapper 套件的日誌層級
-    com.demo.ticket.Mapper: DEBUG
+    com.demo.ticket.Mapper: INFO
+
+security:
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,https://concert-ticket-frontend.onrender.com}
+  limits:
+    window-seconds: 60
+    api-per-ip: 300
+    login-per-ip: 20
+    login-per-account: 10
+    register-per-ip: 5
+    refresh-per-ip: 60
+    refresh-per-session: 20
+    booking-per-user: 20
+    ws-per-ip: 120
+    ws-connect-per-user: 10
+    ws-messages-per-user: 120
+  websocket:
+    max-connections: 1000
+    max-connections-per-ip: 20
+    max-connections-per-user: 5

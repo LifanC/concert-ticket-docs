@@ -1,16 +1,18 @@
 // 閱讀導引：驗證活動圖片的處理與管理流程，包含不合法輸入的處理。
 package com.demo.ticket;
 
-import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
 import com.demo.ticket.Dto.Admin.AdminDeleteActivityRequest;
+import com.demo.ticket.Dto.Admin.AdminSaveActivityRequest;
 import com.demo.ticket.Exception.FieldValidationException;
 import com.demo.ticket.Mapper.AdminMapper;
 import com.demo.ticket.Service.Admin.AdminServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -18,10 +20,23 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AdminActivityImageTests {
 
@@ -57,13 +72,13 @@ class AdminActivityImageTests {
         MockMultipartFile image = new MockMultipartFile(
                 "image", "poster.jpg", "image/jpeg", upload.toByteArray());
 
-        var result = service.saveActivity(request(), image);
+        Map<String, Object> result = service.saveActivity(request(), image);
         assertEquals("/v1/activity/activityImage/ACT-20260917-001", result.get("image_url"));
         assertFalse(result.containsKey("image_data"));
 
-        var width = org.mockito.ArgumentCaptor.forClass(Integer.class);
-        var height = org.mockito.ArgumentCaptor.forClass(Integer.class);
-        var bytes = org.mockito.ArgumentCaptor.forClass(byte[].class);
+        ArgumentCaptor<Integer> width = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> height = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<byte[]> bytes = ArgumentCaptor.forClass(byte[].class);
         verify(mapper).upsertActivityImage(eq(activityUuid), eq(activityUuid + ".jpg"),
                 width.capture(), height.capture(), bytes.capture());
         assertEquals(1280, width.getValue());
@@ -90,7 +105,7 @@ class AdminActivityImageTests {
      */
     @Test
     void rejectsSeatRowsOutsideTheActivityCategory() {
-        var request = new AdminSaveActivityRequest(
+        AdminSaveActivityRequest request = new AdminSaveActivityRequest(
                 "", "測試活動", "SPECIAL_EXHIBITION", "測試場地",
                 BigDecimal.valueOf(1280), "", "EU", BigDecimal.TEN);
 
@@ -107,7 +122,7 @@ class AdminActivityImageTests {
         service.saveActivity(request("STAGE_PLAY", "CV"), null);
         service.saveActivity(request("SPECIAL_EXHIBITION", "ET"), null);
 
-        var rows = org.mockito.ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> rows = ArgumentCaptor.forClass(String.class);
         verify(mapper, times(3)).create_seat(anyString(), anyString(), rows.capture(), eq(BigDecimal.TEN));
         assertEquals(List.of(50, 100, 150), rows.getAllValues().stream()
                 .map(value -> value.split(", ").length).toList());
@@ -123,10 +138,10 @@ class AdminActivityImageTests {
         when(mapper.lockActivity("ACT-20260917-001")).thenReturn("ACT-20260917-001");
         when(mapper.delete_activity("ACT-20260917-001")).thenReturn(1);
 
-        var response = service.deleteActivity(new AdminDeleteActivityRequest("ACT-20260917-001"));
+        ResponseEntity<?> response = service.deleteActivity(new AdminDeleteActivityRequest("ACT-20260917-001"));
         assertEquals(org.springframework.http.HttpStatus.OK, response.getStatusCode());
 
-        var calls = inOrder(mapper);
+        InOrder calls = inOrder(mapper);
         calls.verify(mapper).lockActivity("ACT-20260917-001");
         calls.verify(mapper).activityHasSessions("ACT-20260917-001");
         calls.verify(mapper).deleteActivityImage("ACT-20260917-001");

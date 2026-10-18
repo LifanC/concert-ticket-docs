@@ -13,9 +13,4 @@ public class RedisKey {
             "blacklist", "userData:jwt:blacklist:%s"
     );
 
-    // <App>:<Domain>:<Purpose>:<ID>
-    public static final Map<String, String> redisUserDataKey = Map.of(
-            "userDataOnly", "userData:map:only:%s"
-    );
-
 }

@@ -12,15 +12,13 @@
                                                   password,
                                                   birthday,
                                                   permissions)
-        values (
-                #{account},
+        values (#{account},
                 #{name},
                 #{email},
                 #{phone},
                 #{password},
                 '',
-                'USER'
-               )
+                'USER')
     </insert>
 
     <!-- 同一輸入可為帳號或完整 email；含密碼雜湊的查詢結果僅供後端使用。 -->
@@ -38,15 +36,15 @@
            or email = #{account}
     </select>
 
-    <!-- 目前以 email 的 @ 前段比對權限，不是完整 email 的相等比較。 -->
+    <!-- 權限必須屬於完整 email，不能讓不同網域的同名會員共用權限。 -->
     <select id="selectPermissions" resultType="java.lang.String">
         select
             permissions.code
         from "interviewworks_ticket"."user_data" user_data
-                 right join "interviewworks_ticket".permissions permissions
+                 inner join "interviewworks_ticket".permissions permissions
                             on
                                 user_data.permissions = permissions.description
-        where SPLIT_PART(user_data.email, '@', 1) = SPLIT_PART(#{account}, '@', 1)
+        where user_data.email = #{account}
     </select>
 
     <!-- name 與 email 是 WHERE 條件；實際修改的欄位只有電話與生日。 -->
