@@ -41,11 +41,34 @@ Nginx 另外限制一般 API 每秒 10 次、登入與註冊每分鐘 10 次，�
 
 ## 使用反向代理時要注意什麼？
 
-後端預設不信任 `X-Forwarded-For` 等來源 IP 標頭（`server.forward-headers-strategy=none`），Nginx 也不會任意信任這類標頭。
+Render 的公開網站入口會提供使用者 IP（`CF-Connecting-IP`）。當 Render 自動設定的 `RENDER=true` 生效時，Nginx 與後端會使用這個 IP；本機預設忽略代理標頭。
 
-經過反向代理時，多位使用者可能被視為同一個 IP，共用流量額度。上線前應設定可信任的代理與正確的使用者 IP，並限制外部直接連到後端。不要直接開放信任所有來源 IP 標頭。
+前端 Nginx 再轉送到公開後端時，後端看到的連線來源會變成前端主機。因此，前後端需要共用密鑰，讓後端確認轉送的使用者 IP 確實來自前端。
 
-若還不確定代理架構，先保留預設設定，依共用流量調整 IP 上限；帳號與會員限制仍會各自生效。
+部署步驟：
+
+1. 在 PowerShell 執行下方指令，產生 64 個十六進位字元的隨機密鑰。只需執行一次，前後端使用同一組值。
+2. 在 Render 前端與後端服務的 Environment 都加入 `PROXY_SHARED_SECRET`，填入同一組值。不要加上 `VITE_` 前綴，也不要把密鑰寫進 Git。
+3. 重新部署前後端。前端必須使用本專案 Dockerfile 的 Nginx 階段；Render Static Site 不會執行這份 Nginx 設定。
+4. 確認不同網路的使用者不會共用限流額度；偽造 `X-Forwarded-For` 或沒有正確密鑰的 `X-Ticket-Client-IP` 不應改變後端判斷的 IP。
+
+產生密鑰的 PowerShell 指令：
+
+```powershell
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+[BitConverter]::ToString($bytes).Replace('-', '').ToLower()
+$rng.Dispose()
+```
+
+將輸出的整串文字複製到 Render 前後端的 `PROXY_SHARED_SECRET`，不要加引號。`RENDER=true` 由 Render 自動提供，不需要另外新增。
+
+Render 前端缺少合格密鑰時會停止啟動，避免部署後無聲地共用 IP 額度。後端只有密鑰相符時，才採用前端轉送的 IP；直接呼叫後端則使用 Render 入口提供的 IP。API 與 WebSocket 連線上限使用相同的 IP 判斷。
+
+保留 `server.forward-headers-strategy=none`，不直接信任 `X-Forwarded-For`。這套設定只適用於 Render 公開 Web Service；不要在可被外部直接連入的自架主機，或 Render 私有服務上手動啟用 `RENDER=true`。
+
+參考：[Render 的使用者 IP 說明](https://render.com/articles/host-pocketbase-on-render)。
 
 目前使用單節點 Redis。若改用 Redis Cluster，需先調整登入腳本，讓相關資料鍵位於同一個 hash slot。
 
@@ -55,4 +78,6 @@ Nginx 另外限制一般 API 每秒 10 次、登入與註冊每分鐘 10 次，�
 - 測試涵蓋憑證用途、登入失效與替換、流量限制、Redis 故障、WebSocket 權限、停用模擬付款，以及同時登入或更新憑證的情況。
 - 單元測試使用模擬的 Redis 與資料庫。上線前仍需在隔離測試環境，搭配真實 Redis、PostgreSQL、Nginx、代理 IP 與 SockJS 備援連線，確認登入、更新憑證、登出、通知、付款停用與流量限制正常。
 
-程式內的流量限制無法阻止網路頻寬被大量流量塞滿。正式站台仍需入口端的 DDoS 防護、後端存取限制與容量監控；本次未調整外部平台設定。壓力測試應在隔離環境進行，避免影響公開站台。
+Render 已自動提供免費 DDoS 防護，不需要另外啟用。程式限流仍需保留，以減少 API 被濫用；也應持續監控流量與主機負載。平台防護不代表網站保證不會中斷。參考：[Render DDoS 防護](https://render.com/docs/ddos-protection)。
+
+若改用其他平台，需重新確認入口防護與代理 IP 設定。Render 禁止對其基礎設施進行 DoS 測試，請勿對 Render 站台發動這類測試。參考：[Render 測試政策](https://render.com/docs/penetration-testing)。

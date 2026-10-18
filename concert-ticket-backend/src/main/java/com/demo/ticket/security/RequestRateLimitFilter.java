@@ -19,7 +19,9 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
     private final RedisRateLimiter limiter;
     private final RequestLimits limits;
 
-    public RequestRateLimitFilter(RedisRateLimiter limiter, RequestLimits limits) {
+    public RequestRateLimitFilter(
+            RedisRateLimiter limiter,
+            RequestLimits limits) {
         this.limiter = limiter;
         this.limits = limits;
     }
@@ -60,7 +62,7 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
     /** 所有請求先檢查共用配額，再依路徑檢查個別配額。 */
     private void checkLimits(HttpServletRequest request) {
         String requestPath = RequestPathUtils.path(request);
-        // 只使用實際連線來源，不接受客戶端自行提供的 X-Forwarded-For。
+        // ClientIpFilter 在 Render 環境還原已驗證的 IP；不讀取 X-Forwarded-For。
         String clientIp = request.getRemoteAddr();
         int windowSeconds = limits.getWindowSeconds();
 

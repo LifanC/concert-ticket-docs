@@ -34,8 +34,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${security.allowed-origins:http://localhost:5173,https://concert-ticket-frontend.onrender.com}")
     private String[] allowedOrigins;
 
-    public WebSocketConfig(JwtTokenService tokens, RedisRateLimiter limiter, RequestLimits limits,
-                           WebSocketSessionGuard guard) {
+    public WebSocketConfig(
+            JwtTokenService tokens,
+            RedisRateLimiter limiter,
+            RequestLimits limits,
+            WebSocketSessionGuard guard) {
         this.tokens = tokens;
         this.limiter = limiter;
         this.limits = limits;
@@ -50,7 +53,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins).withSockJS();
+        registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins)
+                .addInterceptors(new com.demo.ticket.security.ClientIpHandshakeInterceptor()).withSockJS();
     }
 
     @Override
@@ -71,7 +75,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 }
                 StompCommand command = accessor.getCommand();
                 if (command == StompCommand.CONNECT) {
-                    @Nullable String token = ConvertFormat.resolveToken(
+                    String token = ConvertFormat.resolveToken(
                             accessor.getFirstNativeHeader("Authorization")
                     );
                     if (token == null || token.isBlank()) {

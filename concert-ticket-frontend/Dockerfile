@@ -13,7 +13,11 @@ ENV VITE_WS_URL=${VITE_WS_URL}
 RUN npm run build
 
 FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV RENDER=false PROXY_SHARED_SECRET=""
+ENV NGINX_ENVSUBST_FILTER="^(RENDER|PROXY_SHARED_SECRET)$"
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint-proxy.sh /docker-entrypoint.d/19-proxy-secret.sh
+RUN chmod +x /docker-entrypoint.d/19-proxy-secret.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 10000

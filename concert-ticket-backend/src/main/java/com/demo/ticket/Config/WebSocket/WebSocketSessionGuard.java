@@ -76,6 +76,10 @@ public class WebSocketSessionGuard implements WebSocketHandlerDecoratorFactory {
     }
 
     private @Nullable InetAddress remoteIp(WebSocketSession session) {
+        Object verified = session.getAttributes().get(com.demo.ticket.security.ClientIpFilter.CLIENT_IP);
+        if (verified instanceof InetAddress address) {
+            return address;
+        }
         InetSocketAddress remoteAddress = session.getRemoteAddress();
         if (remoteAddress == null) {
             return null;

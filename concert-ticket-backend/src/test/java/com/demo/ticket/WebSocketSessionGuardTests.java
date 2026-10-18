@@ -42,6 +42,18 @@ class WebSocketSessionGuardTests {
     }
 
     @Test
+    void verifiedVisitorIpsHaveSeparateConnectionBudgets() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            WebSocketSession session = socket("visitor-" + i);
+            when(session.getAttributes()).thenReturn(java.util.Map.of(
+                    com.demo.ticket.security.ClientIpFilter.CLIENT_IP,
+                    java.net.InetAddress.getByName("203.0.113." + i)));
+            handler.afterConnectionEstablished(session);
+            org.mockito.Mockito.verify(session, org.mockito.Mockito.never()).close(org.mockito.ArgumentMatchers.any());
+        }
+    }
+
+    @Test
     void connectionCapClosesExcessConnections() throws Exception {
         handler.afterConnectionEstablished(socket("one"));
         handler.afterConnectionEstablished(socket("two"));
