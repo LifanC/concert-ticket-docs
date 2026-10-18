@@ -1,10 +1,20 @@
 // 閱讀導引：攜帶訂票錯誤代碼與 HTTP 狀態；資料更新筆數不符合預期時中止流程。
 package com.demo.ticket.Exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public class BookingException extends RuntimeException {
+    /**
+     * -- GETTER --
+     *  回傳錯誤代碼。
+     */
     private final String code;
+    /**
+     * -- GETTER --
+     *  回傳此錯誤應使用的 HTTP 狀態，不是訂單的業務狀態。
+     */
     private final HttpStatus status;
 
     /**
@@ -15,15 +25,6 @@ public class BookingException extends RuntimeException {
         this.code = code;
         this.status = status;
     }
-
-    /**
-     * 回傳錯誤代碼。
-     */
-    public String getCode() { return code; }
-    /**
-     * 回傳此錯誤應使用的 HTTP 狀態，不是訂單的業務狀態。
-     */
-    public HttpStatus getStatus() { return status; }
 
     /**
      * 要求資料更新恰好影響一筆；否則拋出 HTTP 500 的庫存一致性例外，由交易呼叫端回滾。

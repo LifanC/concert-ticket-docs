@@ -3,6 +3,7 @@ package com.demo.ticket.security;
 
 import lombok.extern.slf4j.Slf4j;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,14 +32,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RequestRateLimitFilter rateLimitFilter;
+    @Value("${security.allowed-origins:http://localhost:5173,https://concert-ticket-frontend.onrender.com}")
+    private String[] allowedOrigins;
 
     /**
      * 取得 JWT filter，稍後將它加入 Spring Security 驗證鏈。
      */
     public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            RequestRateLimitFilter rateLimitFilter
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     /**
@@ -60,7 +66,7 @@ public class SecurityConfig {
      * 建立 HTTP 安全驗證鏈，套用存取規則與 JWT filter。
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -135,9 +141,18 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
-                );
+                )
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    @NullMarked
+    public FilterRegistrationBean<RequestRateLimitFilter> rateLimitRegistration(RequestRateLimitFilter filter) {
+        FilterRegistrationBean<RequestRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     /**
@@ -148,10 +163,7 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                List.of(
-                        "http://localhost:5173",
-                        "https://concert-ticket-frontend.onrender.com"
-                )
+                List.of(allowedOrigins)
         );
         configuration.setAllowedMethods(
                 List.of(

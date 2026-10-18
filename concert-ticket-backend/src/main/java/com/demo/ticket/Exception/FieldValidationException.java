@@ -1,8 +1,15 @@
 // 閱讀導引：保留發生錯誤的表單欄位，讓前端能將驗證訊息顯示在對應輸入位置。
 package com.demo.ticket.Exception;
 
+import lombok.Getter;
+
+@Getter
 public class FieldValidationException extends RuntimeException {
 
+    /**
+     * -- GETTER --
+     *  回傳發生驗證錯誤的欄位。
+     */
     private final String field;
 
     /**
@@ -21,10 +28,4 @@ public class FieldValidationException extends RuntimeException {
         this.field = field;
     }
 
-    /**
-     * 回傳發生驗證錯誤的欄位。
-     */
-    public String getField() {
-        return field;
-    }
 }

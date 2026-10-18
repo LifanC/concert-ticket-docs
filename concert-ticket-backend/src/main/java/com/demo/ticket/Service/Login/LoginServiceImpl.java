@@ -1,470 +1,368 @@
-// 閱讀導引：處理註冊、登入、會員資料與登出，協調密碼驗證、JWT 和 Redis 登入狀態。
 package com.demo.ticket.Service.Login;
 
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Common.RedisKey;
 import com.demo.ticket.Dto.ApiResponse;
-import com.demo.ticket.Dto.Login.*;
+import com.demo.ticket.Dto.Login.Login;
+import com.demo.ticket.Dto.Login.LoginRequest;
+import com.demo.ticket.Dto.Login.LoginSaveProfile;
+import com.demo.ticket.Dto.Login.LoginSaveProfileRequest;
+import com.demo.ticket.Dto.Login.Register;
+import com.demo.ticket.Dto.Login.RegisterRequest;
 import com.demo.ticket.Mapper.LoginMapper;
 import com.demo.ticket.Service.JwtTokenService;
 import com.demo.ticket.security.LoginUser;
+import com.demo.ticket.security.RedisRateLimiter;
+import com.demo.ticket.security.RequestLimits;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.Cursor;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.UUID;
 
 @Service
+@NullMarked
 public class LoginServiceImpl implements LoginService {
 
-    @Value("${auth.cookie.secure:false}")
+    @Value("${auth.cookie.secure:true}")
     private boolean refreshCookieSecure;
 
     @Value("${auth.cookie.sameSite:Lax}")
     private String refreshCookieSameSite;
 
-    // token 與登入快取的基礎有效秒數；實際簽發時再加少量隨機秒數。
     @Value("${jwt.refreshExpirationSeconds}")
-    private long refreshExpirationSeconds;
+    private int refreshSeconds;
 
     @Value("${jwt.accessExpirationSeconds}")
-    private long accessExpirationSeconds;
-
-    /**
-     * 回傳 refresh token 基礎有效秒數加上 1 至 60 秒，分散登入資料的到期時間。
-     */
-    private int refreshExpirationSecondsAddRndomNumber() {
-        int min = 1;
-        int max = 60;
-        return Math.toIntExact(refreshExpirationSeconds + (new Random().nextInt((max - min) + 1) + min));
-    }
-
-    /**
-     * 回傳 access token 基礎有效秒數加上 1 至 60 秒，分散登入資料的到期時間。
-     */
-    private int accessExpirationSecondsAddRndomNumber() {
-        int min = 1;
-        int max = 60;
-        return Math.toIntExact(accessExpirationSeconds + (new Random().nextInt((max - min) + 1) + min));
-    }
+    private int accessSeconds;
 
     private final BCryptPasswordEncoder passwordEncoder;
     private final LoginMapper loginMapper;
-    private final StringRedisTemplate stringRedisTemplate;
-    private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
     private final JwtTokenService jwtTokenService;
+    private final RedisRateLimiter rateLimiter;
+    private final RequestLimits requestLimits;
 
-    /**
-     * 注入 BCrypt、會員查詢、Redis、JSON 與 JWT 元件，協調會員登入及快取資料。
-     */
-    public LoginServiceImpl(
-            BCryptPasswordEncoder passwordEncoder,
-            LoginMapper loginMapper,
-            StringRedisTemplate stringRedisTemplate,
-            ObjectMapper objectMapper,
-            JwtTokenService jwtTokenService
-    ) {
+    // 每位會員只有一個有效登入，新登入會取代舊登入。
+    // Lua 讓兩筆 Redis 寫入一次完成；舊 token 資料會依原本期限自動刪除。
+    private static final DefaultRedisScript<Long> LOGIN = new DefaultRedisScript<>("""
+            local sessionKey = KEYS[1]
+            local refreshTokenKey = KEYS[2]
+            local sessionId = ARGV[1]
+            local refreshToken = ARGV[2]
+            local expirationSeconds = ARGV[3]
+
+            redis.call('SET', sessionKey, sessionId, 'EX', expirationSeconds)
+            redis.call('SET', refreshTokenKey, refreshToken, 'EX', expirationSeconds)
+            return 1
+            """, Long.class);
+
+    // 寫入 access token 前，再次確認登入未被登出、取代或封鎖。
+    // 核對與寫入在同一段 Lua 中完成，避免其他請求插入兩個步驟之間。
+    private static final DefaultRedisScript<Long> ISSUE_ACCESS = new DefaultRedisScript<>("""
+            local sessionKey = KEYS[1]
+            local refreshTokenKey = KEYS[2]
+            local accessTokenKey = KEYS[3]
+            local blacklistKey = KEYS[4]
+            local sessionId = ARGV[1]
+            local refreshToken = ARGV[2]
+            local accessToken = ARGV[3]
+            local requestedSeconds = tonumber(ARGV[4])
+
+            if redis.call('GET', sessionKey) ~= sessionId then
+                return 0
+            end
+            if redis.call('GET', refreshTokenKey) ~= refreshToken then
+                return 0
+            end
+            if redis.call('EXISTS', blacklistKey) == 1 then
+                return 0
+            end
+
+            local sessionSeconds = redis.call('TTL', sessionKey)
+            local refreshSeconds = redis.call('TTL', refreshTokenKey)
+            local expirationSeconds = math.min(requestedSeconds, sessionSeconds, refreshSeconds)
+            if expirationSeconds < 1 then
+                return 0
+            end
+
+            redis.call('SET', accessTokenKey, accessToken, 'EX', expirationSeconds)
+            return 1
+            """, Long.class);
+
+    // 只刪除這次登入的資料，避免舊的登出請求誤刪新登入。
+    private static final DefaultRedisScript<Long> LOGOUT = new DefaultRedisScript<>("""
+            local sessionKey = KEYS[1]
+            local refreshTokenKey = KEYS[2]
+            local accessTokenKey = KEYS[3]
+            local sessionId = ARGV[1]
+
+            if redis.call('GET', sessionKey) ~= sessionId then
+                return 0
+            end
+            redis.call('DEL', sessionKey, refreshTokenKey, accessTokenKey)
+            return 1
+            """, Long.class);
+
+    public LoginServiceImpl(BCryptPasswordEncoder passwordEncoder,
+                            LoginMapper loginMapper,
+                            StringRedisTemplate redisTemplate,
+                            JwtTokenService jwtTokenService,
+                            RedisRateLimiter rateLimiter,
+                            RequestLimits requestLimits) {
         this.passwordEncoder = passwordEncoder;
         this.loginMapper = loginMapper;
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
         this.jwtTokenService = jwtTokenService;
+        this.rateLimiter = rateLimiter;
+        this.requestLimits = requestLimits;
     }
 
-    /**
-     * 建立會員並以 BCrypt 編碼密碼，回傳註冊結果。
-     */
+    /** 註冊：整理輸入、雜湊密碼，再寫入會員資料。 */
     @Override
     public ResponseEntity<?> register(RegisterRequest request) {
-        final String account = request.account().trim();
-        final String name = request.name().trim();
-        final String email = request.email().trim();
-        final String phone = request.phone().trim();
-        final String password = request.password().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        Register register = new Register(account, name, email, phone, passwordEncoder.encode(password));
-        Map<String, Object> dataMap = new TreeMap<>();
-        loginMapper.create(register);
-        dataMap.put("remark", "註冊成功");
-        dataMap.put("account", account);
-        dataMap.put("name", name);
-        dataMap.put("email", email);
-        dataMap.put("phone", phone);
-        dataMap.put("created_date", ConvertFormat.time(""));
-        dataMap.put("updated_date", "");
-        data.add(dataMap);
-        HttpStatus status = HttpStatus.CREATED;
+        String account = request.account().trim();
+        String name = request.name().trim();
+        String email = request.email().trim();
+        String phone = request.phone().trim();
+        String passwordHash = passwordEncoder.encode(request.password().trim());
+
+        Register registration = new Register(account, name, email, phone, passwordHash);
+        loginMapper.create(registration);
+
+        Map<String, Object> data = new TreeMap<>();
+        data.put("remark", "註冊成功");
+        data.put("account", account);
+        data.put("name", name);
+        data.put("email", email);
+        data.put("phone", phone);
+        data.put("created_date", ConvertFormat.now());
+        data.put("updated_date", "");
+
         return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+                .status(HttpStatus.CREATED)
+                .body(
+                        ApiResponse.api(HttpStatus.CREATED, List.of(data))
+                );
     }
 
-    /**
-     * 依帳號或 email 查詢會員，以 BCrypt 比對密碼；成功才建立 refresh token 與對應 Redis 紀錄。
-     * 成功與帳密不符皆回傳 HTTP 200，前端須看 data[0].judge；成功的 refresh token 放在 HttpOnly cookie。
-     * 此方法尚未回傳 access token，前端需再呼叫 validate 完成登入。
-     */
+    /** 登入：檢查頻率與帳密，成功後建立 session 並回傳 refresh Cookie。 */
     @Override
     public ResponseEntity<?> login(LoginRequest request) {
-        final String account = request.account().trim();
-        final String password = request.password().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        String remark = "登入失敗";
-        boolean judge = false;
-        String refreshToken = null;
-        int refreshTokenMaxAge = 0;
-        Login login = new Login(account);
-        Map<String, Object> dataMap = new TreeMap<>();
-        Map<String, Object> userDataSelect = loginMapper.select(login);
-        if (userDataSelect != null && !userDataSelect.isEmpty()) {
-            final String email = userDataSelect.get("email").toString();
-            final String userDataOnly = String.format(
-                    RedisKey.redisUserDataKey.get("userDataOnly"),
-                    email
-            );
-            String jsonMap = objectMapper.writeValueAsString(userDataSelect);
-            stringRedisTemplate.opsForValue().set(
-                    userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
-            final String userDataPassword = userDataSelect.get("password").toString();
-            if (passwordEncoder.matches(password, userDataPassword)) {
-                String jti = UUID.randomUUID().toString();
-                int refreshExpirationSecondsAddRndomNumber = refreshExpirationSecondsAddRndomNumber();
-                // 建立 refresh token
-                final String refreshRedisKey = String.format(
-                        RedisKey.redisKey.get("refresh"),
-                        jti,
-                        email
-                );
-                refreshToken = jwtTokenService.createRefreshToken(
-                        refreshRedisKey,
-                        jti,
-                        refreshExpirationSecondsAddRndomNumber,
-                        email
-                );
-                stringRedisTemplate.opsForValue().set(
-                        refreshRedisKey,
-                        refreshToken,
-                        Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber)
-                );
-                refreshTokenMaxAge = refreshExpirationSecondsAddRndomNumber;
-                remark = "登入成功";
-                judge = true;
+        String account = request.account().trim();
 
-                final String refreshJtiRedisKey = String.format(
-                        RedisKey.redisKey.get("refreshJti"),
+        // 先限制輸入帳號的請求次數，再查詢會員。
+        rateLimiter.check(
+                "login-account",
+                account.toLowerCase(Locale.ROOT),
+                requestLimits.getLoginPerAccount(),
+                requestLimits.getWindowSeconds()
+        );
+
+        Map<String, Object> member = loginMapper.select(new Login(account));
+        if (member == null || member.isEmpty()) {
+            return loginResult(account, false, null);
+        }
+
+        // 帳號與 email 都能登入，因此再以實際會員 email 共用一份限流配額。
+        String email = member.get("email").toString();
+        rateLimiter.check(
+                "login-member",
+                email.toLowerCase(Locale.ROOT),
+                requestLimits.getLoginPerAccount(),
+                requestLimits.getWindowSeconds()
+        );
+
+        String password = request.password().trim();
+        String passwordHash = member.get("password").toString();
+        if (!passwordEncoder.matches(password, passwordHash)) {
+            return loginResult(account, false, null);
+        }
+
+        String sessionId = UUID.randomUUID().toString();
+        String refreshTokenKey = key("refresh", sessionId, email);
+        String refreshToken =
+                jwtTokenService.createRefreshToken(
+                        refreshTokenKey,
+                        sessionId,
+                        refreshSeconds,
                         email
                 );
-                String currentJti = stringRedisTemplate.opsForValue().get(refreshJtiRedisKey);
-                Boolean accessExists = stringRedisTemplate.hasKey(refreshJtiRedisKey);
-                if (Boolean.TRUE.equals(accessExists)) {
-                    final String refreshRedisKeyOld = String.format(
-                            RedisKey.redisKey.get("refresh"),
-                            currentJti,
-                            email
-                    );
-                    final String refreshJtiRedisKeyOld = String.format(
-                            RedisKey.redisKey.get("refreshJti"),
-                            email
-                    );
-                    stringRedisTemplate.delete(refreshJtiRedisKeyOld);
-                    stringRedisTemplate.delete(refreshRedisKeyOld);
-                } else {
-                    stringRedisTemplate.opsForValue().set(
-                            refreshJtiRedisKey,
-                            jti,
-                            Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber)
-                    );
-                }
-            }
-        }
-        dataMap.put("remark", remark);
-        dataMap.put("account", login.getAccount());
-        dataMap.put("judge", judge);
-        data.add(dataMap);
-        HttpStatus status = HttpStatus.OK;
-        ResponseEntity.BodyBuilder response = ResponseEntity.status(status);
-        if (refreshToken != null) {
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
-                    .httpOnly(true)
-                    .secure(refreshCookieSecure)
-                    .sameSite(refreshCookieSameSite)
-                    .path("/api/v1/login")
-                    .maxAge(refreshTokenMaxAge)
-                    .build();
-            response.header(HttpHeaders.SET_COOKIE, cookie.toString());
-        }
-        return response
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+
+        saveLoginSession(sessionId, email, refreshToken);
+        return loginResult(account, true, refreshToken);
     }
 
-    /**
-     * 以 SCAN 查找符合鍵名模式的 Redis 資料並分批刪除；cnt 同時控制掃描建議量與刪除批量。
-     */
-    private void redisDels(String accessRedisKey, int cnt) {
-        ScanOptions options = ScanOptions.scanOptions()
-                .match(accessRedisKey)
-                .count(cnt)
-                .build();
-        stringRedisTemplate.execute((RedisCallback<Void>) connection -> {
-            try (Cursor<byte @NonNull []> cursor = connection.keyCommands().scan(options)) {
-                List<String> keysToDelete = new ArrayList<>();
-                while (cursor.hasNext()) {
-                    String key = new String(cursor.next());
-                    keysToDelete.add(key);
-                    // 累積到 cnt 個鍵就刪除一批，避免一次把所有鍵存入記憶體。
-                    if (keysToDelete.size() >= cnt) {
-                        stringRedisTemplate.delete(keysToDelete);
-                        keysToDelete.clear();
-                    }
-                }
-                // 刪除剩下的
-                if (!keysToDelete.isEmpty()) {
-                    stringRedisTemplate.delete(keysToDelete);
-                }
-            }
-            return null;
-        });
-    }
-
-    /**
-     * 驗證 refresh token 簽章與期限，使用 token 的 subject 取得 Redis 會員快取後簽發 access token。
-     * 會員快取不存在時仍回傳 HTTP 200，但 judge 為 false；JWT 驗證失敗會拋出例外。
-     * 此流程使用 token 內的 jti 作為 access 紀錄識別碼，並非直接讀取或核對已儲存的 refresh token。
-     */
+    /** 更新 access token：確認 refresh token 有效，重新取得會員資料與權限。 */
     @Override
     public ResponseEntity<?> validate(String refreshToken) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("remark", "驗證失敗");
-        dataMap.put("accessToken", "");
-        dataMap.put("name", "");
-        dataMap.put("email", "");
-        dataMap.put("phone", "");
-        dataMap.put("judge", false);
-        try {
-            Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
-            final String accessJtId = claims.getId();
-            final String accountJwt = claims.getSubject();
-            final String userDataOnly = String.format(
-                    RedisKey.redisUserDataKey.get("userDataOnly"),
-                    accountJwt
-            );
-            String json = stringRedisTemplate.opsForValue().get(userDataOnly);
-            if (json != null) {
-                Map<String, Object> userDataSelect = objectMapper.readValue(json, new TypeReference<>() {});
-                int accessExpirationSecondsAddRndomNumber = accessExpirationSecondsAddRndomNumber();
-                String accessToken = jwtTokenService.createAccessToken(
-                        accessExpirationSecondsAddRndomNumber,
-                        accessJtId,
-                        accountJwt
-                );
-                String accessRedisKey = String.format(
-                        RedisKey.redisKey.get("access"),
-                        "*",
-                        accountJwt
-                );
-                // 避免 Redis key 無限制增加導致記憶體耗盡
-                int cnt = 100;
-                ScanOptions options = ScanOptions.scanOptions()
-                        .match(accessRedisKey)
-                        .count(cnt)
-                        .build();
-                // redis(指定key)的數量
-                Long redisCount =
-                        stringRedisTemplate.execute((RedisCallback<Long>) connection -> {
-                            long count = 0;
-                            try (Cursor<byte @NonNull []> cursor = connection.keyCommands().scan(options)) {
-                                while (cursor.hasNext()) {
-                                    cursor.next();
-                                    count++;
-                                }
-                            }
-                            return count;
-                        });
-                redisCount = redisCount == null ? 0L : redisCount;
-                // redis(指定key)的上限數量
-                int maximumQuantity = 20;
-                if (redisCount >= maximumQuantity) {
-                    // SCAN 的 count＝100 只是建議掃描量，不保證每次回傳筆數；仍需迭代游標到結束。
-                    redisDels(accessRedisKey, cnt);
-                }
-                accessRedisKey = String.format(
-                        RedisKey.redisKey.get("access"),
-                        accessJtId,
-                        accountJwt
-                );
-                stringRedisTemplate.opsForValue().setIfAbsent(
-                        accessRedisKey,
-                        accessToken,
-                        Duration.ofSeconds(accessExpirationSecondsAddRndomNumber())
-                );
-                dataMap.put("remark", "驗證成功");
-                dataMap.put("accessToken", accessToken);
-                dataMap.put("name", userDataSelect.get("name").toString());
-                dataMap.put("email", userDataSelect.get("email").toString());
-                dataMap.put("phone", userDataSelect.get("phone").toString());
-                dataMap.put("birthday", userDataSelect.get("birthday").toString());
-                dataMap.put("judge", true);
-            }
-        } catch (JwtException e) {
+        Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
+        String sessionId = claims.getId();
+        String email = claims.getSubject();
 
-            throw new JwtException("JWT 無效", e);
+        rateLimiter.check("refresh-session", sessionId,
+                requestLimits.getRefreshPerSession(), requestLimits.getWindowSeconds());
+
+        // 每次讀取目前會員資料，不把密碼雜湊寫入 Redis 快取。
+        Map<String, Object> member = loginMapper.select(new Login(email));
+        if (member == null || member.isEmpty()) {
+            throw new JwtException("登入已失效");
         }
-        data.add(dataMap);
-        HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+
+        int expirationSeconds = accessTokenLifetime(claims);
+        String accessToken = jwtTokenService.createAccessToken(expirationSeconds, sessionId, email);
+
+        // keys 的順序對應 ISSUE_ACCESS 裡的 KEYS[1] 到 KEYS[4]。
+        List<String> keys = List.of(
+                key("refreshJti", email),
+                key("refresh", sessionId, email),
+                key("access", sessionId, email),
+                key("blacklist", sessionId)
+        );
+        Long result = redisTemplate.execute(
+                ISSUE_ACCESS,
+                keys,
+                sessionId, refreshToken, accessToken, Integer.toString(expirationSeconds)
+        );
+        if (!Long.valueOf(1).equals(result)) {
+            throw new JwtException("登入已失效");
+        }
+
+        Map<String, Object> data = new TreeMap<>();
+        data.put("remark", "驗證成功");
+        data.put("judge", true);
+        data.put("accessToken", accessToken);
+        data.put("name", Objects.toString(member.get("name"), ""));
+        data.put("email", Objects.toString(member.get("email"), ""));
+        data.put("phone", Objects.toString(member.get("phone"), ""));
+        data.put("birthday", Objects.toString(member.get("birthday"), ""));
+
+        return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(data)));
     }
 
-    /**
-     * 以登入 email 與請求姓名作為資料庫比對條件，更新電話及生日，再重新查詢會員資料更新 Redis 快取。
-     * 姓名在這裡不是可修改欄位；成功訊息未依資料庫更新筆數判斷。
-     */
+    /** 使用後端登入身分決定修改對象；SQL 以姓名與 email 比對，更新電話和生日。 */
     @Override
     public ResponseEntity<?> saveProfile(LoginSaveProfileRequest request, LoginUser user) {
-        final String name = request.name().trim();
-        final String phone = request.phone().trim();
-        final String birthday = request.birthday().trim();
-        List<Map<String, Object>> data = new ArrayList<>();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("remark", "修改會員資料失敗");
-        dataMap.put("name", name);
-        dataMap.put("email", user.email());
-        dataMap.put("phone", "");
-        dataMap.put("birthday", "");
-        dataMap.put("judge", false);
-        LoginSaveProfile loginSaveProfile = LoginSaveProfile.builder()
+        String name = request.name().trim();
+        String phone = request.phone().trim();
+        String birthday = request.birthday().trim();
+        String email = user.email();
+
+        LoginSaveProfile profile = LoginSaveProfile.builder()
                 .name(name)
-                .email(user.email())
+                .email(email)
                 .phone(phone)
                 .birthday(birthday)
                 .build();
-        loginMapper.save(loginSaveProfile);
-        dataMap.put("remark", "修改會員資料成功");
-        dataMap.put("phone", phone);
-        dataMap.put("birthday", birthday);
-        dataMap.put("judge", true);
+        loginMapper.save(profile);
 
-        final String userDataOnly = String.format(
-                RedisKey.redisUserDataKey.get("userDataOnly"),
-                user.email()
-        );
-        Login login = new Login(user.email());
-        Map<String, Object> userDataSelect = loginMapper.select(login);
-        String jsonMap = objectMapper.writeValueAsString(userDataSelect);
-        stringRedisTemplate.opsForValue().set(
-                userDataOnly, jsonMap, Duration.ofSeconds(refreshExpirationSecondsAddRndomNumber()));
-        data.add(dataMap);
-        HttpStatus status = HttpStatus.OK;
-        return ResponseEntity
-                .status(status)
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+        Map<String, Object> data = new TreeMap<>();
+        data.put("remark", "修改會員資料成功");
+        data.put("judge", true);
+        data.put("name", name);
+        data.put("email", email);
+        data.put("phone", phone);
+        data.put("birthday", birthday);
+
+        return ResponseEntity.ok(ApiResponse.api(HttpStatus.OK, List.of(data)));
     }
 
-    /**
-     * 驗證 refresh token 後刪除對應 token、登入識別及會員快取，並以過期 cookie 清除瀏覽器 refresh token。
-     * 黑名單識別碼來自 refresh token；黑名單保存秒數依目前 access token 的剩餘時間計算，向上取整到秒。
-     */
+    /** 登出：核對兩種 token 屬於同一次登入，再刪除 Redis 紀錄與瀏覽器 Cookie。 */
     @Override
     public ResponseEntity<?> logout(LoginUser user, String refreshToken) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        Map<String, Object> dataMap = new TreeMap<>();
-        dataMap.put("remark", "登出失敗");
-        dataMap.put("judge", false);
-        try {
-            Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
-            final String jti = claims.getId();
-            final String jwt = claims.getSubject();
-            final String refreshRedisKey = String.format(
-                    RedisKey.redisKey.get("refresh"),
-                    jti,
-                    jwt
-            );
-            long remainingMillis = Duration.between(
-                    Instant.now(),
-                    user.expiresAt()
-            ).toMillis();
-            long remainingSeconds = remainingMillis > 0
-                    ? (remainingMillis + 999) / 1000
-                    : 0;
-            if (remainingSeconds > 0) {
-                final String blacklistRedisKey = String.format(
-                        RedisKey.redisKey.get("blacklist"),
-                        jti
-                );
-                stringRedisTemplate.opsForValue().set(
-                        blacklistRedisKey,
-                        "revoked",
-                        Duration.ofSeconds(remainingSeconds)
-                );
-            }
-            final String refreshJtiRedisKey = String.format(
-                    RedisKey.redisKey.get("refreshJti"),
-                    jwt
-            );
-            final String accessRedisKey = String.format(
-                    RedisKey.redisKey.get("access"),
-                    jti,
-                    jwt
-            );
-            final String userDataOnly = String.format(
-                    RedisKey.redisUserDataKey.get("userDataOnly"),
-                    jwt
-            );
-            stringRedisTemplate.delete(refreshRedisKey);
-            stringRedisTemplate.delete(refreshJtiRedisKey);
-            stringRedisTemplate.delete(accessRedisKey);
-            stringRedisTemplate.delete(userDataOnly);
-            dataMap.put("remark", "登出成功");
-            dataMap.put("judge", true);
-        } catch (JwtException e) {
+        Claims claims = jwtTokenService.validateRefreshToken(refreshToken);
+        String sessionId = user.tokenId();
+        String email = user.email();
 
-            throw new JwtException("JWT 無效", e);
+        if (!sessionId.equals(claims.getId()) || !email.equals(claims.getSubject())) {
+            throw new JwtException("登入身分不一致");
         }
-        data.add(dataMap);
-        HttpStatus status = HttpStatus.OK;
-        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(refreshCookieSecure)
-                .sameSite("Lax")
-                .path("/api/v1/login")
-                .maxAge(0)
-                .build();
-        return ResponseEntity
-                .status(status)
+
+        List<String> keys = List.of(
+                key("refreshJti", email),
+                key("refresh", sessionId, email),
+                key("access", sessionId, email)
+        );
+        redisTemplate.execute(LOGOUT, keys, sessionId);
+
+        ResponseCookie expiredCookie = cookie("", 0);
+        Map<String, Object> data = Map.of("remark", "登出成功", "judge", true);
+        return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, expiredCookie.toString())
-                .body(ApiResponse.api(
-                        status,
-                        data
-                ));
+                .body(ApiResponse.api(HttpStatus.OK, List.of(data)));
     }
 
+    /** Redis 的 key 與參數順序對應 LOGIN 腳本，回傳 1 表示寫入完成。 */
+    private void saveLoginSession(String sessionId, String email, String refreshToken) {
+        List<String> keys = List.of(
+                key("refreshJti", email),
+                key("refresh", sessionId, email)
+        );
+        Long result = redisTemplate.execute(
+                LOGIN,
+                keys,
+                sessionId, refreshToken, Integer.toString(refreshSeconds)
+        );
+        if (!Long.valueOf(1).equals(result)) {
+            throw new DataAccessResourceFailureException("登入服務暫時無法使用");
+        }
+    }
+
+    /** Access token 的期限不能超過 refresh token 的剩餘時間。 */
+    private int accessTokenLifetime(Claims claims) {
+        long refreshRemainingSeconds =
+                claims.getExpiration().toInstant().getEpochSecond() - Instant.now().getEpochSecond();
+        int expirationSeconds = (int) Math.min(accessSeconds, refreshRemainingSeconds);
+        if (expirationSeconds < 1) {
+            throw new JwtException("登入已過期");
+        }
+        return expirationSeconds;
+    }
+
+    /** 帳密不符維持 HTTP 200，由前端根據 judge 判斷登入結果。 */
+    private ResponseEntity<?> loginResult(String account, boolean success, @Nullable String refreshToken) {
+        Map<String, Object> data = new TreeMap<>();
+        data.put("remark", success ? "登入成功" : "登入失敗");
+        data.put("account", account);
+        data.put("judge", success);
+
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok();
+        if (refreshToken != null) {
+            ResponseCookie refreshCookie = cookie(refreshToken, refreshSeconds);
+            response.header(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        }
+        return response.body(ApiResponse.api(HttpStatus.OK, List.of(data)));
+    }
+
+    /** 依 RedisKey 定義的格式組合 key，例如 refresh 的 session ID 與 email。 */
+    private String key(String type, Object... arguments) {
+        return String.format(RedisKey.redisKey.get(type), arguments);
+    }
+
+    private ResponseCookie cookie(String value, long seconds) {
+        return ResponseCookie.from("refreshToken", value)
+                .httpOnly(true)
+                .secure(refreshCookieSecure)
+                .sameSite(refreshCookieSameSite)
+                .path("/api/v1/login")
+                .maxAge(seconds)
+                .build();
+    }
 }

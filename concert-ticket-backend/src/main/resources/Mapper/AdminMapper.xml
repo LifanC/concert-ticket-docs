@@ -3,151 +3,146 @@
 <mapper namespace="com.demo.ticket.Mapper.AdminMapper">
     <!-- 閱讀導引：活動與場次管理的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
     <select id="lockSession" resultType="java.lang.String">
-        SELECT id FROM interviewworks_ticket.session WHERE id = #{id} FOR UPDATE
+        SELECT id
+        FROM interviewworks_ticket.session
+        WHERE id = #{id} FOR UPDATE
     </select>
     <select id="configuredSession" resultType="java.util.Map" flushCache="true">
-        SELECT s.activity_id, s.capacity FROM interviewworks_ticket.session s
-        JOIN interviewworks_ticket.session_sales_settings ss ON ss.session_id = s.id WHERE s.id = #{id}
+        SELECT s.activity_id, s.capacity
+        FROM interviewworks_ticket.session s
+                 JOIN interviewworks_ticket.session_sales_settings ss ON ss.session_id = s.id
+        WHERE s.id = #{id}
     </select>
 
     <select id="selectAllActivities" resultType="java.util.Map">
-        select
-            activity.id,
-            activity."name",
-            activity.category,
-            activity.venue,
-            activity.price,
-            activity.description,
-            seat.id as seat_id,
-            seat.seat_rows,
-            split_part(seat.id, '-', 1) AS "column",
-            split_part(seat.id, '-', 2) AS "row",
-            activity_image.content_type,
-            CASE WHEN activity_image.activity_uuid IS NOT NULL
-                 THEN '/v1/activity/activityImage/' || activity.id END AS image_url
-        from
-            "interviewworks_ticket"."activity" activity
-                LEFT JOIN "interviewworks_ticket".seat seat
-                          ON activity.id = seat.activity_id
-                LEFT JOIN "interviewworks_ticket".activity_image activity_image
+        select activity.id,
+               activity."name",
+               activity.category,
+               activity.venue,
+               activity.price,
+               activity.description,
+               seat.id                                                       as seat_id,
+               seat.seat_rows,
+               split_part(seat.id, '-', 1)                                   AS "column",
+               split_part(seat.id, '-', 2)                                   AS "row",
+               activity_image.content_type,
+               CASE
+                   WHEN activity_image.activity_uuid IS NOT NULL
+                       THEN '/v1/activity/activityImage/' || activity.id END AS image_url
+        from "interviewworks_ticket"."activity" activity
+                 LEFT JOIN "interviewworks_ticket".seat seat
+                           ON activity.id = seat.activity_id
+                 LEFT JOIN "interviewworks_ticket".activity_image activity_image
                            ON activity_image.activity_uuid = activity.activity_uuid
         order by activity.id
     </select>
 
     <select id="selectOnlyActivities" resultType="java.util.Map">
-        select
-            activity.id,
-            activity."name",
-            activity.category,
-            activity.venue,
-            activity.price,
-            activity.description,
-            seat.id as seat_id,
-            seat.seat_rows,
-            split_part(seat.id, '-', 1) AS "column",
-            split_part(seat.id, '-', 2) AS "row",
-            activity_image.content_type,
-            CASE WHEN activity_image.activity_uuid IS NOT NULL
-                 THEN '/v1/activity/activityImage/' || activity.id END AS image_url
-        from
-            "interviewworks_ticket"."activity" activity
-                LEFT JOIN "interviewworks_ticket".seat seat
-                          ON activity.id = seat.activity_id
-                LEFT JOIN "interviewworks_ticket".activity_image activity_image
+        select activity.id,
+               activity."name",
+               activity.category,
+               activity.venue,
+               activity.price,
+               activity.description,
+               seat.id                                                       as seat_id,
+               seat.seat_rows,
+               split_part(seat.id, '-', 1)                                   AS "column",
+               split_part(seat.id, '-', 2)                                   AS "row",
+               activity_image.content_type,
+               CASE
+                   WHEN activity_image.activity_uuid IS NOT NULL
+                       THEN '/v1/activity/activityImage/' || activity.id END AS image_url
+        from "interviewworks_ticket"."activity" activity
+                 LEFT JOIN "interviewworks_ticket".seat seat
+                           ON activity.id = seat.activity_id
+                 LEFT JOIN "interviewworks_ticket".activity_image activity_image
                            ON activity_image.activity_uuid = activity.activity_uuid
         WHERE activity.id = #{id}
         order by activity.id
     </select>
 
     <select id="selectAllSessions" resultType="java.util.Map">
-        select
-            "session".id,
-            "session".activity_id,
-            activity."name",
-            "session"."date",
-            "session"."time",
-            "session".salesdate,
-            "session".salestime,
-            "session".capacity,
-            "session".reserved,
-            "session".sold,
-            "session".status
-        from
-            "interviewworks_ticket"."session" "session"
-                inner join "interviewworks_ticket".activity activity
-                           on "session".activity_id = activity.id
+        select "session".id,
+               "session".activity_id,
+               activity."name",
+               "session"."date",
+               "session"."time",
+               "session".salesdate,
+               "session".salestime,
+               "session".capacity,
+               "session".reserved,
+               "session".sold,
+               "session".status
+        from "interviewworks_ticket"."session" "session"
+                 inner join "interviewworks_ticket".activity activity
+                            on "session".activity_id = activity.id
         order by "session".id
     </select>
 
     <select id="selectAllticket" resultType="java.util.Map">
-        select
-            ticket.orderno,
-            ticket.session_id,
-            ticket.zone_name,
-            ticket.ticket_type_name,
-            ticket."name",
-            ticket."date",
-            ticket."time",
-            ticket.status,
-            ticket.seat,
-            ticket.quantity,
-            ticket.price,
-            ticket.payprice,
-            ticket.expires_at,
-            ticket.paid_at,
-            ticket.cancelled_at
-        from
-            "interviewworks_ticket".ticket ticket
+        select ticket.orderno,
+               ticket.session_id,
+               ticket.zone_name,
+               ticket.ticket_type_name,
+               ticket."name",
+               ticket."date",
+               ticket."time",
+               ticket.status,
+               ticket.seat,
+               ticket.quantity,
+               ticket.price,
+               ticket.payprice,
+               ticket.expires_at,
+               ticket.paid_at,
+               ticket.cancelled_at
+        from "interviewworks_ticket".ticket ticket
         order by ticket.created_date, ticket.updated_date
     </select>
 
     <!-- 新增才產生活動編號；指定 id 會以 UPSERT 寫入，更新時沿用活動 UUID。 -->
     <select id="create_activity" resultType="java.util.Map">
         WITH next_activity AS (
-        INSERT INTO "interviewworks_ticket".activity_sequence
-        (
-            activity_date,
-            current_no
-        )
-        SELECT
-            CURRENT_DATE,
-            1
+        INSERT
+        INTO "interviewworks_ticket".activity_sequence
+        (activity_date,
+         current_no)
+        SELECT CURRENT_DATE,
+               1
             WHERE #{id} IS NULL OR #{id} = ''
         ON CONFLICT (activity_date)
-            DO UPDATE
-                   SET current_no = "interviewworks_ticket".activity_sequence.current_no + 1
-                   RETURNING
-                   'ACT'
-                   || '-' || TO_CHAR(activity_date, 'YYYYMMDD')
-                   || '-' || LPAD(current_no::TEXT, 3, '0') AS id
-                   ),
-                   activity_id AS (
-               SELECT #{id} AS id
-               WHERE #{id} IS NOT NULL
-                 AND #{id} != ''
-               UNION ALL
-               SELECT id
-               FROM next_activity
-                   )
-               INSERT INTO "interviewworks_ticket"."activity"
-               (
-                   id,
-                   "name",
-                   category,
-                   venue,
-                   price,
-                   description
-               )
-        SELECT
-            activity_id.id,
-            #{name},
-            #{category},
-            #{venue},
-            #{price},
-            #{description}
-        FROM activity_id
-            ON CONFLICT (id)
-    DO UPDATE SET
+            DO
+        UPDATE
+            SET current_no = "interviewworks_ticket".activity_sequence.current_no + 1
+            RETURNING
+            'ACT'
+            || '-' || TO_CHAR(activity_date, 'YYYYMMDD')
+            || '-' || LPAD(current_no::TEXT, 3, '0') AS id
+            ),
+            activity_id AS (
+        SELECT #{id} AS id
+        WHERE #{id} IS NOT NULL
+          AND #{id} != ''
+        UNION ALL
+        SELECT id
+        FROM next_activity
+            )
+        INSERT
+        INTO "interviewworks_ticket"."activity"
+        (id,
+         "name",
+         category,
+         venue,
+         price,
+         description)
+        SELECT activity_id.id,
+               #{name},
+               #{category},
+               #{venue},
+               #{price},
+               #{description}
+        FROM activity_id ON CONFLICT (id)
+    DO
+        UPDATE SET
             "name" = EXCLUDED."name",
             category = EXCLUDED.category,
             venue = EXCLUDED.venue,
@@ -157,12 +152,20 @@
     </select>
 
     <insert id="upsertActivityImage">
-        INSERT INTO "interviewworks_ticket".activity_image
-            (activity_uuid, filename, content_type, width, height, image_data)
-        VALUES
-            (#{activity_uuid}, #{filename}, 'image/jpeg', #{width}, #{height}, #{image_data})
-        ON CONFLICT (activity_uuid)
-        DO UPDATE SET
+        INSERT INTO "interviewworks_ticket".activity_image(activity_uuid,
+                                                           filename,
+                                                           content_type,
+                                                           width,
+                                                           height,
+                                                           image_data)
+        VALUES (#{activity_uuid},
+                #{filename},
+                'image/jpeg',
+                #{width},
+                #{height},
+                #{image_data}) ON CONFLICT (activity_uuid)
+        DO
+        UPDATE SET
             filename = EXCLUDED.filename,
             content_type = EXCLUDED.content_type,
             width = EXCLUDED.width,
@@ -171,133 +174,122 @@
     </insert>
 
     <delete id="deleteActivityImage">
-        DELETE FROM "interviewworks_ticket".activity_image
-        WHERE activity_uuid = (
-            SELECT activity_uuid
-            FROM "interviewworks_ticket".activity
-            WHERE id = #{id}
-              AND NOT EXISTS (
-                SELECT 1
-                FROM "interviewworks_ticket"."session" "session"
-                WHERE "session".activity_id = activity.id
-              )
-        )
+        DELETE
+        FROM "interviewworks_ticket".activity_image
+        WHERE activity_uuid = (SELECT activity_uuid
+                               FROM "interviewworks_ticket".activity
+                               WHERE id = #{id}
+                                 AND NOT EXISTS (SELECT 1
+                                                 FROM "interviewworks_ticket"."session" "session"
+                                                 WHERE "session".activity_id = activity.id))
     </delete>
 
     <delete id="delete_seat_by_activity">
-        DELETE FROM "interviewworks_ticket"."seat"
-               WHERE activity_id = #{activity_id}
+        DELETE
+        FROM "interviewworks_ticket"."seat"
+        WHERE activity_id = #{activity_id}
     </delete>
 
     <insert id="create_seat">
         INSERT INTO "interviewworks_ticket"."seat"
-        (
-            id,
-            activity_id,
-            seat_rows,
-            seats_per_row
-        )
-        VALUES
-            (
-                #{id},
+        (id,
+         activity_id,
+         seat_rows,
+         seats_per_row)
+        VALUES (#{id},
                 #{activity_id},
                 #{seat_rows},
-                #{seats_per_row}
-            )
-            ON CONFLICT (id, activity_id)
-        DO UPDATE SET
+                #{seats_per_row}) ON CONFLICT (id, activity_id)
+        DO
+        UPDATE SET
             seat_rows = EXCLUDED.seat_rows,
             seats_per_row = EXCLUDED.seats_per_row
     </insert>
 
     <select id="lockActivity" resultType="java.lang.String">
-        SELECT id FROM interviewworks_ticket.activity WHERE id = #{id} FOR UPDATE
+        SELECT id
+        FROM interviewworks_ticket.activity
+        WHERE id = #{id} FOR UPDATE
     </select>
 
     <select id="activityHasSessions" resultType="boolean">
-        SELECT EXISTS (SELECT 1 FROM interviewworks_ticket.session WHERE activity_id = #{id})
+        SELECT EXISTS (SELECT 1 FROM interviewworks_ticket.session
+                                WHERE activity_id = #{id})
     </select>
 
     <!-- 即使服務先檢查過，刪除 SQL 仍拒絕已有場次的活動，保留相關歷史資料。 -->
     <delete id="delete_activity">
-        DELETE FROM "interviewworks_ticket".activity activity
+        DELETE
+        FROM "interviewworks_ticket".activity activity
         WHERE activity.id = #{id}
-          AND NOT EXISTS (
-            SELECT 1
-            FROM "interviewworks_ticket"."session" "session"
-            WHERE "session".activity_id = activity.id
-          )
+          AND NOT EXISTS (SELECT 1
+                          FROM "interviewworks_ticket"."session" "session"
+                          WHERE "session".activity_id = activity.id)
     </delete>
 
     <!-- 指定 id 時更新場次，未指定時產生編號；更新不將既有 sold 歸零。 -->
     <select id="create_session" resultType="java.lang.String">
         WITH next_session AS (
-        INSERT INTO "interviewworks_ticket".session_sequence
-        (
-            session_date,
-            current_no
-        )
-        SELECT
-            CURRENT_DATE,
-            1
+        INSERT
+        INTO "interviewworks_ticket".session_sequence
+            (session_date, current_no)
+        SELECT CURRENT_DATE,
+               1
             WHERE #{id} IS NULL OR #{id} = ''
-        ON CONFLICT (session_date)
-            DO UPDATE
-                   SET current_no = "interviewworks_ticket".session_sequence.current_no + 1
-                   RETURNING
-                   'S'
-                   || '-' || TO_CHAR(session_date, 'YYYYMMDD')
-                   || '-' || LPAD(current_no::TEXT, 3, '0') AS id
-                   ),
-                   session_id AS (
-               SELECT #{id} AS id
-               WHERE #{id} IS NOT NULL
-                 AND #{id} != ''
-               UNION ALL
-               SELECT id
-               FROM next_session
-                   )
-               INSERT INTO "interviewworks_ticket"."session"
-               (
-                   id,
-                   activity_id,
-                   "date",
-                   "time",
-                   salesdate,
-                   salestime,
-                   capacity,
-                   sold,
-                   status
-               )
-        SELECT
-            session_id.id,
-            #{activity_id},
-            #{date},
-            #{time},
-            #{salesdate},
-            #{salestime},
-            #{capacity},
-            0,
-            #{status}
-        FROM session_id
-            ON CONFLICT (id)
-    DO UPDATE SET
+        ON CONFLICT (session_date) DO
+        UPDATE
+            SET current_no = "interviewworks_ticket".session_sequence.current_no + 1
+            RETURNING
+            'S'
+            || '-' || TO_CHAR(session_date, 'YYYYMMDD')
+            || '-' || LPAD(current_no::TEXT, 3, '0') AS id
+            ),
+            session_id AS (
+        SELECT #{id} AS id
+        WHERE #{id} IS NOT NULL
+          AND #{id} != ''
+        UNION ALL
+        SELECT id
+        FROM next_session
+            )
+        INSERT
+        INTO "interviewworks_ticket"."session"
+        (id,
+         activity_id,
+         "date",
+         "time",
+         salesdate,
+         salestime,
+         capacity,
+         sold,
+         status)
+        SELECT session_id.id,
+               #{activity_id},
+               #{date},
+               #{time},
+               #{salesdate},
+               #{salestime},
+               #{capacity},
+               0,
+               #{status}
+        FROM session_id ON CONFLICT (id)
+    DO
+        UPDATE SET
             activity_id = EXCLUDED.activity_id,
-                       "date" = EXCLUDED."date",
-                       "time" = EXCLUDED."time",
-                       salesdate = EXCLUDED.salesdate,
-                       salestime = EXCLUDED.salestime,
-                       capacity = EXCLUDED.capacity,
-                       status = EXCLUDED.status
-                       RETURNING id
+            "date" = EXCLUDED."date",
+            "time" = EXCLUDED."time",
+            salesdate = EXCLUDED.salesdate,
+            salestime = EXCLUDED.salestime,
+            capacity = EXCLUDED.capacity,
+            status = EXCLUDED.status
+            RETURNING id
     </select>
 
     <select id="selectOnlySeats" resultType="java.util.Map">
-        select
-            seat.id,
-            seat.activity_id,
-            seat.seat_rows,
-            seat.seats_per_row
+        select seat.id,
+               seat.activity_id,
+               seat.seat_rows,
+               seat.seats_per_row
         from "interviewworks_ticket".seat seat
         where seat.activity_id = #{activity_id}
     </select>

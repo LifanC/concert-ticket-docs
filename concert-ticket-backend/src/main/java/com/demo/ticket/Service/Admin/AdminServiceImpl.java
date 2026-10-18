@@ -11,6 +11,7 @@ import com.demo.ticket.Config.WebSocket.NotifierConsumer;
 import com.demo.ticket.security.LoginUser;
 import jakarta.annotation.Resource;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -287,7 +288,7 @@ public class AdminServiceImpl implements AdminService{
         }
         if (adminMapper.activityHasSessions(id)) {
             String reason = "活動 " + id + " 已建立場次，無法刪除。請保留活動及相關訂單資料。";
-            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             assert authentication != null;
             String email = authentication.getPrincipal() instanceof LoginUser user
                     ? user.email() : authentication.getName();

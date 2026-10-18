@@ -4,21 +4,20 @@
     <!-- 閱讀導引：訂票的 MyBatis SQL；語句 id 對應 Java Mapper 方法，#{...} 由 MyBatis 綁定參數。 -->
 
     <select id="selectOnlyActivities" resultType="java.util.Map">
-        select distinct
-            activity.id,
-            '主舞台・' || activity."name" as note,
-            TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "value",
-            TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'FMMM"月"FMDD"日"')
-                || ' (' ||
-            CASE EXTRACT(ISODOW FROM TO_DATE("session"."date", 'YYYY/MM/DD'))
-                WHEN 1 THEN '一'
-                WHEN 2 THEN '二'
-                WHEN 3 THEN '三'
-                WHEN 4 THEN '四'
-                WHEN 5 THEN '五'
-                WHEN 6 THEN '六'
-                WHEN 7 THEN '日'
-                end || ') ' AS "label"
+        select distinct activity.id,
+                        '主舞台・' || activity."name"                                  as note,
+                        TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'YYYY-MM-DD') as "value",
+                        TO_CHAR(TO_DATE("session"."date", 'YYYY/MM/DD'), 'FMMM"月"FMDD"日"')
+                            || ' (' ||
+                        CASE EXTRACT(ISODOW FROM TO_DATE("session"."date", 'YYYY/MM/DD'))
+                            WHEN 1 THEN '一'
+                            WHEN 2 THEN '二'
+                            WHEN 3 THEN '三'
+                            WHEN 4 THEN '四'
+                            WHEN 5 THEN '五'
+                            WHEN 6 THEN '六'
+                            WHEN 7 THEN '日'
+                            end || ') '                                                AS "label"
         FROM "interviewworks_ticket"."activity" activity
                  INNER JOIN "interviewworks_ticket"."session" "session"
                             ON activity.id = "session".activity_id

@@ -1,7 +1,9 @@
 // 閱讀導引：驗證訂單狀態轉換及資料更新的結果，防止付款、取消與逾期流程破壞一致性。
 package com.demo.ticket;
 
-import com.demo.ticket.Dto.Booking.*;
+import com.demo.ticket.Dto.Booking.BookingOrder;
+import com.demo.ticket.Dto.Booking.BookingSaveTicket;
+import com.demo.ticket.Dto.Booking.bookingOrderStatus;
 import com.demo.ticket.Exception.BookingException;
 import com.demo.ticket.Mapper.BookingCoreMapper;
 import com.demo.ticket.Mapper.BookingMapper;
@@ -13,12 +15,23 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InOrder;
 import org.springframework.http.HttpStatus;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import static com.demo.ticket.Dto.Booking.bookingOrderStatus.*;
+import static com.demo.ticket.Dto.Booking.bookingOrderStatus.EXPIRED;
+import static com.demo.ticket.Dto.Booking.bookingOrderStatus.PAID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class BookingOrderServiceTests {
+
     BookingMapper mapper;
     BookingCoreMapper core;
     BookingOrderService service;
@@ -65,8 +78,8 @@ class BookingOrderServiceTests {
         assertTrue(service.transition(order));
         verify(core).transitionSeat(argThat(seat ->
                 seat.getOrderno().equals("TEST-1") && seat.getSessionId().equals("S1")
-                && seat.getSeat().equals("A1")
-                && seat.getStatus().equals(target == PAID ? "SOLD" : "AVAILABLE")));
+                        && seat.getSeat().equals("A1")
+                        && seat.getStatus().equals(target == PAID ? "SOLD" : "AVAILABLE")));
         if (target == PAID) {
             verify(mapper).dopaypriceUpdateSession(any());
             verify(mapper, never()).cancelSession(any());

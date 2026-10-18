@@ -17,7 +17,7 @@ public class ApiResponse {
                 "code", code,
                 "status", code.value(),
                 "data", data,
-                "timestamp", ConvertFormat.time("")
+                "timestamp", ConvertFormat.now()
         );
     }
 

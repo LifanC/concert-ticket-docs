@@ -1,14 +1,18 @@
-// 閱讀導引：設定 SockJS/STOMP 連線、訊息路由及連線身分驗證，供會員接收即時通知。
 package com.demo.ticket.Config.WebSocket;
 
-import lombok.extern.slf4j.Slf4j;
 import com.demo.ticket.Common.ConvertFormat;
 import com.demo.ticket.Service.JwtTokenService;
+import com.demo.ticket.security.RedisRateLimiter;
+import com.demo.ticket.security.RequestLimits;
 import io.jsonwebtoken.Claims;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -16,95 +20,125 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.*;
 
 import java.util.Collections;
-import java.util.Objects;
 
 @Configuration
 @EnableWebSocketMessageBroker
-@Slf4j
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final JwtTokenService tokens;
+    private final RedisRateLimiter limiter;
+    private final RequestLimits limits;
+    private final WebSocketSessionGuard guard;
+    @Value("${security.allowed-origins:http://localhost:5173,https://concert-ticket-frontend.onrender.com}")
+    private String[] allowedOrigins;
 
-    private final JwtTokenService jwtTokenService;
-
-    /**
-     * 注入 JWT 驗證服務，在 STOMP CONNECT 階段建立 WebSocket 使用者身分。
-     */
     public WebSocketConfig(
-            JwtTokenService jwtTokenService
-    ) {
-        this.jwtTokenService = jwtTokenService;
+            JwtTokenService tokens,
+            RedisRateLimiter limiter,
+            RequestLimits limits,
+            WebSocketSessionGuard guard) {
+        this.tokens = tokens;
+        this.limiter = limiter;
+        this.limits = limits;
+        this.guard = guard;
     }
 
-    /**
-     * 啟用 /queue 訊息代理並設定 /user 個人訊息前綴。
-     */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/queue");
         registry.setUserDestinationPrefix("/user");
     }
 
-    /**
-     * 註冊 /ws 連線端點，啟用 SockJS 並設定允許的來源模式。
-     */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+        registry.addEndpoint("/ws").setAllowedOrigins(allowedOrigins)
+                .addInterceptors(new com.demo.ticket.security.ClientIpHandshakeInterceptor()).withSockJS();
     }
 
-    /**
-     * 安裝 STOMP 入站攔截器，在 CONNECT 階段驗證 token 並綁定會員身分。
-     */
     @Override
-    public void configureClientInboundChannel(
-            ChannelRegistration registration) {
-        registration.interceptors(new ChannelInterceptor() {
-
-                    /**
-                     * 處理入站 STOMP 訊息；CONNECT 時驗證 JWT 並設定使用者，回傳訊息繼續傳遞。
-                     */
-                    @Override
-                    public Message<?> preSend(
-                            @NonNull Message<?> message,
-                            @NonNull MessageChannel channel) {
-                        StompHeaderAccessor accessor =
-                                MessageHeaderAccessor.getAccessor(
-                                        message,
-                                        StompHeaderAccessor.class
-                                );
-                        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
-                            String authHeader = accessor.getFirstNativeHeader("Authorization");
-                            log.info("Authorization = {}", authHeader);
-                            String accessToken = ConvertFormat.resolveToken(authHeader);
-                            Claims accessClaims = jwtTokenService.accessTokenInRedis(accessToken);
-                            // 從 JWT 取得 email
-                            String accessJwt = accessClaims.getSubject();
-                            log.info("JWT email = {}", accessJwt);
-                            // 建立目前 WebSocket 使用者
-                            UsernamePasswordAuthenticationToken authentication =
-                                    new UsernamePasswordAuthenticationToken(
-                                            accessJwt,
-                                            null,
-                                            Collections.emptyList()
-                                    );
-
-                            accessor.setUser(authentication);
-                            log.info(
-                                    "設定 WebSocket Principal = {}",
-                                    Objects.requireNonNull(accessor.getUser()).getName()
-                            );
-                        }
-                        return message;
-                    }
-
-                }
-        );
+    public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
+        registry.setMessageSizeLimit(16 * 1024).setSendBufferSizeLimit(64 * 1024)
+                .setSendTimeLimit(10000).setTimeToFirstMessage(10000).addDecoratorFactory(guard);
     }
 
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(new ChannelInterceptor() {
+            @Override
+            @NullMarked
+            public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+                if (accessor == null) {
+                    throw new IllegalArgumentException("Missing STOMP headers");
+                }
+                StompCommand command = accessor.getCommand();
+                if (command == StompCommand.CONNECT) {
+                    String token = ConvertFormat.resolveToken(
+                            accessor.getFirstNativeHeader("Authorization")
+                    );
+                    if (token == null || token.isBlank()) {
+                        throw new IllegalArgumentException("缺少有效登入憑證");
+                    }
+                    Claims claims = tokens.accessTokenInRedis(token);
+                    limiter.check(
+                            "ws-connect-user",
+                            claims.getSubject(),
+                            limits.getWsConnectPerUser(),
+                            limits.getWindowSeconds()
+                    );
+                    guard.authenticate(accessor.getSessionId(), token, claims.getSubject());
+                    accessor.setUser(
+                            new UsernamePasswordAuthenticationToken(
+                                    claims.getSubject(),
+                                    null,
+                                    Collections.emptyList()
+                            )
+                    );
+                } else if (command != StompCommand.DISCONNECT) {
+                    guard.validate(accessor.getSessionId());
+                    if (accessor.getUser() == null) {
+                        throw new IllegalArgumentException("Missing principal");
+                    }
+                    limiter.check(
+                            "ws-message-user",
+                            accessor.getUser().getName(),
+                            limits.getWsMessagesPerUser(),
+                            limits.getWindowSeconds()
+                    );
+                    if (command == StompCommand.SUBSCRIBE) {
+                        if (!"/user/queue/notifications".equals(accessor.getDestination())) {
+                            throw new IllegalArgumentException("Subscription denied");
+                        }
+                        guard.subscribe(accessor.getSessionId(), accessor.getSubscriptionId());
+                    } else if (command == StompCommand.UNSUBSCRIBE) {
+                        guard.unsubscribe(accessor.getSessionId(), accessor.getSubscriptionId());
+                    } else if (command != null) {
+                        throw new IllegalArgumentException("Command denied");
+                    }
+                }
+                return message;
+            }
+        });
+    }
+
+    @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        registration.interceptors(new ChannelInterceptor() {
+            @Override
+            @NullMarked
+            public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
+                SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.wrap(message);
+                if (accessor.getMessageType() == SimpMessageType.MESSAGE) {
+                    try {
+                        guard.validate(accessor.getSessionId());
+                    } catch (RuntimeException ex) {
+                        return null;
+                    }
+                }
+                return message;
+            }
+        });
+    }
 }

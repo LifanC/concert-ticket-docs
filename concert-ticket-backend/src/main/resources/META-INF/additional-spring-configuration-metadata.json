@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "analytics.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否啟用 Python 銷售報表排程；測試環境可設為 false."
+    }
+  ]
+}

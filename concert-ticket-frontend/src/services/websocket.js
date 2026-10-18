@@ -2,6 +2,7 @@
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { toFindCookie } from '@/components/componentsJs/cookie.js'
+import { refreshAccessToken } from '@/services/api'
 
 const webSocketUrl = import.meta.env.VITE_WS_URL || '/api/ws';
 
@@ -41,28 +42,35 @@ function connectWebSocket() {
 
     console.log("開始建立 websocket");
 
-    let accessToken = toFindCookie('accessToken')
-
-    client = new Client({
+    const connection = new Client({
         webSocketFactory: () =>
             new SockJS(new URL(webSocketUrl, window.location.origin).href),
-        connectHeaders: {
-            Authorization: `Bearer ${accessToken}`
+        beforeConnect: async () => {
+            let token = toFindCookie('accessToken');
+            try {
+                const part = token?.split('.')[1];
+                const payload = part?.replace(/-/g, '+').replace(/_/g, '/');
+                const claims = payload ? JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '='))) : null;
+                if (!claims?.exp || claims.exp * 1000 <= Date.now() + 10000) token = await refreshAccessToken();
+            } catch {
+                // Stop reconnecting if the session is gone; the normal login flow can start a new client.
+                connection.deactivate();
+                return;
+            }
+            connection.connectHeaders = { Authorization: `Bearer ${token}` };
         },
 
         reconnectDelay: 5000,
         heartbeatIncoming: 10000,
         heartbeatOutgoing: 10000,
 
-        debug: (msg) => {
-            console.log(msg);
-        },
+        debug: () => { },
 
         /** STOMP 連線成功後訂閱會員個人通知；重新連線時也會重新建立訂閱。 */
         onConnect() {
             console.log("WebSocket 連線成功");
 
-            client.subscribe(
+            connection.subscribe(
                 "/user/queue/notifications",
                 (msg) => {
                     const notification = JSON.parse(msg.body);
@@ -83,7 +91,8 @@ function connectWebSocket() {
         }
     });
 
-    client.activate();
+    client = connection;
+    connection.activate();
 }
 
 /** 停止目前 STOMP 客戶端並清空連線參照。 */
